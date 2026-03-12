@@ -35,7 +35,9 @@ import Colors from '@/constants/colors';
 import { useApp } from '@/providers/AppProvider';
 import { useMessageRewrite } from '@/hooks/useMessageRewrite';
 import CoachingNudgeBanner from '@/components/CoachingNudgeBanner';
+import SpiralMessageBanner from '@/components/SpiralMessageBanner';
 import { useMessageCoaching } from '@/hooks/useCoaching';
+import { useRelationshipSpiral } from '@/hooks/useRelationshipSpiral';
 import {
   RELATIONSHIP_OPTIONS,
   EMOTIONAL_STATE_OPTIONS,
@@ -213,6 +215,7 @@ export default function MessagesScreen() {
   } = useMessageRewrite();
 
   const messageCoachingNudge = useMessageCoaching();
+  const relationshipSpiral = useRelationshipSpiral();
   const [coachingDismissed, setCoachingDismissed] = useState<boolean>(false);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -351,6 +354,13 @@ export default function MessagesScreen() {
           <Text style={styles.charCount}>{inputText.length} characters</Text>
         )}
       </View>
+
+      {relationshipSpiral.isActive && relationshipSpiral.messageIntervention && inputText.trim().length === 0 && (
+        <SpiralMessageBanner
+          message={relationshipSpiral.messageIntervention}
+          riskLevel={relationshipSpiral.riskLevel === 'calm' ? 'watchful' : relationshipSpiral.riskLevel}
+        />
+      )}
 
       {messageCoachingNudge && !coachingDismissed && inputText.trim().length === 0 && (
         <CoachingNudgeBanner

@@ -10,13 +10,14 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Stack } from 'expo-router';
-import { MessageCircle, Sparkles, BookmarkCheck, BarChart3, ChevronRight, Plus, Zap, Brain, TrendingDown, TrendingUp, Minus, Eye, Compass } from 'lucide-react-native';
+import { MessageCircle, Sparkles, BookmarkCheck, BarChart3, ChevronRight, Plus, Zap, Brain, TrendingDown, TrendingUp, Minus, Eye, Compass, HeartCrack } from 'lucide-react-native';
 import { settingsRepository } from '@/services/repositories';
 import AICompanionOnboarding from '@/components/AICompanionOnboarding';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useAICompanion, SUGGESTED_PROMPTS } from '@/providers/AICompanionProvider';
 import { useCoaching } from '@/hooks/useCoaching';
+import { useRelationshipSpiral } from '@/hooks/useRelationshipSpiral';
 
 const ONBOARDING_KEY = 'ai_companion_onboarded';
 
@@ -33,6 +34,7 @@ export default function CompanionScreen() {
   } = useAICompanion();
 
   const { dailyCoaching } = useCoaching();
+  const relationshipSpiral = useRelationshipSpiral();
 
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
   const [onboardingChecked, setOnboardingChecked] = useState<boolean>(false);
@@ -369,6 +371,25 @@ export default function CompanionScreen() {
             <View style={styles.exploreCardContent}>
               <Text style={styles.exploreCardTitle}>Emotional Patterns</Text>
               <Text style={styles.exploreCardDesc}>Trigger chains, emotion clusters & growth signals</Text>
+            </View>
+            <ChevronRight size={18} color={Colors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.exploreCard}
+            onPress={() => router.push('/relationship-spiral' as never)}
+            activeOpacity={0.7}
+            testID="spiral-btn"
+          >
+            <View style={[styles.exploreCardIcon, { backgroundColor: '#FDECEA' }]}>
+              <HeartCrack size={20} color="#C94438" />
+            </View>
+            <View style={styles.exploreCardContent}>
+              <Text style={styles.exploreCardTitle}>Relationship Signals</Text>
+              <Text style={styles.exploreCardDesc}>
+                {relationshipSpiral.isActive
+                  ? `${relationshipSpiral.signals.length} active signal${relationshipSpiral.signals.length !== 1 ? 's' : ''} detected`
+                  : 'Monitor spiral patterns early'}
+              </Text>
             </View>
             <ChevronRight size={18} color={Colors.textMuted} />
           </TouchableOpacity>

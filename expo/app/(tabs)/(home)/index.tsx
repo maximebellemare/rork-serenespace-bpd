@@ -34,7 +34,9 @@ import { VALIDATION_MESSAGES } from '@/constants/data';
 import { useApp } from '@/providers/AppProvider';
 import UpgradePromptCard from '@/components/UpgradePromptCard';
 import BehavioralCoachingCard from '@/components/BehavioralCoachingCard';
+import RelationshipSpiralCard from '@/components/RelationshipSpiralCard';
 import { useCoaching } from '@/hooks/useCoaching';
+import { useRelationshipSpiral } from '@/hooks/useRelationshipSpiral';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -45,6 +47,7 @@ export default function HomeScreen() {
   const crisisPrediction = useCrisisPrediction();
   const emotionalStorm = useEmotionalStorm();
   const { dailyCoaching } = useCoaching();
+  const relationshipSpiral = useRelationshipSpiral();
 
   const ritualQuery = useQuery({
     queryKey: ['ritual'],
@@ -312,6 +315,17 @@ export default function HomeScreen() {
 
         <Animated.View style={{ opacity: fadeAnim }}>
           <HomeInsightsPreview />
+        </Animated.View>
+
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <RelationshipSpiralCard
+            riskLevel={relationshipSpiral.riskLevel}
+            message={relationshipSpiral.message}
+            supportMessage={relationshipSpiral.supportMessage}
+            signals={relationshipSpiral.signals}
+            interventions={relationshipSpiral.interventions}
+            score={relationshipSpiral.score}
+          />
         </Animated.View>
 
         <Animated.View style={{ opacity: fadeAnim }}>
