@@ -143,7 +143,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
-          <Text style={styles.greeting}>Steady</Text>
+          <Text style={styles.greeting}>BPD Companion</Text>
           <Text style={styles.subtitle}>You're here. That matters.</Text>
         </Animated.View>
 
