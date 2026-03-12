@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Phone, MessageCircle, Heart, X, Shield } from 'lucide-react-native';
+import { Phone, MessageCircle, Heart, X, Shield, Zap } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useApp } from '@/providers/AppProvider';
@@ -189,6 +189,22 @@ export default function SafetyModeScreen() {
           <Text style={styles.groundingText}>Try a grounding exercise</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.regulationButton}
+          onPress={() => {
+            if (Platform.OS !== 'web') {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            }
+            router.back();
+            setTimeout(() => router.push('/guided-regulation'), 300);
+          }}
+          activeOpacity={0.7}
+          testID="guided-regulation-safety"
+        >
+          <Zap size={18} color={Colors.accent} />
+          <Text style={styles.regulationText}>Guided Regulation Mode</Text>
+        </TouchableOpacity>
+
         <Text style={styles.reminder}>
           You've survived every hard moment before this one.{'\n'}
           You will survive this one too.
@@ -330,6 +346,23 @@ const styles = StyleSheet.create({
   groundingText: {
     color: Colors.white,
     fontSize: 16,
+    fontWeight: '600' as const,
+  },
+  regulationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.accentLight,
+    borderRadius: 24,
+    paddingVertical: 14,
+    gap: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: Colors.accent,
+  },
+  regulationText: {
+    color: Colors.accent,
+    fontSize: 15,
     fontWeight: '600' as const,
   },
   reminder: {

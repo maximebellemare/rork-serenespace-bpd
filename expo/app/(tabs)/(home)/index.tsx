@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Shield, Heart, Wind, Sparkles, BarChart3, ChevronRight } from 'lucide-react-native';
+import { Shield, Heart, Wind, Sparkles, BarChart3, ChevronRight, Zap } from 'lucide-react-native';
 import EmotionalTrendsCard from '@/components/EmotionalTrendsCard';
 import EarlyWarningBanner from '@/components/EarlyWarningBanner';
 import { useEarlyWarning } from '@/hooks/useEarlyWarning';
@@ -189,6 +189,29 @@ export default function HomeScreen() {
         <Text style={styles.mainButtonHint}>
           Tap to start a guided check-in
         </Text>
+
+        <Animated.View style={[styles.regulationBanner, { opacity: fadeAnim }]}>
+          <TouchableOpacity
+            style={styles.regulationButton}
+            onPress={() => {
+              if (Platform.OS !== 'web') {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              }
+              router.push('/guided-regulation');
+            }}
+            activeOpacity={0.7}
+            testID="guided-regulation-button"
+          >
+            <View style={styles.regulationIconWrap}>
+              <Zap size={20} color="#D4956A" />
+            </View>
+            <View style={styles.regulationTextWrap}>
+              <Text style={styles.regulationTitle}>Guided Regulation</Text>
+              <Text style={styles.regulationDesc}>Step-by-step calming when distress is high</Text>
+            </View>
+            <ChevronRight size={16} color={Colors.textMuted} />
+          </TouchableOpacity>
+        </Animated.View>
 
         <Animated.View style={[styles.quickActions, { opacity: fadeAnim }]}>
           <TouchableOpacity
@@ -470,5 +493,39 @@ const styles = StyleSheet.create({
   insightsBannerDesc: {
     fontSize: 13,
     color: 'rgba(255,255,255,0.8)',
+  },
+  regulationBanner: {
+    marginBottom: 4,
+  },
+  regulationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.warmGlow,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.accentLight,
+  },
+  regulationIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: Colors.accentLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  regulationTextWrap: {
+    flex: 1,
+  },
+  regulationTitle: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.text,
+  },
+  regulationDesc: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
 });
