@@ -334,16 +334,16 @@ export default function CompanionScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.exploreCard}
-            onPress={() => router.push('/companion/memory' as never)}
+            onPress={() => router.push('/companion/emotional-patterns' as never)}
             activeOpacity={0.7}
-            testID="memory-btn"
+            testID="patterns-btn"
           >
             <View style={[styles.exploreCardIcon, { backgroundColor: '#EDE7F6' }]}>
               <Brain size={20} color="#7E57C2" />
             </View>
             <View style={styles.exploreCardContent}>
-              <Text style={styles.exploreCardTitle}>Emotional Memory</Text>
-              <Text style={styles.exploreCardDesc}>Patterns, triggers & personalized insights</Text>
+              <Text style={styles.exploreCardTitle}>Emotional Patterns</Text>
+              <Text style={styles.exploreCardDesc}>Trigger chains, emotion clusters & growth signals</Text>
             </View>
             <ChevronRight size={18} color={Colors.textMuted} />
           </TouchableOpacity>
