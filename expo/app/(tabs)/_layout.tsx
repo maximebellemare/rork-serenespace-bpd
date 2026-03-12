@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Home, BookOpen, Wrench, MessageSquare, Sparkles, Users, GraduationCap } from "lucide-react-native";
+import { Home, BookOpen, Wrench, MessageSquare, Sparkles, Users, GraduationCap, User } from "lucide-react-native";
 import React from "react";
 import Colors from "@/constants/colors";
 
@@ -68,6 +68,13 @@ export default function TabLayout() {
         options={{
           title: "Messages",
           tabBarIcon: ({ color, size }) => <MessageSquare size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
         }}
       />
     </Tabs>
