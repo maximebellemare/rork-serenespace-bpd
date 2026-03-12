@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, ChevronRight, ChevronLeft, Check, Wind, Anchor, BookOpen, Heart, RefreshCw, Search, MessageCircle, Timer } from 'lucide-react-native';
+import { X, ChevronRight, ChevronLeft, Check, Wind, Anchor, BookOpen, Heart, RefreshCw, Search, MessageCircle, Timer, Sparkles } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { EMOTIONS, TRIGGERS, BODY_SENSATIONS, URGES } from '@/constants/data';
@@ -314,6 +314,28 @@ export default function CheckInScreen() {
                 </TouchableOpacity>
               );
             })}
+
+            <TouchableOpacity
+              style={styles.companionSuggestion}
+              onPress={() => {
+                if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.back();
+                setTimeout(() => router.push('/(tabs)/companion' as never), 200);
+              }}
+              activeOpacity={0.7}
+              testID="checkin-companion-cta"
+            >
+              <View style={styles.companionSuggestionIcon}>
+                <Sparkles size={18} color={Colors.primary} />
+              </View>
+              <View style={styles.suggestionContent}>
+                <Text style={styles.companionSuggestionTitle}>Talk this through</Text>
+                <Text style={styles.companionSuggestionMsg}>
+                  {intensity >= 7 ? 'Get calmer support with AI Companion' : 'Process what you\'re feeling with AI Companion'}
+                </Text>
+              </View>
+              <ChevronRight size={16} color={Colors.primary} />
+            </TouchableOpacity>
           </View>
         );
       default:
@@ -617,6 +639,36 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   suggestionMsg: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 19,
+  },
+  companionSuggestion: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    marginTop: 4,
+  },
+  companionSuggestionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: Colors.white,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginRight: 14,
+  },
+  companionSuggestionTitle: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.primaryDark,
+    marginBottom: 3,
+  },
+  companionSuggestionMsg: {
     fontSize: 13,
     color: Colors.textSecondary,
     lineHeight: 19,

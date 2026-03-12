@@ -9,7 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { MessageCircle, Trash2, BookmarkX } from 'lucide-react-native';
+import { MessageCircle, Trash2, BookmarkX, Sparkles, Plus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useAICompanion } from '@/providers/AICompanionProvider';
@@ -22,6 +22,7 @@ export default function SavedConversationsScreen() {
     setActiveConversationId,
     toggleSaveConversation,
     deleteConversation,
+    startNewConversation,
   } = useAICompanion();
 
   const handleOpen = useCallback((conversationId: string) => {
@@ -113,17 +114,36 @@ export default function SavedConversationsScreen() {
 
   const keyExtractor = useCallback((item: AIConversation) => item.id, []);
 
+  const handleNewChat = useCallback(() => {
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    startNewConversation();
+    router.push('/companion/chat' as never);
+  }, [startNewConversation, router]);
+
   const renderEmpty = useCallback(() => {
     return (
       <View style={styles.emptyState}>
-        <Text style={styles.emptyEmoji}>📌</Text>
-        <Text style={styles.emptyTitle}>No saved conversations</Text>
+        <View style={styles.emptyIconWrap}>
+          <Sparkles size={32} color={Colors.primary} />
+        </View>
+        <Text style={styles.emptyTitle}>No saved conversations yet</Text>
         <Text style={styles.emptySubtitle}>
-          When you have a meaningful conversation, tap the bookmark icon to save it here for later.
+          Your conversations will show up here as you use AI Companion. Tap the bookmark icon during a chat to save it.
         </Text>
+        <TouchableOpacity
+          style={styles.emptyButton}
+          onPress={handleNewChat}
+          activeOpacity={0.8}
+          testID="saved-empty-start-btn"
+        >
+          <Plus size={16} color={Colors.white} />
+          <Text style={styles.emptyButtonText}>Start a conversation</Text>
+        </TouchableOpacity>
       </View>
     );
-  }, []);
+  }, [handleNewChat]);
 
   return (
     <View style={styles.container}>
@@ -225,9 +245,14 @@ const styles = StyleSheet.create({
     alignItems: 'center' as const,
     paddingHorizontal: 30,
   },
-  emptyEmoji: {
-    fontSize: 40,
-    marginBottom: 14,
+  emptyIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginBottom: 18,
   },
   emptyTitle: {
     fontSize: 18,
@@ -240,5 +265,20 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center' as const,
     lineHeight: 21,
+    marginBottom: 24,
+  },
+  emptyButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+  },
+  emptyButtonText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.white,
   },
 });

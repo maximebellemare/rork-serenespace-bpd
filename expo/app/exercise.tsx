@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, ChevronRight, Check, RotateCcw } from 'lucide-react-native';
+import { X, ChevronRight, Check, RotateCcw, Sparkles } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { COPING_EXERCISES } from '@/constants/data';
@@ -120,6 +120,19 @@ export default function ExerciseScreen() {
               >
                 <RotateCcw size={18} color={Colors.primary} />
                 <Text style={styles.restartText}>Do it again</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.companionButton}
+                onPress={() => {
+                  router.back();
+                  setTimeout(() => router.push('/(tabs)/companion' as never), 200);
+                }}
+                activeOpacity={0.7}
+                testID="exercise-companion-cta"
+              >
+                <Sparkles size={18} color={Colors.primary} />
+                <Text style={styles.companionButtonText}>Reflect with AI Companion</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -378,6 +391,22 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   restartText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.primary,
+  },
+  companionButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: 8,
+    backgroundColor: Colors.warmGlow,
+    borderRadius: 24,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: Colors.accentLight,
+  },
+  companionButtonText: {
     fontSize: 16,
     fontWeight: '600' as const,
     color: Colors.primary,

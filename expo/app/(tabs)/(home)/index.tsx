@@ -16,6 +16,8 @@ import EarlyWarningBanner from '@/components/EarlyWarningBanner';
 import DailyReflectionCard from '@/components/DailyReflectionCard';
 import SmartCopingCard from '@/components/SmartCopingCard';
 import EarlySupportCard from '@/components/EarlySupportCard';
+import AICompanionHomeCard from '@/components/AICompanionHomeCard';
+import HomeInsightsPreview from '@/components/HomeInsightsPreview';
 import { useEarlyWarning } from '@/hooks/useEarlyWarning';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { useCrisisPrediction } from '@/hooks/useCrisisPrediction';
@@ -279,6 +281,14 @@ export default function HomeScreen() {
             <Text style={styles.quickActionLabel}>Reality Check</Text>
             <Text style={styles.quickActionDesc}>Check facts</Text>
           </TouchableOpacity>
+        </Animated.View>
+
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <AICompanionHomeCard />
+        </Animated.View>
+
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <HomeInsightsPreview />
         </Animated.View>
 
         <Animated.View style={{ opacity: fadeAnim }}>

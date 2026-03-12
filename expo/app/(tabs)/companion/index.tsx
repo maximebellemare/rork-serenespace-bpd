@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useEffect } from 'react';
+import React, { useCallback, useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,13 @@ import {
 import { useRouter } from 'expo-router';
 import { Stack } from 'expo-router';
 import { MessageCircle, Sparkles, BookmarkCheck, BarChart3, ChevronRight, Plus, Zap, Brain, TrendingDown, TrendingUp, Minus, Eye } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import AICompanionOnboarding from '@/components/AICompanionOnboarding';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useAICompanion, SUGGESTED_PROMPTS } from '@/providers/AICompanionProvider';
+
+const ONBOARDING_KEY = 'ai_companion_onboarded';
 
 export default function CompanionScreen() {
   const router = useRouter();
@@ -27,8 +31,27 @@ export default function CompanionScreen() {
     sendMessage,
   } = useAICompanion();
 
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
+  const [onboardingChecked, setOnboardingChecked] = useState<boolean>(false);
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    AsyncStorage.getItem(ONBOARDING_KEY).then((val) => {
+      if (val !== 'true') {
+        setShowOnboarding(true);
+      }
+      setOnboardingChecked(true);
+    }).catch(() => {
+      setOnboardingChecked(true);
+    });
+  }, []);
+
+  const handleDismissOnboarding = useCallback(() => {
+    setShowOnboarding(false);
+    AsyncStorage.setItem(ONBOARDING_KEY, 'true').catch(() => {});
+  }, []);
 
   useEffect(() => {
     Animated.parallel([
@@ -127,6 +150,10 @@ export default function CompanionScreen() {
             A calm space to reflect, slow down, and get support.
           </Text>
         </Animated.View>
+
+        {onboardingChecked && showOnboarding && (
+          <AICompanionOnboarding onDismiss={handleDismissOnboarding} />
+        )}
 
         {lastConvo && lastConvo.messages.length > 0 && (
           <Animated.View style={{ opacity: fadeAnim }}>
