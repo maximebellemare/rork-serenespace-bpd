@@ -63,6 +63,13 @@ function RootLayoutNav() {
           presentation: "fullScreenModal",
         }}
       />
+      <Stack.Screen
+        name="daily-ritual"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

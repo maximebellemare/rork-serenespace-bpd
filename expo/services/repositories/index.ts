@@ -9,6 +9,7 @@ import { LocalAuthRepository } from './authRepository';
 import { LocalCheckInRepository } from './checkInRepository';
 import { LocalMemoryRepository } from './memoryRepository';
 import { LocalAnalyticsRepository } from './analyticsRepository';
+import { LocalRitualRepository } from './ritualRepository';
 import {
   IJournalRepository,
   IMessageRepository,
@@ -21,6 +22,7 @@ import {
   IMemoryRepository,
   IAnalyticsRepository,
 } from './types';
+import { IRitualRepository } from './ritualRepository';
 
 export const journalRepository: IJournalRepository = new LocalJournalRepository(storageService);
 export const messageRepository: IMessageRepository = new LocalMessageRepository(storageService);
@@ -32,6 +34,7 @@ export const authRepository: IAuthRepository = new LocalAuthRepository(storageSe
 export const checkInRepository: ICheckInRepository = new LocalCheckInRepository(storageService);
 export const memoryRepository: IMemoryRepository = new LocalMemoryRepository(storageService);
 export const analyticsRepository: IAnalyticsRepository = new LocalAnalyticsRepository();
+export const ritualRepository: IRitualRepository = new LocalRitualRepository(storageService);
 
 export type {
   IJournalRepository,
@@ -45,3 +48,4 @@ export type {
   IMemoryRepository,
   IAnalyticsRepository,
 } from './types';
+export type { IRitualRepository } from './ritualRepository';

@@ -13,7 +13,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Shield, Heart, Wind, Sparkles, BarChart3, ChevronRight, Zap } from 'lucide-react-native';
 import EmotionalTrendsCard from '@/components/EmotionalTrendsCard';
 import EarlyWarningBanner from '@/components/EarlyWarningBanner';
+import DailyReflectionCard from '@/components/DailyReflectionCard';
 import { useEarlyWarning } from '@/hooks/useEarlyWarning';
+import { useQuery } from '@tanstack/react-query';
+import { ritualRepository } from '@/services/repositories';
+import { getTodayEntry, getWeeklyReflection } from '@/services/ritual/dailyCheckInService';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { VALIDATION_MESSAGES } from '@/constants/data';
@@ -24,6 +28,16 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { journalEntries } = useApp();
   const earlyWarning = useEarlyWarning();
+
+  const ritualQuery = useQuery({
+    queryKey: ['ritual'],
+    queryFn: () => ritualRepository.getState(),
+  });
+
+  const ritualEntries = ritualQuery.data?.entries ?? [];
+  const ritualStreak = ritualQuery.data?.streak ?? { currentStreak: 0, longestStreak: 0, lastCheckInDate: '', totalCheckIns: 0 };
+  const todayRitualEntry = getTodayEntry(ritualEntries);
+  const weeklySummary = getWeeklyReflection(ritualEntries);
   const [validationIndex, setValidationIndex] = useState<number>(0);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -149,6 +163,15 @@ export default function HomeScreen() {
         <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
           <Text style={styles.greeting}>BPD Companion</Text>
           <Text style={styles.subtitle}>You're here. That matters.</Text>
+        </Animated.View>
+
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <DailyReflectionCard
+            todayEntry={todayRitualEntry}
+            streak={ritualStreak}
+            weeklySummary={weeklySummary}
+            onPress={() => router.push('/daily-ritual')}
+          />
         </Animated.View>
 
         <Animated.View style={[styles.validationCard, { opacity: fadeAnim }]}>
