@@ -15,8 +15,10 @@ import EmotionalTrendsCard from '@/components/EmotionalTrendsCard';
 import EarlyWarningBanner from '@/components/EarlyWarningBanner';
 import DailyReflectionCard from '@/components/DailyReflectionCard';
 import SmartCopingCard from '@/components/SmartCopingCard';
+import EarlySupportCard from '@/components/EarlySupportCard';
 import { useEarlyWarning } from '@/hooks/useEarlyWarning';
 import { useRecommendations } from '@/hooks/useRecommendations';
+import { useCrisisPrediction } from '@/hooks/useCrisisPrediction';
 import { useQuery } from '@tanstack/react-query';
 import { ritualRepository } from '@/services/repositories';
 import { getTodayEntry, getWeeklyReflection } from '@/services/ritual/dailyCheckInService';
@@ -31,6 +33,7 @@ export default function HomeScreen() {
   const { journalEntries } = useApp();
   const earlyWarning = useEarlyWarning();
   const { recommendations, topRecommendation } = useRecommendations();
+  const crisisPrediction = useCrisisPrediction();
 
   const ritualQuery = useQuery({
     queryKey: ['ritual'],
@@ -276,6 +279,10 @@ export default function HomeScreen() {
             <Text style={styles.quickActionLabel}>Reality Check</Text>
             <Text style={styles.quickActionDesc}>Check facts</Text>
           </TouchableOpacity>
+        </Animated.View>
+
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <EarlySupportCard prediction={crisisPrediction} />
         </Animated.View>
 
         <Animated.View style={{ opacity: fadeAnim }}>
