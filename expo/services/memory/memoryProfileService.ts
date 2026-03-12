@@ -1,5 +1,5 @@
-import { JournalEntry } from '@/types';
-import { MemoryProfile, PatternItem, InsightCard } from '@/types/memory';
+import { JournalEntry, MessageDraft } from '@/types';
+import { MemoryProfile, PatternItem, InsightCard, MessageUsageStats } from '@/types/memory';
 import {
   buildRelationshipPatterns,
   buildImprovements,
@@ -73,11 +73,111 @@ function extractThemes(entries: JournalEntry[]): string[] {
   return themes;
 }
 
+function computeMessageUsage(messageDrafts: MessageDraft[]): MessageUsageStats {
+  const totalRewrites = messageDrafts.filter(m => m.rewrittenText).length;
+  const totalPauses = messageDrafts.filter(m => m.paused).length;
+
+  const rewriteTypes: Record<string, number> = {};
+  messageDrafts.forEach(m => {
+    if (m.rewriteType) {
+      rewriteTypes[m.rewriteType] = (rewriteTypes[m.rewriteType] || 0) + 1;
+    }
+  });
+
+  const pausedMessages = messageDrafts.filter(m => m.paused);
+  const notSentAfterPause = pausedMessages.filter(m => m.outcome === 'not_sent' || !m.sent).length;
+  const pauseSuccessRate = pausedMessages.length > 0
+    ? Math.round((notSentAfterPause / pausedMessages.length) * 100)
+    : 0;
+
+  const sentAfterRewrite = messageDrafts.filter(m => m.rewrittenText && m.sent).length;
+
+  return {
+    totalRewrites,
+    totalPauses,
+    rewriteTypes,
+    pauseSuccessRate,
+    sentAfterRewrite,
+    notSentAfterPause,
+  };
+}
+
+function buildSupportiveSummary(
+  topTriggers: PatternItem[],
+  topEmotions: PatternItem[],
+  intensityTrend: string,
+  copingSuccessRate: number,
+  mostEffectiveCoping: PatternItem | null,
+  messageUsage: MessageUsageStats,
+  checkInCount: number,
+): string {
+  if (checkInCount === 0) {
+    return 'As you use the app more, this space will help you notice patterns with more clarity.';
+  }
+
+  const parts: string[] = [];
+
+  if (intensityTrend === 'falling') {
+    parts.push('Your emotional intensity seems to be easing lately — that suggests your efforts are making a difference.');
+  } else if (intensityTrend === 'rising') {
+    parts.push('Things seem to have felt more intense recently. Being aware of that is already a step toward managing it.');
+  } else if (intensityTrend === 'stable') {
+    parts.push('Your emotional intensity has been relatively steady — consistency in self-awareness matters.');
+  }
+
+  if (copingSuccessRate >= 60) {
+    parts.push('You appear to be managing your emotions effectively more often than not.');
+  }
+
+  if (mostEffectiveCoping) {
+    parts.push(`"${mostEffectiveCoping.label}" seems to be a tool that works well for you.`);
+  }
+
+  if (messageUsage.totalPauses > 0 && messageUsage.pauseSuccessRate > 50) {
+    parts.push('You\'re pausing before reacting more often — that\'s a real sign of growth.');
+  }
+
+  if (topTriggers.length > 0 && topEmotions.length > 0) {
+    parts.push(`Your most common trigger appears to be "${topTriggers[0].label}," which often brings up "${topEmotions[0].label}."`);
+  }
+
+  if (parts.length === 0) {
+    parts.push('Keep checking in — every entry helps build a clearer picture of your patterns.');
+  }
+
+  return parts.join(' ');
+}
+
+function buildRelationshipPatternSummary(patterns: ReturnType<typeof buildRelationshipPatterns>): string {
+  if (patterns.length === 0) {
+    return '';
+  }
+
+  const summaries = patterns.slice(0, 2).map(p =>
+    `When "${p.associatedTrigger}" happens, you may tend to feel "${p.associatedEmotion}"`
+  );
+
+  return summaries.join('. ') + '. Recognizing these connections can help you respond with more awareness.';
+}
+
+function buildDistressTrendDescription(trend: string, avgIntensity: number): string {
+  if (trend === 'unknown') return '';
+
+  if (trend === 'falling') {
+    return `Your average intensity of ${avgIntensity}/10 has been trending downward. This suggests your coping strategies may be helping.`;
+  }
+  if (trend === 'rising') {
+    return `Your average intensity of ${avgIntensity}/10 has been higher lately. Be extra gentle with yourself and lean on the tools that help.`;
+  }
+  return `Your average intensity of ${avgIntensity}/10 has been relatively stable.`;
+}
+
 export function buildMemoryProfile(
   journalEntries: JournalEntry[],
   triggerCounts: Record<string, number>,
   emotionCounts: Record<string, number>,
   urgeCounts: Record<string, number>,
+  messageDrafts?: MessageDraft[],
 ): MemoryProfile {
   const copingCounts: Record<string, number> = {};
   journalEntries.forEach(entry => {
@@ -92,22 +192,38 @@ export function buildMemoryProfile(
     : 0;
 
   const copingItems = getTopItems(copingCounts);
+  const topTriggers = getTopItems(triggerCounts);
+  const topEmotions = getTopItems(emotionCounts);
+  const intensityTrend = calculateIntensityTrend(journalEntries);
+  const copingSuccessRate = calculateCopingSuccessRate(journalEntries);
+  const mostEffectiveCoping = copingItems.length > 0 ? copingItems[0] : null;
+  const messageUsage = computeMessageUsage(messageDrafts ?? []);
+  const relPatterns = buildRelationshipPatterns(journalEntries);
+  const roundedAvg = Math.round(avgIntensity * 10) / 10;
 
   return {
-    topTriggers: getTopItems(triggerCounts),
-    topEmotions: getTopItems(emotionCounts),
+    topTriggers,
+    topEmotions,
     topUrges: getTopItems(urgeCounts),
     copingToolsUsed: copingItems,
-    relationshipPatterns: buildRelationshipPatterns(journalEntries),
+    relationshipPatterns: relPatterns,
     recentImprovements: buildImprovements(journalEntries),
     recentCheckInCount: journalEntries.length,
-    averageIntensity: Math.round(avgIntensity * 10) / 10,
-    intensityTrend: calculateIntensityTrend(journalEntries),
+    averageIntensity: roundedAvg,
+    intensityTrend,
     recentThemes: extractThemes(journalEntries),
     lastCheckInDate: journalEntries.length > 0 ? journalEntries[0].timestamp : null,
-    copingSuccessRate: calculateCopingSuccessRate(journalEntries),
-    mostEffectiveCoping: copingItems.length > 0 ? copingItems[0] : null,
+    copingSuccessRate,
+    mostEffectiveCoping,
     weeklyCheckInAvg: calculateWeeklyCheckInAvg(journalEntries),
+    messageUsage,
+    supportiveSummary: buildSupportiveSummary(
+      topTriggers, topEmotions, intensityTrend,
+      copingSuccessRate, mostEffectiveCoping, messageUsage,
+      journalEntries.length,
+    ),
+    relationshipPatternSummary: buildRelationshipPatternSummary(relPatterns),
+    distressTrendDescription: buildDistressTrendDescription(intensityTrend, roundedAvg),
   };
 }
 
@@ -182,6 +298,33 @@ export function buildInsightCards(profile: MemoryProfile): InsightCard[] {
     });
   }
 
+  if (profile.messageUsage.totalRewrites > 0 || profile.messageUsage.totalPauses > 0) {
+    const parts: string[] = [];
+    if (profile.messageUsage.totalRewrites > 0) {
+      parts.push(`You've rewritten ${profile.messageUsage.totalRewrites} message${profile.messageUsage.totalRewrites === 1 ? '' : 's'}`);
+    }
+    if (profile.messageUsage.totalPauses > 0) {
+      parts.push(`paused ${profile.messageUsage.totalPauses} time${profile.messageUsage.totalPauses === 1 ? '' : 's'} before sending`);
+    }
+    cards.push({
+      id: 'insight-messages',
+      type: 'message',
+      title: 'Message Awareness',
+      description: parts.join(' and ') + '. Taking that pause shows real emotional awareness.',
+    });
+  }
+
+  if (profile.recentImprovements.length > 0) {
+    const imp = profile.recentImprovements[0];
+    cards.push({
+      id: 'insight-progress',
+      type: 'progress',
+      title: 'Recent Progress',
+      description: imp.description,
+      trend: 'down',
+    });
+  }
+
   return cards;
 }
 
@@ -220,6 +363,17 @@ export function buildContextSummary(profile: MemoryProfile): string {
 
   if (profile.recentThemes.length > 0) {
     parts.push(`Recent themes: ${profile.recentThemes.join(', ')}.`);
+  }
+
+  if (profile.messageUsage.totalRewrites > 0) {
+    parts.push(`They've rewritten ${profile.messageUsage.totalRewrites} messages.`);
+  }
+
+  if (profile.messageUsage.totalPauses > 0) {
+    parts.push(`They've paused before sending ${profile.messageUsage.totalPauses} times.`);
+    if (profile.messageUsage.pauseSuccessRate > 50) {
+      parts.push('They seem to benefit from pausing before reacting.');
+    }
   }
 
   return parts.join(' ');

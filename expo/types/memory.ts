@@ -1,3 +1,12 @@
+export interface MessageUsageStats {
+  totalRewrites: number;
+  totalPauses: number;
+  rewriteTypes: Record<string, number>;
+  pauseSuccessRate: number;
+  sentAfterRewrite: number;
+  notSentAfterPause: number;
+}
+
 export interface MemoryProfile {
   topTriggers: PatternItem[];
   topEmotions: PatternItem[];
@@ -13,6 +22,10 @@ export interface MemoryProfile {
   copingSuccessRate: number;
   mostEffectiveCoping: PatternItem | null;
   weeklyCheckInAvg: number;
+  messageUsage: MessageUsageStats;
+  supportiveSummary: string;
+  relationshipPatternSummary: string;
+  distressTrendDescription: string;
 }
 
 export interface PatternItem {
@@ -49,7 +62,7 @@ export interface MemoryInsight {
 
 export interface InsightCard {
   id: string;
-  type: 'trigger' | 'emotion' | 'urge' | 'coping' | 'pattern';
+  type: 'trigger' | 'emotion' | 'urge' | 'coping' | 'pattern' | 'message' | 'progress';
   title: string;
   description: string;
   value?: string;

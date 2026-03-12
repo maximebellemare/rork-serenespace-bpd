@@ -21,7 +21,7 @@ export const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
 
 export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
   const queryClient = useQueryClient();
-  const { journalEntries, triggerPatterns } = useApp();
+  const { journalEntries, triggerPatterns, messageDrafts } = useApp();
 
   const [conversations, setConversations] = useState<AIConversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
@@ -51,8 +51,9 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
       triggerPatterns.triggerCounts,
       triggerPatterns.emotionCounts,
       triggerPatterns.urgeCounts,
+      messageDrafts,
     );
-  }, [journalEntries, triggerPatterns]);
+  }, [journalEntries, triggerPatterns, messageDrafts]);
 
   const insightCards = useMemo<InsightCard[]>(() => {
     return buildInsightCards(memoryProfile);
@@ -141,6 +142,16 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
     try {
       const response = await generateMockResponse(content, contextSummary, {
         conversationHistory,
+        personalization: {
+          topTrigger: memoryProfile.topTriggers[0]?.label,
+          topEmotion: memoryProfile.topEmotions[0]?.label,
+          topUrge: memoryProfile.topUrges[0]?.label,
+          mostEffectiveCoping: memoryProfile.mostEffectiveCoping?.label,
+          intensityTrend: memoryProfile.intensityTrend,
+          messageRewriteFrequent: memoryProfile.messageUsage.totalRewrites > 2,
+          pauseFrequent: memoryProfile.messageUsage.totalPauses > 1,
+          averageIntensity: memoryProfile.averageIntensity,
+        },
       });
 
       const assistantMessage: AIMessage = {
@@ -170,7 +181,7 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
     } finally {
       setIsGenerating(false);
     }
-  }, [activeConversationId, isGenerating, conversations, contextSummary, saveConversationsMutation]);
+  }, [activeConversationId, isGenerating, conversations, contextSummary, saveConversationsMutation, memoryProfile]);
 
   const toggleSaveConversation = useCallback((conversationId: string) => {
     const updated = conversations.map(c =>

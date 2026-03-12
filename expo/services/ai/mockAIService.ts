@@ -83,9 +83,76 @@ function detectConversationContext(
   return null;
 }
 
+export interface MemoryPersonalization {
+  topTrigger?: string;
+  topEmotion?: string;
+  topUrge?: string;
+  mostEffectiveCoping?: string;
+  intensityTrend?: string;
+  messageRewriteFrequent?: boolean;
+  pauseFrequent?: boolean;
+  averageIntensity?: number;
+}
+
 export interface MockResponseOptions {
   contextSummary?: string;
   conversationHistory?: Array<{ role: string; content: string }>;
+  personalization?: MemoryPersonalization;
+}
+
+function personalizeResponse(
+  content: string,
+  intent: EmotionalIntent,
+  personalization?: MemoryPersonalization,
+): string {
+  if (!personalization) return content;
+
+  const additions: string[] = [];
+
+  if (intent === 'calming' || intent === 'high_distress') {
+    if (personalization.mostEffectiveCoping) {
+      additions.push(`\n\nI know "${personalization.mostEffectiveCoping}" has helped you before \u2014 would you like to try that now?`);
+    }
+  }
+
+  if (intent === 'relationship' || intent === 'abandoned') {
+    if (personalization.topTrigger) {
+      const triggerLower = personalization.topTrigger.toLowerCase();
+      if (triggerLower.includes('abandon') || triggerLower.includes('reject') || triggerLower.includes('ignor')) {
+        additions.push('\n\nI\'ve noticed this kind of trigger has come up for you before. You\'re not imagining it \u2014 this is a real pattern, and it makes sense why it hurts.');
+      }
+    }
+    if (personalization.messageRewriteFrequent) {
+      additions.push('\n\nWould it help to rewrite what you want to say first? That\'s worked for you before.');
+    }
+  }
+
+  if (intent === 'rewrite') {
+    if (personalization.pauseFrequent) {
+      additions.push('\n\nYou\'ve been getting better at pausing before sending \u2014 that awareness is a real strength.');
+    }
+  }
+
+  if (intent === 'pattern') {
+    if (personalization.topTrigger && personalization.topEmotion) {
+      additions.push(`\n\nFrom what I've seen, "${personalization.topTrigger}" seems to be your most common trigger, and it often brings up "${personalization.topEmotion}." Does that match how you're feeling now?`);
+    }
+    if (personalization.intensityTrend === 'falling') {
+      additions.push('\n\nYour overall intensity has been trending downward lately \u2014 that\'s progress worth noticing.');
+    }
+  }
+
+  if (intent === 'anxious' && personalization.averageIntensity && personalization.averageIntensity >= 6) {
+    if (personalization.mostEffectiveCoping) {
+      additions.push(`\n\nYour intensity has been on the higher side recently. "${personalization.mostEffectiveCoping}" might help bring it down \u2014 it's worked for you before.`);
+    }
+  }
+
+  if (additions.length > 0) {
+    return content + additions[0];
+  }
+
+  return content;
 }
 
 export async function generateMockResponse(
@@ -114,7 +181,9 @@ export async function generateMockResponse(
     quickActions = template.quickActions ?? [];
   }
 
-  console.log('[MockAI] Detected intent:', intent, 'context:', contextType);
+  content = personalizeResponse(content, intent, options?.personalization);
+
+  console.log('[MockAI] Detected intent:', intent, 'context:', contextType, 'personalized:', !!options?.personalization);
 
   return {
     content,

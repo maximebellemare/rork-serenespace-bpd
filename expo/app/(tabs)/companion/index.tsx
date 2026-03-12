@@ -212,6 +212,13 @@ export default function CompanionScreen() {
                 <Text style={styles.seeAllText}>See all</Text>
               </TouchableOpacity>
             </View>
+
+            {memoryProfile.supportiveSummary ? (
+              <View style={styles.summaryBanner}>
+                <Text style={styles.summaryBannerText}>{memoryProfile.supportiveSummary}</Text>
+              </View>
+            ) : null}
+
             <View style={styles.insightsGrid}>
               <View style={styles.insightMiniCard}>
                 <Text style={styles.insightMiniEmoji}>⚡</Text>
@@ -710,6 +717,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2,
+  },
+  summaryBanner: {
+    backgroundColor: Colors.warmGlow,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: Colors.accentLight,
+  },
+  summaryBannerText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    fontStyle: 'italic' as const,
   },
   bottomSpacer: {
     height: 30,
