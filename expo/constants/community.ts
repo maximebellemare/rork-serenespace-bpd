@@ -4,7 +4,7 @@ import Colors from '@/constants/colors';
 export const CATEGORIES: CategoryInfo[] = [
   { id: 'relationships', label: 'Relationships', emoji: '💛', color: '#E8A87C' },
   { id: 'daily-struggles', label: 'Daily Struggles', emoji: '🌧', color: '#95A5A6' },
-  { id: 'wins', label: 'Wins', emoji: '🌟', color: '#00B894' },
+  { id: 'success-stories', label: 'Success Stories', emoji: '🌟', color: '#00B894' },
   { id: 'coping-skills', label: 'Coping Skills', emoji: '🧘', color: Colors.primary },
   { id: 'questions', label: 'Questions', emoji: '💭', color: '#6C5CE7' },
   { id: 'therapy-dbt', label: 'Therapy / DBT', emoji: '📖', color: '#0984E3' },
@@ -60,7 +60,7 @@ export const MOCK_POSTS: CommunityPost[] = [
     id: 'p3',
     title: 'I went a whole week without splitting on my partner',
     body: 'This might not sound like much to most people but for me this is huge. Usually by day 3 I have already idealized and devalued them at least once. This week I caught myself starting to split twice and used opposite action both times. I am really proud of myself and wanted to share with people who would understand.',
-    category: 'wins',
+    category: 'success-stories',
     author: { id: 'u3', displayName: 'brave_steps', isAnonymous: false },
     createdAt: now - 8 * hour,
     isPinned: true,
@@ -191,6 +191,14 @@ export const MOCK_REPLIES: Record<string, PostReply[]> = {
     },
   ],
 };
+
+export const REPORT_REASONS = [
+  { id: 'harmful' as const, label: 'Harmful or unsafe content', emoji: '⚠️' },
+  { id: 'spam' as const, label: 'Spam or self-promotion', emoji: '🚫' },
+  { id: 'harassment' as const, label: 'Harassment or bullying', emoji: '🛑' },
+  { id: 'misinformation' as const, label: 'Dangerous misinformation', emoji: '❌' },
+  { id: 'other' as const, label: 'Other concern', emoji: '💬' },
+];
 
 export const COMMUNITY_GUIDELINES = [
   {

@@ -11,6 +11,8 @@ import {
   NewPostInput,
   NewReplyInput,
   PostCategory,
+  ReportInput,
+  BlockedUser,
 } from '@/types/community';
 
 export interface ServiceResult<T> {
@@ -63,6 +65,10 @@ export interface ICommunityRepository {
   createPost(input: NewPostInput): Promise<CommunityPost>;
   createReply(input: NewReplyInput): Promise<PostReply>;
   toggleReaction(postId: string, reactionType: string, replyId?: string): Promise<void>;
+  reportContent(input: ReportInput): Promise<void>;
+  blockUser(userId: string): Promise<void>;
+  unblockUser(userId: string): Promise<void>;
+  getBlockedUsers(): Promise<BlockedUser[]>;
 }
 
 export interface IAuthRepository {

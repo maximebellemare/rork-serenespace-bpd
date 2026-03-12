@@ -1,7 +1,7 @@
 export type PostCategory =
   | 'relationships'
   | 'daily-struggles'
-  | 'wins'
+  | 'success-stories'
   | 'coping-skills'
   | 'questions'
   | 'therapy-dbt'
@@ -57,9 +57,28 @@ export interface NewReplyInput {
   isAnonymous: boolean;
 }
 
+export type ReportReason =
+  | 'harmful'
+  | 'spam'
+  | 'harassment'
+  | 'misinformation'
+  | 'other';
+
+export interface ReportInput {
+  targetId: string;
+  targetType: 'post' | 'reply';
+  reason: ReportReason;
+  details?: string;
+}
+
 export interface CategoryInfo {
   id: PostCategory;
   label: string;
   emoji: string;
   color: string;
+}
+
+export interface BlockedUser {
+  userId: string;
+  blockedAt: number;
 }

@@ -10,6 +10,8 @@ import {
   Platform,
   Animated,
   ActivityIndicator,
+  Modal,
+  Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,12 +22,17 @@ import {
   Pin,
   Eye,
   EyeOff,
+  MoreHorizontal,
+  Flag,
+  Ban,
+  X,
+  Check,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
-import { CATEGORIES, REACTION_LABELS } from '@/constants/community';
+import { CATEGORIES, REACTION_LABELS, REPORT_REASONS } from '@/constants/community';
 import { usePostDetail } from '@/hooks/useCommunityFeed';
-import { PostReply, SupportiveReaction } from '@/types/community';
+import { PostReply, SupportiveReaction, ReportReason } from '@/types/community';
 
 function timeAgo(timestamp: number): string {
   const now = Date.now();
@@ -81,9 +88,11 @@ function ReactionBar({
 function ReplyCard({
   reply,
   onReaction,
+  onReport,
 }: {
   reply: PostReply;
   onReaction: (replyId: string, type: string) => void;
+  onReport: (replyId: string, authorId: string) => void;
 }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -101,7 +110,18 @@ function ReplyCard({
         <Text style={styles.replyAuthor}>
           {reply.author.isAnonymous ? '🫧 Anonymous' : reply.author.displayName}
         </Text>
-        <Text style={styles.replyTime}>{timeAgo(reply.createdAt)}</Text>
+        <View style={styles.replyHeaderRight}>
+          <Text style={styles.replyTime}>{timeAgo(reply.createdAt)}</Text>
+          {reply.author.id !== 'current_user' && (
+            <TouchableOpacity
+              style={styles.replyMoreBtn}
+              onPress={() => onReport(reply.id, reply.author.id)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <MoreHorizontal size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
       <Text style={styles.replyBody}>{reply.body}</Text>
       <View style={styles.replyReactions}>
@@ -139,12 +159,22 @@ export default function PostDetailScreen() {
     addReply,
     isAddingReply,
     toggleReaction,
+    reportContent,
+    blockUser,
   } = usePostDetail(id ?? '');
 
   const [replyText, setReplyText] = useState<string>('');
   const [isAnonymous, setIsAnonymous] = useState<boolean>(false);
   const [showCW, setShowCW] = useState<boolean>(false);
+  const [showActions, setShowActions] = useState<boolean>(false);
+  const [showReportModal, setShowReportModal] = useState<boolean>(false);
+  const [reportTargetId, setReportTargetId] = useState<string>('');
+  const [reportTargetType, setReportTargetType] = useState<'post' | 'reply'>('post');
+  const [reportTargetAuthorId, setReportTargetAuthorId] = useState<string>('');
+  const [selectedReason, setSelectedReason] = useState<ReportReason | null>(null);
+  const [reportSubmitted, setReportSubmitted] = useState<boolean>(false);
   const scrollRef = useRef<ScrollView>(null);
+  const actionsAnim = useRef(new Animated.Value(0)).current;
 
   const category = post ? CATEGORIES.find((c) => c.id === post.category) : null;
 
@@ -177,6 +207,91 @@ export default function PostDetailScreen() {
     },
     [toggleReaction]
   );
+
+  const handleShowActions = useCallback(() => {
+    setShowActions(true);
+    Animated.spring(actionsAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      friction: 8,
+    }).start();
+  }, [actionsAnim]);
+
+  const handleHideActions = useCallback(() => {
+    Animated.timing(actionsAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => setShowActions(false));
+  }, [actionsAnim]);
+
+  const handleOpenReportForPost = useCallback(() => {
+    if (!post) return;
+    handleHideActions();
+    setReportTargetId(post.id);
+    setReportTargetType('post');
+    setReportTargetAuthorId(post.author.id);
+    setSelectedReason(null);
+    setReportSubmitted(false);
+    setTimeout(() => setShowReportModal(true), 250);
+  }, [post, handleHideActions]);
+
+  const handleOpenReportForReply = useCallback(
+    (replyId: string, authorId: string) => {
+      setReportTargetId(replyId);
+      setReportTargetType('reply');
+      setReportTargetAuthorId(authorId);
+      setSelectedReason(null);
+      setReportSubmitted(false);
+      setShowReportModal(true);
+    },
+    []
+  );
+
+  const handleSubmitReport = useCallback(async () => {
+    if (!selectedReason) return;
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    try {
+      await reportContent({
+        targetId: reportTargetId,
+        targetType: reportTargetType,
+        reason: selectedReason,
+      });
+      setReportSubmitted(true);
+      console.log('[PostDetail] Report submitted for', reportTargetType, reportTargetId);
+    } catch (error) {
+      console.error('[PostDetail] Report failed:', error);
+      Alert.alert('Something went wrong', 'Please try again.');
+    }
+  }, [selectedReason, reportTargetId, reportTargetType, reportContent]);
+
+  const handleBlockUser = useCallback(async () => {
+    handleHideActions();
+    if (!post) return;
+
+    Alert.alert(
+      'Block this user?',
+      'You will no longer see their posts or replies. You can unblock them later from your profile.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+              await blockUser(post.author.id);
+              console.log('[PostDetail] Blocked user:', post.author.id);
+              Alert.alert('User blocked', 'Their content will be hidden from your feed.');
+              router.back();
+            } catch (error) {
+              console.error('[PostDetail] Block failed:', error);
+            }
+          },
+        },
+      ]
+    );
+  }, [post, blockUser, handleHideActions, router]);
 
   if (isLoading || !post) {
     return (
@@ -212,7 +327,17 @@ export default function PostDetailScreen() {
           <Text style={styles.navTitle} numberOfLines={1}>
             {category?.emoji} {category?.label}
           </Text>
-          <View style={styles.backBtn} />
+          {post.author.id !== 'current_user' ? (
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={handleShowActions}
+              testID="more-btn"
+            >
+              <MoreHorizontal size={20} color={Colors.text} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.backBtn} />
+          )}
         </View>
       </SafeAreaView>
 
@@ -301,6 +426,7 @@ export default function PostDetailScreen() {
                 key={reply.id}
                 reply={reply}
                 onReaction={handleToggleReplyReaction}
+                onReport={handleOpenReportForReply}
               />
             ))}
           </View>
@@ -349,6 +475,187 @@ export default function PostDetailScreen() {
           </View>
         </SafeAreaView>
       </KeyboardAvoidingView>
+
+      {showActions && (
+        <Modal transparent animationType="none" visible={showActions}>
+          <TouchableOpacity
+            style={styles.actionOverlay}
+            activeOpacity={1}
+            onPress={handleHideActions}
+          >
+            <Animated.View
+              style={[
+                styles.actionSheet,
+                {
+                  transform: [
+                    {
+                      translateY: actionsAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [300, 0],
+                      }),
+                    },
+                  ],
+                  opacity: actionsAnim,
+                },
+              ]}
+            >
+              <SafeAreaView edges={['bottom']}>
+                <View style={styles.actionSheetHandle} />
+                <Text style={styles.actionSheetTitle}>Options</Text>
+
+                <TouchableOpacity
+                  style={styles.actionItem}
+                  onPress={handleOpenReportForPost}
+                  testID="report-post-btn"
+                >
+                  <View style={[styles.actionIcon, { backgroundColor: '#FFF3E0' }]}>
+                    <Flag size={18} color="#E65100" />
+                  </View>
+                  <View style={styles.actionTextGroup}>
+                    <Text style={styles.actionLabel}>Report this post</Text>
+                    <Text style={styles.actionDesc}>Let us know if something feels unsafe</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.actionItem}
+                  onPress={handleBlockUser}
+                  testID="block-user-btn"
+                >
+                  <View style={[styles.actionIcon, { backgroundColor: Colors.dangerLight }]}>
+                    <Ban size={18} color={Colors.danger} />
+                  </View>
+                  <View style={styles.actionTextGroup}>
+                    <Text style={[styles.actionLabel, { color: Colors.danger }]}>Block this user</Text>
+                    <Text style={styles.actionDesc}>Hide all their content from your feed</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.actionCancelBtn}
+                  onPress={handleHideActions}
+                >
+                  <Text style={styles.actionCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </SafeAreaView>
+            </Animated.View>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
+      <Modal
+        transparent
+        animationType="slide"
+        visible={showReportModal}
+        onRequestClose={() => setShowReportModal(false)}
+      >
+        <View style={styles.reportOverlay}>
+          <View style={styles.reportSheet}>
+            <SafeAreaView edges={['bottom']}>
+              <View style={styles.reportHeader}>
+                <Text style={styles.reportTitle}>
+                  {reportSubmitted ? 'Thank you' : 'Report content'}
+                </Text>
+                <TouchableOpacity
+                  style={styles.reportCloseBtn}
+                  onPress={() => setShowReportModal(false)}
+                  testID="close-report-btn"
+                >
+                  <X size={18} color={Colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              {reportSubmitted ? (
+                <View style={styles.reportSuccess}>
+                  <View style={styles.reportSuccessIcon}>
+                    <Check size={24} color={Colors.primary} />
+                  </View>
+                  <Text style={styles.reportSuccessTitle}>Report received</Text>
+                  <Text style={styles.reportSuccessText}>
+                    We take community safety seriously. Our team will review this content. Thank you for helping keep this space safe.
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.reportDoneBtn}
+                    onPress={() => setShowReportModal(false)}
+                  >
+                    <Text style={styles.reportDoneBtnText}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <>
+                  <Text style={styles.reportSubtext}>
+                    Help us understand what feels wrong. Your report is confidential.
+                  </Text>
+
+                  {REPORT_REASONS.map((reason) => (
+                    <TouchableOpacity
+                      key={reason.id}
+                      style={[
+                        styles.reportReasonItem,
+                        selectedReason === reason.id && styles.reportReasonActive,
+                      ]}
+                      onPress={() => {
+                        setSelectedReason(reason.id);
+                        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                    >
+                      <Text style={styles.reportReasonEmoji}>{reason.emoji}</Text>
+                      <Text
+                        style={[
+                          styles.reportReasonText,
+                          selectedReason === reason.id && styles.reportReasonTextActive,
+                        ]}
+                      >
+                        {reason.label}
+                      </Text>
+                      {selectedReason === reason.id && (
+                        <View style={styles.reportReasonCheck}>
+                          <Check size={14} color={Colors.white} />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+
+                  {reportTargetAuthorId !== 'current_user' && (
+                    <TouchableOpacity
+                      style={styles.reportBlockRow}
+                      onPress={() => {
+                        setShowReportModal(false);
+                        setTimeout(() => {
+                          void handleBlockUser();
+                        }, 300);
+                      }}
+                    >
+                      <Ban size={14} color={Colors.textMuted} />
+                      <Text style={styles.reportBlockText}>
+                        You can also block this user
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity
+                    style={[
+                      styles.reportSubmitBtn,
+                      selectedReason && styles.reportSubmitBtnActive,
+                    ]}
+                    onPress={handleSubmitReport}
+                    disabled={!selectedReason}
+                  >
+                    <Text
+                      style={[
+                        styles.reportSubmitText,
+                        selectedReason && styles.reportSubmitTextActive,
+                      ]}
+                    >
+                      Submit Report
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </SafeAreaView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -571,6 +878,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 8,
   },
+  replyHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   replyAuthor: {
     fontSize: 13,
     fontWeight: '600' as const,
@@ -579,6 +891,9 @@ const styles = StyleSheet.create({
   replyTime: {
     fontSize: 11,
     color: Colors.textMuted,
+  },
+  replyMoreBtn: {
+    padding: 2,
   },
   replyBody: {
     fontSize: 14,
@@ -660,5 +975,214 @@ const styles = StyleSheet.create({
   },
   sendBtnActive: {
     backgroundColor: Colors.primary,
+  },
+  actionOverlay: {
+    flex: 1,
+    backgroundColor: Colors.overlay,
+    justifyContent: 'flex-end',
+  },
+  actionSheet: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  actionSheetHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: Colors.border,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  actionSheetTitle: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    marginBottom: 16,
+  },
+  actionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  actionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionTextGroup: {
+    flex: 1,
+  },
+  actionLabel: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  actionDesc: {
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  actionCancelBtn: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    marginTop: 4,
+  },
+  actionCancelText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.textMuted,
+  },
+  reportOverlay: {
+    flex: 1,
+    backgroundColor: Colors.overlay,
+    justifyContent: 'flex-end',
+  },
+  reportSheet: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+    maxHeight: '80%',
+  },
+  reportHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  reportTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: Colors.text,
+  },
+  reportCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reportSubtext: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 18,
+  },
+  reportReasonItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 8,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  reportReasonActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryLight,
+  },
+  reportReasonEmoji: {
+    fontSize: 16,
+  },
+  reportReasonText: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.text,
+    fontWeight: '500' as const,
+  },
+  reportReasonTextActive: {
+    color: Colors.primaryDark,
+    fontWeight: '600' as const,
+  },
+  reportReasonCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reportBlockRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  reportBlockText: {
+    fontSize: 13,
+    color: Colors.textMuted,
+  },
+  reportSubmitBtn: {
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  reportSubmitBtnActive: {
+    backgroundColor: Colors.primary,
+  },
+  reportSubmitText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.textMuted,
+  },
+  reportSubmitTextActive: {
+    color: Colors.white,
+  },
+  reportSuccess: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  reportSuccessIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  reportSuccessTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  reportSuccessText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 21,
+    textAlign: 'center',
+    paddingHorizontal: 12,
+    marginBottom: 20,
+  },
+  reportDoneBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
+    paddingHorizontal: 40,
+    paddingVertical: 14,
+  },
+  reportDoneBtnText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.white,
   },
 });

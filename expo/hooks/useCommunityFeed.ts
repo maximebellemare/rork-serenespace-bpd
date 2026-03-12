@@ -7,8 +7,10 @@ import {
   createPost,
   createReply,
   toggleReaction,
+  reportContent,
+  blockUser,
 } from '@/services/community/communityService';
-import { PostCategory, NewPostInput, NewReplyInput } from '@/types/community';
+import { PostCategory, NewPostInput, NewReplyInput, ReportInput } from '@/types/community';
 
 export function useCommunityFeed() {
   const [selectedCategory, setSelectedCategory] = useState<PostCategory | null>(null);
@@ -69,6 +71,17 @@ export function usePostDetail(postId: string) {
     },
   });
 
+  const reportMutation = useMutation({
+    mutationFn: (input: ReportInput) => reportContent(input),
+  });
+
+  const blockMutation = useMutation({
+    mutationFn: (userId: string) => blockUser(userId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['community', 'posts'] });
+    },
+  });
+
   return {
     post: postQuery.data ?? null,
     replies: repliesQuery.data ?? [],
@@ -76,6 +89,10 @@ export function usePostDetail(postId: string) {
     addReply: replyMutation.mutate,
     isAddingReply: replyMutation.isPending,
     toggleReaction: reactionMutation.mutate,
+    reportContent: reportMutation.mutateAsync,
+    isReporting: reportMutation.isPending,
+    blockUser: blockMutation.mutateAsync,
+    isBlocking: blockMutation.isPending,
   };
 }
 

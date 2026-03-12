@@ -5,6 +5,8 @@ import {
   NewPostInput,
   NewReplyInput,
   PostCategory,
+  ReportInput,
+  BlockedUser,
 } from '@/types/community';
 import { ICommunityRepository } from './types';
 
@@ -15,6 +17,8 @@ function delay(ms: number): Promise<void> {
 export class LocalCommunityRepository implements ICommunityRepository {
   private posts: CommunityPost[] = [...MOCK_POSTS];
   private replies: Record<string, PostReply[]> = JSON.parse(JSON.stringify(MOCK_REPLIES));
+  private blockedUsers: BlockedUser[] = [];
+  private reports: ReportInput[] = [];
 
   async getPosts(category?: PostCategory | null, search?: string): Promise<CommunityPost[]> {
     await delay(300);
@@ -140,5 +144,30 @@ export class LocalCommunityRepository implements ICommunityRepository {
       }
     }
     console.log('[CommunityRepository] Toggled reaction:', reactionType, 'on post:', postId);
+  }
+
+  async reportContent(input: ReportInput): Promise<void> {
+    await delay(300);
+    this.reports.push(input);
+    console.log('[CommunityRepository] Reported:', input.targetType, input.targetId, 'reason:', input.reason);
+  }
+
+  async blockUser(userId: string): Promise<void> {
+    await delay(200);
+    if (!this.blockedUsers.find((b) => b.userId === userId)) {
+      this.blockedUsers.push({ userId, blockedAt: Date.now() });
+    }
+    console.log('[CommunityRepository] Blocked user:', userId);
+  }
+
+  async unblockUser(userId: string): Promise<void> {
+    await delay(200);
+    this.blockedUsers = this.blockedUsers.filter((b) => b.userId !== userId);
+    console.log('[CommunityRepository] Unblocked user:', userId);
+  }
+
+  async getBlockedUsers(): Promise<BlockedUser[]> {
+    await delay(100);
+    return [...this.blockedUsers];
   }
 }

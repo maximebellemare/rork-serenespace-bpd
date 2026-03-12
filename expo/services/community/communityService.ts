@@ -5,6 +5,8 @@ import {
   NewPostInput,
   NewReplyInput,
   PostCategory,
+  ReportInput,
+  BlockedUser,
 } from '@/types/community';
 
 export async function fetchPosts(category?: PostCategory | null, search?: string): Promise<CommunityPost[]> {
@@ -33,4 +35,20 @@ export async function toggleReaction(
   replyId?: string
 ): Promise<void> {
   return communityRepository.toggleReaction(postId, reactionType, replyId);
+}
+
+export async function reportContent(input: ReportInput): Promise<void> {
+  return communityRepository.reportContent(input);
+}
+
+export async function blockUser(userId: string): Promise<void> {
+  return communityRepository.blockUser(userId);
+}
+
+export async function unblockUser(userId: string): Promise<void> {
+  return communityRepository.unblockUser(userId);
+}
+
+export async function getBlockedUsers(): Promise<BlockedUser[]> {
+  return communityRepository.getBlockedUsers();
 }
