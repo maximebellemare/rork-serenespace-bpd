@@ -1,0 +1,634 @@
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  RefreshControl,
+  Animated,
+  Platform,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  Search,
+  Plus,
+  MessageCircle,
+  Pin,
+  Shield,
+  ChevronRight,
+  X,
+  Heart,
+} from 'lucide-react-native';
+import Colors from '@/constants/colors';
+import { CATEGORIES, REACTION_LABELS } from '@/constants/community';
+import { useCommunityFeed } from '@/hooks/useCommunityFeed';
+import { CommunityPost, PostCategory } from '@/types/community';
+
+function timeAgo(timestamp: number): string {
+  const now = Date.now();
+  const diff = now - timestamp;
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return `${Math.floor(days / 7)}w ago`;
+}
+
+function PostCard({ post, onPress }: { post: CommunityPost; onPress: () => void }) {
+  const category = CATEGORIES.find((c) => c.id === post.category);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = useCallback(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      useNativeDriver: true,
+    }).start();
+  }, [scaleAnim]);
+
+  const handlePressOut = useCallback(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 4,
+      useNativeDriver: true,
+    }).start();
+  }, [scaleAnim]);
+
+  return (
+    <Animated.View style={[styles.postCard, { transform: [{ scale: scaleAnim }] }]}>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        testID={`post-card-${post.id}`}
+      >
+        <View style={styles.postCardHeader}>
+          {post.isPinned && (
+            <View style={styles.pinnedBadge}>
+              <Pin size={10} color={Colors.primary} />
+              <Text style={styles.pinnedText}>Pinned</Text>
+            </View>
+          )}
+          {category && (
+            <View style={[styles.categoryChip, { backgroundColor: category.color + '18' }]}>
+              <Text style={styles.categoryChipEmoji}>{category.emoji}</Text>
+              <Text style={[styles.categoryChipText, { color: category.color }]}>
+                {category.label}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <Text style={styles.postTitle} numberOfLines={2}>
+          {post.title}
+        </Text>
+
+        {post.hasContentWarning && (
+          <View style={styles.contentWarning}>
+            <Shield size={12} color={Colors.accent} />
+            <Text style={styles.contentWarningText}>
+              Content warning{post.contentWarningText ? `: ${post.contentWarningText}` : ''}
+            </Text>
+          </View>
+        )}
+
+        {!post.hasContentWarning && (
+          <Text style={styles.postPreview} numberOfLines={2}>
+            {post.body}
+          </Text>
+        )}
+
+        <View style={styles.postMeta}>
+          <Text style={styles.postAuthor}>
+            {post.author.isAnonymous ? '🫧 Anonymous' : post.author.displayName}
+          </Text>
+          <Text style={styles.postDot}>·</Text>
+          <Text style={styles.postTime}>{timeAgo(post.createdAt)}</Text>
+        </View>
+
+        <View style={styles.postFooter}>
+          <View style={styles.reactionsRow}>
+            {post.reactions.slice(0, 3).map((reaction) => {
+              const info = REACTION_LABELS[reaction.type];
+              if (!info || reaction.count === 0) return null;
+              return (
+                <View
+                  key={reaction.type}
+                  style={[
+                    styles.reactionMini,
+                    reaction.userReacted && styles.reactionMiniActive,
+                  ]}
+                >
+                  <Text style={styles.reactionMiniEmoji}>{info.emoji}</Text>
+                  <Text
+                    style={[
+                      styles.reactionMiniCount,
+                      reaction.userReacted && styles.reactionMiniCountActive,
+                    ]}
+                  >
+                    {reaction.count}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+          <View style={styles.replyCount}>
+            <MessageCircle size={13} color={Colors.textMuted} />
+            <Text style={styles.replyCountText}>{post.replyCount}</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+export default function CommunityFeedScreen() {
+  const router = useRouter();
+  const {
+    posts,
+    isLoading,
+    isRefetching,
+    refetch,
+    selectedCategory,
+    setSelectedCategory,
+    searchQuery,
+    setSearchQuery,
+  } = useCommunityFeed();
+  const [showSearch, setShowSearch] = useState<boolean>(false);
+  const searchInputRef = useRef<TextInput>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
+  }, [fadeAnim]);
+
+  const handleCategoryPress = useCallback(
+    (cat: PostCategory) => {
+      setSelectedCategory(selectedCategory === cat ? null : cat);
+    },
+    [selectedCategory, setSelectedCategory]
+  );
+
+  const handleToggleSearch = useCallback(() => {
+    setShowSearch((prev) => {
+      if (prev) {
+        setSearchQuery('');
+      }
+      return !prev;
+    });
+  }, [setSearchQuery]);
+
+  const handlePostPress = useCallback(
+    (postId: string) => {
+      router.push(`/community/post-detail?id=${postId}` as never);
+    },
+    [router]
+  );
+
+  const handleNewPost = useCallback(() => {
+    router.push('/community/new-post' as never);
+  }, [router]);
+
+  const handleGuidelines = useCallback(() => {
+    router.push('/community/guidelines' as never);
+  }, [router]);
+
+  return (
+    <View style={styles.container}>
+      <SafeAreaView edges={['top']} style={styles.safeTop}>
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.headerTitle}>Community</Text>
+            <Text style={styles.headerSubtitle}>A safe space to connect</Text>
+          </View>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.headerBtn}
+              onPress={handleToggleSearch}
+              testID="search-toggle"
+            >
+              {showSearch ? (
+                <X size={20} color={Colors.text} />
+              ) : (
+                <Search size={20} color={Colors.text} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.newPostBtn}
+              onPress={handleNewPost}
+              testID="new-post-btn"
+            >
+              <Plus size={18} color={Colors.white} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {showSearch && (
+          <View style={styles.searchBar}>
+            <Search size={16} color={Colors.textMuted} />
+            <TextInput
+              ref={searchInputRef}
+              style={styles.searchInput}
+              placeholder="Search posts..."
+              placeholderTextColor={Colors.textMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+              testID="search-input"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <X size={16} color={Colors.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </SafeAreaView>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={refetch}
+            tintColor={Colors.primary}
+          />
+        }
+      >
+        <TouchableOpacity
+          style={styles.guidelinesCard}
+          onPress={handleGuidelines}
+          activeOpacity={0.7}
+          testID="guidelines-btn"
+        >
+          <View style={styles.guidelinesLeft}>
+            <Heart size={16} color={Colors.primary} />
+            <Text style={styles.guidelinesText}>Community Guidelines</Text>
+          </View>
+          <ChevronRight size={16} color={Colors.textMuted} />
+        </TouchableOpacity>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoriesRow}
+          style={styles.categoriesScroll}
+        >
+          {CATEGORIES.map((cat) => {
+            const isActive = selectedCategory === cat.id;
+            return (
+              <TouchableOpacity
+                key={cat.id}
+                style={[
+                  styles.categoryPill,
+                  isActive && { backgroundColor: cat.color + '22', borderColor: cat.color },
+                ]}
+                onPress={() => handleCategoryPress(cat.id)}
+                testID={`category-${cat.id}`}
+              >
+                <Text style={styles.categoryPillEmoji}>{cat.emoji}</Text>
+                <Text
+                  style={[
+                    styles.categoryPillText,
+                    isActive && { color: cat.color, fontWeight: '600' as const },
+                  ]}
+                >
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {isLoading && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>Loading posts...</Text>
+          </View>
+        )}
+
+        {!isLoading && posts.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateEmoji}>🌿</Text>
+            <Text style={styles.emptyStateTitle}>No posts yet</Text>
+            <Text style={styles.emptyStateText}>
+              {selectedCategory || searchQuery
+                ? 'Try adjusting your filters or search'
+                : 'Be the first to share something'}
+            </Text>
+          </View>
+        )}
+
+        <Animated.View style={{ opacity: fadeAnim }}>
+          {posts.map((post) => (
+            <PostCard
+              key={post.id}
+              post={post}
+              onPress={() => handlePostPress(post.id)}
+            />
+          ))}
+        </Animated.View>
+
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  safeTop: {
+    backgroundColor: Colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 12,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 26,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    letterSpacing: -0.5,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  newPostBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 42,
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: Colors.text,
+    ...Platform.select({
+      web: { outlineStyle: 'none' } as Record<string, string>,
+    }),
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingTop: 12,
+    paddingHorizontal: 16,
+  },
+  guidelinesCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 12,
+  },
+  guidelinesLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  guidelinesText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.primaryDark,
+  },
+  categoriesScroll: {
+    marginBottom: 8,
+    marginHorizontal: -16,
+  },
+  categoriesRow: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  categoryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    gap: 6,
+  },
+  categoryPillEmoji: {
+    fontSize: 14,
+  },
+  categoryPillText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontWeight: '500' as const,
+  },
+  postCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  postCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+    flexWrap: 'wrap',
+  },
+  pinnedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  pinnedText: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: Colors.primary,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
+  },
+  categoryChipEmoji: {
+    fontSize: 11,
+  },
+  categoryChipText: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+  },
+  postTitle: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.text,
+    lineHeight: 22,
+    marginBottom: 6,
+  },
+  contentWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.accentLight,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  contentWarningText: {
+    fontSize: 12,
+    color: Colors.accent,
+    fontWeight: '500' as const,
+  },
+  postPreview: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 10,
+  },
+  postMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 6,
+  },
+  postAuthor: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    fontWeight: '500' as const,
+  },
+  postDot: {
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  postTime: {
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  postFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+    paddingTop: 10,
+  },
+  reactionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  reactionMini: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: Colors.surface,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  reactionMiniActive: {
+    backgroundColor: Colors.primaryLight,
+  },
+  reactionMiniEmoji: {
+    fontSize: 12,
+  },
+  reactionMiniCount: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    fontWeight: '500' as const,
+  },
+  reactionMiniCountActive: {
+    color: Colors.primaryDark,
+  },
+  replyCount: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  replyCountText: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    fontWeight: '500' as const,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyStateEmoji: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '600' as const,
+    color: Colors.text,
+    marginBottom: 6,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: Colors.textMuted,
+    textAlign: 'center',
+  },
+  bottomSpacer: {
+    height: 30,
+  },
+});
