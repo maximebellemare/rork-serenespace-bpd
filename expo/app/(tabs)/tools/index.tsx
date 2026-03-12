@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Anchor, Heart, Eye, ArrowRightLeft, Clock, Brain, ChevronRight } from 'lucide-react-native';
+import { Anchor, Heart, Eye, ArrowRightLeft, Clock, Brain, ChevronRight, Zap } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { COPING_EXERCISES } from '@/constants/data';
@@ -98,6 +98,27 @@ export default function ToolsScreen() {
               </View>
             </View>
             <ChevronRight size={20} color={Colors.white} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.simulatorCard}
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/companion/simulator' as never);
+            }}
+            activeOpacity={0.7}
+            testID="simulator-card"
+          >
+            <View style={styles.simulatorLeft}>
+              <View style={styles.simulatorIcon}>
+                <Zap size={20} color={Colors.accent} />
+              </View>
+              <View style={styles.simulatorInfo}>
+                <Text style={styles.simulatorTitle}>Response Simulator</Text>
+                <Text style={styles.simulatorDesc}>Explore how different reactions might play out</Text>
+              </View>
+            </View>
+            <ChevronRight size={18} color={Colors.accent} />
           </TouchableOpacity>
 
           {CATEGORIES.map(category => {
@@ -272,6 +293,45 @@ const styles = StyleSheet.create({
   dbtCoachDesc: {
     fontSize: 13,
     color: 'rgba(255,255,255,0.8)',
+    lineHeight: 18,
+  },
+  simulatorCard: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    backgroundColor: Colors.accentLight,
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 28,
+    borderWidth: 1,
+    borderColor: Colors.accent + '30',
+  },
+  simulatorLeft: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 14,
+    flex: 1,
+  },
+  simulatorIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: Colors.accent + '20',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  simulatorInfo: {
+    flex: 1,
+  },
+  simulatorTitle: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    marginBottom: 3,
+  },
+  simulatorDesc: {
+    fontSize: 13,
+    color: Colors.textSecondary,
     lineHeight: 18,
   },
 });

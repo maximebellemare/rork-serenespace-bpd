@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import {
   Zap,
   Send,
@@ -23,37 +23,54 @@ import {
   Sparkles,
   RotateCcw,
   Check,
+  Users,
+  Gem,
+  ChevronRight,
+  ArrowRight,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
-import { SimulationResult, SimulatedResponse, ResponseStyle } from '@/types/simulator';
+import { SimulationResult, SimulatedResponse, ResponseStyle, QuickAction } from '@/types/simulator';
 import { simulateResponses, EXAMPLE_SCENARIOS } from '@/services/simulator/emotionalSimulationService';
 
 const STYLE_ICONS: Record<ResponseStyle, React.ReactNode> = {
   anxious: <AlertTriangle size={18} color="#E17055" />,
+  reassurance: <Users size={18} color="#E8A87C" />,
+  avoidance: <Eye size={18} color="#9B8EC4" />,
   calm: <Heart size={18} color="#6B9080" />,
   boundary: <Shield size={18} color="#D4956A" />,
-  avoidance: <Eye size={18} color="#9B8EC4" />,
+  secure: <Gem size={18} color="#5B8FB9" />,
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  relationship: 'Relationship',
+  social: 'Social',
+  work: 'Work',
+  self: 'Self',
 };
 
 export default function SimulatorScreen() {
+  const router = useRouter();
   const [situation, setSituation] = useState<string>('');
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [expandedCard, setExpandedCard] = useState<ResponseStyle | null>(null);
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [showPauseTimer, setShowPauseTimer] = useState<boolean>(false);
+  const [pauseSeconds, setPauseSeconds] = useState<number>(120);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const resultFadeAnim = useRef(new Animated.Value(0)).current;
-  const cardAnims = useRef<Animated.Value[]>([
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-  ]).current;
+  const cardAnims = useRef<Animated.Value[]>(
+    Array.from({ length: 6 }, () => new Animated.Value(0))
+  ).current;
+  const actionsFadeAnim = useRef(new Animated.Value(0)).current;
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+  const pauseTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 500,
@@ -61,8 +78,30 @@ export default function SimulatorScreen() {
     }).start();
   }, [fadeAnim]);
 
+  useEffect(() => {
+    if (showPauseTimer && pauseSeconds > 0) {
+      pauseTimerRef.current = setInterval(() => {
+        setPauseSeconds(prev => {
+          if (prev <= 1) {
+            if (pauseTimerRef.current) clearInterval(pauseTimerRef.current);
+            setShowPauseTimer(false);
+            if (Platform.OS !== 'web') {
+              void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => {
+        if (pauseTimerRef.current) clearInterval(pauseTimerRef.current);
+      };
+    }
+  }, [showPauseTimer, pauseSeconds]);
+
   const animateResults = useCallback(() => {
     resultFadeAnim.setValue(0);
+    actionsFadeAnim.setValue(0);
     cardAnims.forEach(a => a.setValue(0));
 
     Animated.timing(resultFadeAnim, {
@@ -75,11 +114,29 @@ export default function SimulatorScreen() {
       Animated.timing(anim, {
         toValue: 1,
         duration: 400,
-        delay: 150 + index * 120,
+        delay: 150 + index * 100,
         useNativeDriver: true,
       }).start();
     });
-  }, [resultFadeAnim, cardAnims]);
+
+    Animated.timing(actionsFadeAnim, {
+      toValue: 1,
+      duration: 500,
+      delay: 150 + cardAnims.length * 100 + 200,
+      useNativeDriver: true,
+    }).start();
+  }, [resultFadeAnim, cardAnims, actionsFadeAnim]);
+
+  const animateShimmer = useCallback(() => {
+    shimmerAnim.setValue(0);
+    Animated.loop(
+      Animated.timing(shimmerAnim, {
+        toValue: 1,
+        duration: 1200,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, [shimmerAnim]);
 
   const handleSimulate = useCallback(() => {
     const trimmed = situation.trim();
@@ -91,18 +148,20 @@ export default function SimulatorScreen() {
 
     setIsSimulating(true);
     setExpandedCard(null);
+    animateShimmer();
 
     setTimeout(() => {
       const simResult = simulateResponses(trimmed);
       setResult(simResult);
       setIsSimulating(false);
+      shimmerAnim.stopAnimation();
       animateResults();
 
       setTimeout(() => {
         scrollRef.current?.scrollTo({ y: 280, animated: true });
       }, 200);
-    }, 800);
-  }, [situation, animateResults]);
+    }, 1000);
+  }, [situation, animateResults, animateShimmer, shimmerAnim]);
 
   const handleScenarioTap = useCallback((scenarioSituation: string) => {
     if (Platform.OS !== 'web') {
@@ -125,8 +184,26 @@ export default function SimulatorScreen() {
     setSituation('');
     setResult(null);
     setExpandedCard(null);
+    setShowPauseTimer(false);
+    setPauseSeconds(120);
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, []);
+
+  const handleQuickAction = useCallback((action: QuickAction) => {
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    if (action.type === 'inline' && action.id === 'pause') {
+      setShowPauseTimer(true);
+      setPauseSeconds(120);
+      return;
+    }
+
+    if (action.route) {
+      router.push(action.route as never);
+    }
+  }, [router]);
 
   const impactDirectionColors = useMemo(() => ({
     positive: Colors.success,
@@ -140,15 +217,33 @@ export default function SimulatorScreen() {
     high: Colors.danger,
   }), []);
 
+  const filteredScenarios = useMemo(() => {
+    if (!activeCategory) return EXAMPLE_SCENARIOS;
+    return EXAMPLE_SCENARIOS.filter(s => s.category === activeCategory);
+  }, [activeCategory]);
+
+  const categories = useMemo(() => {
+    const cats = new Set(EXAMPLE_SCENARIOS.map(s => s.category));
+    return Array.from(cats);
+  }, []);
+
+  const formatPauseTime = useCallback((seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }, []);
+
   const renderResponseCard = useCallback((response: SimulatedResponse, index: number) => {
     const isExpanded = expandedCard === response.style;
     const animValue = cardAnims[index];
+    const isHealthy = response.isRecommended;
 
     return (
       <Animated.View
         key={response.style}
         style={[
           styles.responseCard,
+          isHealthy && styles.responseCardRecommended,
           {
             borderLeftColor: response.color,
             opacity: animValue,
@@ -173,12 +268,20 @@ export default function SimulatorScreen() {
             </View>
             <View style={styles.responseCardTitleArea}>
               <Text style={styles.responseCardTitle}>{response.label}</Text>
-              {response.isRecommended && (
-                <View style={styles.recommendedBadge}>
-                  <Check size={10} color={Colors.success} />
-                  <Text style={styles.recommendedText}>Recommended</Text>
-                </View>
-              )}
+              <View style={styles.responseCardMeta}>
+                {response.isRecommended ? (
+                  <View style={styles.recommendedBadge}>
+                    <Check size={10} color={Colors.success} />
+                    <Text style={styles.recommendedText}>Recommended</Text>
+                  </View>
+                ) : (
+                  <View style={styles.riskBadge}>
+                    <Text style={styles.riskText}>
+                      {response.emotionalOutcome.intensity} risk
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
           </View>
           {isExpanded ? (
@@ -188,6 +291,14 @@ export default function SimulatorScreen() {
           )}
         </TouchableOpacity>
 
+        {!isExpanded && (
+          <View style={styles.responseCardPreview}>
+            <Text style={styles.responsePreviewText} numberOfLines={2}>
+              {response.exampleResponse}
+            </Text>
+          </View>
+        )}
+
         {isExpanded && (
           <View style={styles.responseCardBody}>
             <View style={styles.responseSection}>
@@ -195,11 +306,12 @@ export default function SimulatorScreen() {
               <Text style={styles.responseExampleText}>{response.exampleResponse}</Text>
             </View>
 
-            <View style={styles.outcomeRow}>
+            <View style={styles.outcomeGrid}>
               <View style={styles.outcomeCard}>
-                <Text style={styles.outcomeLabel}>Emotional Outcome</Text>
+                <Text style={styles.outcomeLabel}>How you may feel</Text>
                 <Text style={styles.outcomeEmotion}>{response.emotionalOutcome.emotion}</Text>
-                <View style={[styles.intensityPill, { backgroundColor: intensityColors[response.emotionalOutcome.intensity] + '20' }]}>
+                <View style={[styles.intensityPill, { backgroundColor: intensityColors[response.emotionalOutcome.intensity] + '18' }]}>
+                  <View style={[styles.intensityDot, { backgroundColor: intensityColors[response.emotionalOutcome.intensity] }]} />
                   <Text style={[styles.intensityText, { color: intensityColors[response.emotionalOutcome.intensity] }]}>
                     {response.emotionalOutcome.intensity} intensity
                   </Text>
@@ -208,22 +320,28 @@ export default function SimulatorScreen() {
               </View>
 
               <View style={styles.outcomeCard}>
-                <Text style={styles.outcomeLabel}>Relationship Impact</Text>
-                <View style={[styles.impactPill, { backgroundColor: impactDirectionColors[response.relationshipImpact.direction] + '20' }]}>
+                <Text style={styles.outcomeLabel}>Relationship impact</Text>
+                <View style={[styles.impactPill, { backgroundColor: impactDirectionColors[response.relationshipImpact.direction] + '18' }]}>
+                  <View style={[styles.impactDot, { backgroundColor: impactDirectionColors[response.relationshipImpact.direction] }]} />
                   <Text style={[styles.impactText, { color: impactDirectionColors[response.relationshipImpact.direction] }]}>
-                    {response.relationshipImpact.direction}
+                    {response.relationshipImpact.direction === 'positive' ? 'Likely positive' :
+                     response.relationshipImpact.direction === 'negative' ? 'May cause strain' : 'Neutral'}
                   </Text>
                 </View>
                 <Text style={styles.outcomeDesc}>{response.relationshipImpact.description}</Text>
               </View>
             </View>
 
-            <View style={styles.healthierSection}>
+            <View style={[styles.healthierSection, isHealthy && styles.healthierSectionGreen]}>
               <View style={styles.healthierHeader}>
-                <Sparkles size={14} color={Colors.primary} />
-                <Text style={styles.healthierLabel}>Healthier Path</Text>
+                <Sparkles size={14} color={isHealthy ? Colors.success : Colors.primary} />
+                <Text style={[styles.healthierLabel, isHealthy && styles.healthierLabelGreen]}>
+                  {isHealthy ? 'Why this works' : 'A healthier path'}
+                </Text>
               </View>
-              <Text style={styles.healthierText}>{response.healthierAlternative}</Text>
+              <Text style={[styles.healthierText, isHealthy && styles.healthierTextGreen]}>
+                {response.healthierAlternative}
+              </Text>
             </View>
           </View>
         )}
@@ -231,12 +349,85 @@ export default function SimulatorScreen() {
     );
   }, [expandedCard, cardAnims, handleToggleCard, intensityColors, impactDirectionColors]);
 
+  const renderQuickActions = useCallback(() => {
+    if (!result) return null;
+
+    return (
+      <Animated.View style={[styles.quickActionsSection, { opacity: actionsFadeAnim }]}>
+        <Text style={styles.quickActionsTitle}>What would help right now?</Text>
+        <Text style={styles.quickActionsSubtitle}>
+          Choose a next step that feels right for you
+        </Text>
+
+        {showPauseTimer && (
+          <View style={styles.pauseTimerCard}>
+            <View style={styles.pauseTimerCircle}>
+              <Text style={styles.pauseTimerText}>{formatPauseTime(pauseSeconds)}</Text>
+            </View>
+            <Text style={styles.pauseTimerLabel}>Breathe. This moment will pass.</Text>
+            <TouchableOpacity
+              style={styles.pauseTimerStop}
+              onPress={() => {
+                setShowPauseTimer(false);
+                if (pauseTimerRef.current) clearInterval(pauseTimerRef.current);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.pauseTimerStopText}>I'm ready</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <View style={styles.quickActionsGrid}>
+          {result.quickActions.map((action) => (
+            <TouchableOpacity
+              key={action.id}
+              style={styles.quickActionCard}
+              onPress={() => handleQuickAction(action)}
+              activeOpacity={0.7}
+              testID={`quick-action-${action.id}`}
+            >
+              <Text style={styles.quickActionIcon}>{action.icon}</Text>
+              <Text style={styles.quickActionLabel}>{action.label}</Text>
+              <ArrowRight size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      </Animated.View>
+    );
+  }, [result, actionsFadeAnim, showPauseTimer, pauseSeconds, handleQuickAction, formatPauseTime]);
+
+  const renderLoadingState = useCallback(() => {
+    const shimmerOpacity = shimmerAnim.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: [0.3, 0.7, 0.3],
+    });
+
+    return (
+      <View style={styles.loadingSection}>
+        <View style={styles.loadingHeader}>
+          <Animated.View style={[styles.loadingDot, { opacity: shimmerOpacity }]} />
+          <Text style={styles.loadingText}>Exploring response paths...</Text>
+        </View>
+        {[1, 2, 3].map((i) => (
+          <Animated.View
+            key={i}
+            style={[styles.loadingSkeleton, { opacity: shimmerOpacity }]}
+          >
+            <View style={styles.loadingSkeletonBar} />
+            <View style={[styles.loadingSkeletonBar, { width: '60%' }]} />
+          </Animated.View>
+        ))}
+      </View>
+    );
+  }, [shimmerAnim]);
+
   return (
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Emotional Simulator',
-          headerTitleStyle: { fontWeight: '600' as const },
+          title: 'Response Paths',
+          headerTitleStyle: { fontWeight: '600' as const, fontSize: 17 },
         }}
       />
       <KeyboardAvoidingView
@@ -252,12 +443,14 @@ export default function SimulatorScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <Animated.View style={[styles.introSection, { opacity: fadeAnim }]}>
-            <View style={styles.introIcon}>
-              <Zap size={24} color={Colors.accent} />
+            <View style={styles.introIconRow}>
+              <View style={styles.introIcon}>
+                <Zap size={22} color={Colors.accent} />
+              </View>
             </View>
-            <Text style={styles.introTitle}>Explore Before You React</Text>
+            <Text style={styles.introTitle}>Before You Respond</Text>
             <Text style={styles.introSubtitle}>
-              Describe a situation and see how different responses might play out — before you act on impulse.
+              See how different reactions might play out — so you can choose the one that protects your peace.
             </Text>
           </Animated.View>
 
@@ -286,20 +479,54 @@ export default function SimulatorScreen() {
                   activeOpacity={0.7}
                   testID="simulate-btn"
                 >
-                  <Send size={16} color={Colors.white} />
-                  <Text style={styles.simulateButtonText}>
-                    {isSimulating ? 'Thinking...' : 'Simulate'}
-                  </Text>
+                  {isSimulating ? (
+                    <Text style={styles.simulateButtonText}>Thinking...</Text>
+                  ) : (
+                    <>
+                      <Send size={15} color={Colors.white} />
+                      <Text style={styles.simulateButtonText}>Simulate</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
           </Animated.View>
 
-          {!result && (
+          {!result && !isSimulating && (
             <Animated.View style={[styles.scenariosSection, { opacity: fadeAnim }]}>
-              <Text style={styles.scenariosTitle}>Or try an example</Text>
+              <Text style={styles.scenariosTitle}>Or explore a common situation</Text>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoryFilterRow}
+                style={styles.categoryFilterScroll}
+              >
+                <TouchableOpacity
+                  style={[styles.categoryPill, !activeCategory && styles.categoryPillActive]}
+                  onPress={() => setActiveCategory(null)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.categoryPillText, !activeCategory && styles.categoryPillTextActive]}>
+                    All
+                  </Text>
+                </TouchableOpacity>
+                {categories.map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[styles.categoryPill, activeCategory === cat && styles.categoryPillActive]}
+                    onPress={() => setActiveCategory(prev => prev === cat ? null : cat)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.categoryPillText, activeCategory === cat && styles.categoryPillTextActive]}>
+                      {CATEGORY_LABELS[cat] ?? cat}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
               <View style={styles.scenariosGrid}>
-                {EXAMPLE_SCENARIOS.map((scenario) => (
+                {filteredScenarios.map((scenario) => (
                   <TouchableOpacity
                     key={scenario.id}
                     style={styles.scenarioChip}
@@ -309,32 +536,57 @@ export default function SimulatorScreen() {
                   >
                     <Text style={styles.scenarioEmoji}>{scenario.emoji}</Text>
                     <Text style={styles.scenarioLabel}>{scenario.label}</Text>
+                    <ChevronRight size={14} color={Colors.textMuted} />
                   </TouchableOpacity>
                 ))}
               </View>
             </Animated.View>
           )}
 
-          {result && (
+          {isSimulating && renderLoadingState()}
+
+          {result && !isSimulating && (
             <Animated.View style={[styles.resultsSection, { opacity: resultFadeAnim }]}>
               <View style={styles.resultsHeader}>
-                <Text style={styles.resultsTitle}>Possible Responses</Text>
+                <View>
+                  <Text style={styles.resultsTitle}>Response Paths</Text>
+                  <Text style={styles.resultsSubtitle}>6 ways this could go</Text>
+                </View>
                 <TouchableOpacity
                   style={styles.resetButton}
                   onPress={handleReset}
                   activeOpacity={0.7}
                   testID="reset-btn"
                 >
-                  <RotateCcw size={15} color={Colors.primary} />
-                  <Text style={styles.resetText}>New situation</Text>
+                  <RotateCcw size={14} color={Colors.primary} />
+                  <Text style={styles.resetText}>New</Text>
                 </TouchableOpacity>
               </View>
 
               <View style={styles.situationBubble}>
-                <Text style={styles.situationBubbleText}>"{result.situation}"</Text>
+                <Text style={styles.situationBubbleLabel}>Your situation</Text>
+                <Text style={styles.situationBubbleText}>{result.situation}</Text>
               </View>
 
-              {result.responses.map((response, index) => renderResponseCard(response, index))}
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerLabel}>May escalate</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {result.responses.slice(0, 3).map((response, index) =>
+                renderResponseCard(response, index)
+              )}
+
+              <View style={styles.dividerRow}>
+                <View style={[styles.dividerLine, styles.dividerLineGreen]} />
+                <Text style={[styles.dividerLabel, styles.dividerLabelGreen]}>May support you</Text>
+                <View style={[styles.dividerLine, styles.dividerLineGreen]} />
+              </View>
+
+              {result.responses.slice(3).map((response, index) =>
+                renderResponseCard(response, index + 3)
+              )}
 
               <View style={styles.summaryCard}>
                 <View style={styles.summaryHeader}>
@@ -343,6 +595,8 @@ export default function SimulatorScreen() {
                 </View>
                 <Text style={styles.summaryText}>{result.summary}</Text>
               </View>
+
+              {renderQuickActions()}
             </Animated.View>
           )}
 
@@ -366,35 +620,37 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 12,
   },
   introSection: {
     alignItems: 'center' as const,
-    marginBottom: 28,
+    marginBottom: 24,
     paddingTop: 8,
   },
+  introIconRow: {
+    marginBottom: 14,
+  },
   introIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: Colors.accentLight,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    marginBottom: 16,
   },
   introTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700' as const,
     color: Colors.text,
     marginBottom: 8,
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
   },
   introSubtitle: {
     fontSize: 14,
     color: Colors.textSecondary,
     textAlign: 'center' as const,
-    lineHeight: 20,
-    paddingHorizontal: 16,
+    lineHeight: 21,
+    paddingHorizontal: 12,
   },
   inputSection: {
     marginBottom: 20,
@@ -407,10 +663,15 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     backgroundColor: Colors.card,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: Colors.borderLight,
     overflow: 'hidden' as const,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 6,
+    elevation: 2,
   },
   textInput: {
     fontSize: 15,
@@ -418,6 +679,7 @@ const styles = StyleSheet.create({
     padding: 16,
     minHeight: 80,
     textAlignVertical: 'top' as const,
+    lineHeight: 22,
   },
   inputFooter: {
     flexDirection: 'row' as const,
@@ -437,11 +699,11 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: Colors.accent,
     paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 12,
+    paddingHorizontal: 20,
+    borderRadius: 14,
   },
   simulateButtonDisabled: {
-    opacity: 0.5,
+    opacity: 0.45,
   },
   simulateButtonText: {
     fontSize: 14,
@@ -455,33 +717,95 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500' as const,
     color: Colors.textSecondary,
-    marginBottom: 12,
+    marginBottom: 14,
     textAlign: 'center' as const,
   },
-  scenariosGrid: {
+  categoryFilterScroll: {
+    marginBottom: 14,
+  },
+  categoryFilterRow: {
     flexDirection: 'row' as const,
-    flexWrap: 'wrap' as const,
     gap: 8,
-    justifyContent: 'center' as const,
+    paddingHorizontal: 2,
+  },
+  categoryPill: {
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  categoryPillActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  categoryPillText: {
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: Colors.textSecondary,
+  },
+  categoryPillTextActive: {
+    color: Colors.white,
+    fontWeight: '600' as const,
+  },
+  scenariosGrid: {
+    gap: 8,
   },
   scenarioChip: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: 6,
+    gap: 10,
     backgroundColor: Colors.card,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: Colors.borderLight,
   },
   scenarioEmoji: {
-    fontSize: 14,
+    fontSize: 18,
   },
   scenarioLabel: {
-    fontSize: 13,
+    flex: 1,
+    fontSize: 14,
     fontWeight: '500' as const,
     color: Colors.text,
+  },
+  loadingSection: {
+    marginBottom: 24,
+    paddingTop: 8,
+  },
+  loadingHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 10,
+    marginBottom: 20,
+    justifyContent: 'center' as const,
+  },
+  loadingDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.accent,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontStyle: 'italic' as const,
+  },
+  loadingSkeleton: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 10,
+    gap: 10,
+  },
+  loadingSkeletonBar: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: Colors.surface,
+    width: '80%' as const,
   },
   resultsSection: {
     marginBottom: 16,
@@ -493,53 +817,93 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   resultsTitle: {
-    fontSize: 18,
-    fontWeight: '600' as const,
+    fontSize: 20,
+    fontWeight: '700' as const,
     color: Colors.text,
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
+  },
+  resultsSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
   resetButton: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     gap: 5,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 12,
     backgroundColor: Colors.primaryLight,
   },
   resetText: {
     fontSize: 13,
-    fontWeight: '500' as const,
+    fontWeight: '600' as const,
     color: Colors.primary,
   },
   situationBubble: {
     backgroundColor: Colors.warmGlow,
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 16,
-    marginBottom: 18,
+    marginBottom: 20,
     borderWidth: 1,
     borderColor: Colors.accentLight,
   },
+  situationBubbleLabel: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: Colors.accent,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
   situationBubbleText: {
-    fontSize: 14,
-    fontStyle: 'italic' as const,
-    color: Colors.textSecondary,
-    lineHeight: 20,
+    fontSize: 15,
+    color: Colors.text,
+    lineHeight: 22,
+  },
+  dividerRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    marginBottom: 14,
+    marginTop: 6,
+    gap: 10,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.danger + '30',
+  },
+  dividerLineGreen: {
+    backgroundColor: Colors.success + '30',
+  },
+  dividerLabel: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: Colors.danger,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.6,
+  },
+  dividerLabelGreen: {
+    color: Colors.success,
   },
   responseCard: {
     backgroundColor: Colors.card,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: Colors.borderLight,
     borderLeftWidth: 4,
-    marginBottom: 12,
+    marginBottom: 10,
     overflow: 'hidden' as const,
+  },
+  responseCardRecommended: {
+    borderColor: Colors.success + '25',
   },
   responseCardHeader: {
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
     alignItems: 'center' as const,
-    padding: 16,
+    padding: 14,
   },
   responseCardHeaderLeft: {
     flexDirection: 'row' as const,
@@ -548,9 +912,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   styleIconContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 13,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
@@ -562,26 +926,48 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: Colors.text,
   },
+  responseCardMeta: {
+    marginTop: 3,
+  },
   recommendedBadge: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     gap: 3,
-    marginTop: 3,
   },
   recommendedText: {
     fontSize: 11,
-    fontWeight: '500' as const,
+    fontWeight: '600' as const,
     color: Colors.success,
   },
+  riskBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+  },
+  riskText: {
+    fontSize: 11,
+    fontWeight: '500' as const,
+    color: Colors.textMuted,
+    textTransform: 'capitalize' as const,
+  },
+  responseCardPreview: {
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+    paddingTop: 0,
+  },
+  responsePreviewText: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    lineHeight: 19,
+  },
   responseCardBody: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingBottom: 16,
   },
   responseSection: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
   responseSectionLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600' as const,
     color: Colors.textMuted,
     textTransform: 'uppercase' as const,
@@ -593,20 +979,20 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 21,
     backgroundColor: Colors.surface,
-    padding: 12,
-    borderRadius: 10,
+    padding: 14,
+    borderRadius: 12,
   },
-  outcomeRow: {
+  outcomeGrid: {
     gap: 10,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   outcomeCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 14,
   },
   outcomeLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600' as const,
     color: Colors.textMuted,
     textTransform: 'uppercase' as const,
@@ -617,14 +1003,22 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600' as const,
     color: Colors.text,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   intensityPill: {
     alignSelf: 'flex-start' as const,
-    paddingVertical: 3,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 8,
     marginBottom: 8,
+  },
+  intensityDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   intensityText: {
     fontSize: 12,
@@ -632,15 +1026,22 @@ const styles = StyleSheet.create({
   },
   impactPill: {
     alignSelf: 'flex-start' as const,
-    paddingVertical: 3,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 8,
     marginBottom: 8,
   },
+  impactDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
   impactText: {
     fontSize: 12,
     fontWeight: '600' as const,
-    textTransform: 'capitalize' as const,
   },
   outcomeDesc: {
     fontSize: 13,
@@ -649,8 +1050,11 @@ const styles = StyleSheet.create({
   },
   healthierSection: {
     backgroundColor: Colors.primaryLight,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 14,
+  },
+  healthierSectionGreen: {
+    backgroundColor: Colors.successLight,
   },
   healthierHeader: {
     flexDirection: 'row' as const,
@@ -663,16 +1067,22 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: Colors.primary,
   },
+  healthierLabelGreen: {
+    color: Colors.success,
+  },
   healthierText: {
     fontSize: 13,
     color: Colors.primaryDark,
-    lineHeight: 19,
+    lineHeight: 20,
+  },
+  healthierTextGreen: {
+    color: '#1a7a5c',
   },
   summaryCard: {
     backgroundColor: Colors.warmGlow,
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 18,
-    marginTop: 6,
+    marginTop: 8,
     borderWidth: 1,
     borderColor: Colors.accentLight,
   },
@@ -683,14 +1093,92 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   summaryTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600' as const,
     color: Colors.text,
   },
   summaryText: {
     fontSize: 14,
     color: Colors.textSecondary,
-    lineHeight: 21,
+    lineHeight: 22,
+  },
+  quickActionsSection: {
+    marginTop: 24,
+  },
+  quickActionsTitle: {
+    fontSize: 17,
+    fontWeight: '600' as const,
+    color: Colors.text,
+    marginBottom: 4,
+    letterSpacing: -0.2,
+  },
+  quickActionsSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 14,
+  },
+  quickActionsGrid: {
+    gap: 8,
+  },
+  quickActionCard: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 12,
+    backgroundColor: Colors.card,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  quickActionIcon: {
+    fontSize: 20,
+  },
+  quickActionLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500' as const,
+    color: Colors.text,
+  },
+  pauseTimerCard: {
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center' as const,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.primary + '25',
+  },
+  pauseTimerCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.primary + '15',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginBottom: 14,
+  },
+  pauseTimerText: {
+    fontSize: 28,
+    fontWeight: '700' as const,
+    color: Colors.primary,
+    fontVariant: ['tabular-nums'] as const,
+  },
+  pauseTimerLabel: {
+    fontSize: 14,
+    color: Colors.primaryDark,
+    fontStyle: 'italic' as const,
+    marginBottom: 14,
+  },
+  pauseTimerStop: {
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+  },
+  pauseTimerStopText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.white,
   },
   bottomSpacer: {
     height: 40,

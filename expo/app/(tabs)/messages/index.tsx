@@ -28,6 +28,7 @@ import {
   Check,
   Shield,
   Users,
+  Zap,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
@@ -402,6 +403,27 @@ export default function MessagesScreen() {
           )}
         </View>
       )}
+
+      <TouchableOpacity
+        style={styles.simulatorBanner}
+        onPress={() => {
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          router.push('/companion/simulator' as never);
+        }}
+        activeOpacity={0.7}
+        testID="simulator-entry-btn"
+      >
+        <View style={styles.simulatorBannerLeft}>
+          <View style={styles.simulatorBannerIcon}>
+            <Zap size={16} color={Colors.accent} />
+          </View>
+          <View style={styles.simulatorBannerText}>
+            <Text style={styles.simulatorBannerTitle}>Simulate before sending</Text>
+            <Text style={styles.simulatorBannerDesc}>See how different responses may play out</Text>
+          </View>
+        </View>
+        <ChevronRight size={16} color={Colors.accent} />
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.relInsightsBanner}
@@ -1740,5 +1762,42 @@ const styles = StyleSheet.create({
   relInsightsBannerDesc: {
     fontSize: 12,
     color: 'rgba(255,255,255,0.8)',
+  },
+  simulatorBanner: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: Colors.accentLight,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.accent + '30',
+  },
+  simulatorBannerLeft: {
+    flex: 1,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+  },
+  simulatorBannerIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: Colors.accent + '20',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginRight: 10,
+  },
+  simulatorBannerText: {
+    flex: 1,
+  },
+  simulatorBannerTitle: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.text,
+    marginBottom: 1,
+  },
+  simulatorBannerDesc: {
+    fontSize: 12,
+    color: Colors.textSecondary,
   },
 });

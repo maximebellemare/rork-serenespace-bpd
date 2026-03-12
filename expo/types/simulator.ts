@@ -1,4 +1,4 @@
-export type ResponseStyle = 'anxious' | 'calm' | 'boundary' | 'avoidance';
+export type ResponseStyle = 'anxious' | 'calm' | 'boundary' | 'avoidance' | 'reassurance' | 'secure';
 
 export interface EmotionalOutcome {
   emotion: string;
@@ -23,12 +23,21 @@ export interface SimulatedResponse {
   isRecommended: boolean;
 }
 
+export interface QuickAction {
+  id: string;
+  label: string;
+  icon: string;
+  route?: string;
+  type: 'navigate' | 'inline';
+}
+
 export interface SimulationResult {
   id: string;
   situation: string;
   timestamp: number;
   responses: SimulatedResponse[];
   summary: string;
+  quickActions: QuickAction[];
 }
 
 export interface SimulationScenario {
@@ -36,4 +45,5 @@ export interface SimulationScenario {
   label: string;
   emoji: string;
   situation: string;
+  category: 'relationship' | 'social' | 'work' | 'self';
 }
