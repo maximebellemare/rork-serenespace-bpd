@@ -38,7 +38,7 @@ import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useProfile } from '@/providers/ProfileProvider';
 import { useSubscription } from '@/providers/SubscriptionProvider';
-import { Crown, Compass } from 'lucide-react-native';
+import { Crown, Compass, HeartHandshake } from 'lucide-react-native';
 import { useCoaching } from '@/hooks/useCoaching';
 
 export default function ProfileScreen() {
@@ -272,6 +272,27 @@ export default function ProfileScreen() {
               <View style={styles.patternsBannerContent}>
                 <Text style={styles.patternsBannerTitle}>Relationship Patterns</Text>
                 <Text style={styles.patternsBannerDesc}>Understand your emotional reactions</Text>
+              </View>
+            </View>
+            <ChevronRight size={18} color={Colors.white} style={{ opacity: 0.7 }} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.relationshipProfilesBanner}
+            onPress={() => {
+              handleHaptic();
+              router.push('/profile/relationship-profiles' as never);
+            }}
+            activeOpacity={0.7}
+            testID="relationship-profiles-btn"
+          >
+            <View style={styles.patternsBannerLeft}>
+              <View style={[styles.patternsBannerIcon, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                <HeartHandshake size={20} color={Colors.white} />
+              </View>
+              <View style={styles.patternsBannerContent}>
+                <Text style={styles.patternsBannerTitle}>Relationship Profiles</Text>
+                <Text style={styles.patternsBannerDesc}>Track patterns with specific people</Text>
               </View>
             </View>
             <ChevronRight size={18} color={Colors.white} style={{ opacity: 0.7 }} />
@@ -912,6 +933,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     backgroundColor: '#E84393',
+    padding: 18,
+    borderRadius: 18,
+    marginTop: 10,
+  },
+  relationshipProfilesBanner: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: '#C44D8E',
     padding: 18,
     borderRadius: 18,
     marginTop: 10,
