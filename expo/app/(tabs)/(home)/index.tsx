@@ -11,6 +11,9 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Shield, Heart, Wind, Sparkles, BarChart3, ChevronRight } from 'lucide-react-native';
+import EmotionalTrendsCard from '@/components/EmotionalTrendsCard';
+import EarlyWarningBanner from '@/components/EarlyWarningBanner';
+import { useEarlyWarning } from '@/hooks/useEarlyWarning';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { VALIDATION_MESSAGES } from '@/constants/data';
@@ -20,6 +23,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { journalEntries } = useApp();
+  const earlyWarning = useEarlyWarning();
   const [validationIndex, setValidationIndex] = useState<number>(0);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -223,6 +227,23 @@ export default function HomeScreen() {
             <Text style={styles.quickActionLabel}>Reality Check</Text>
             <Text style={styles.quickActionDesc}>Check facts</Text>
           </TouchableOpacity>
+        </Animated.View>
+
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <EarlyWarningBanner
+            warningLevel={earlyWarning.warningLevel}
+            message={earlyWarning.message}
+            patterns={earlyWarning.patterns}
+            suggestions={earlyWarning.suggestions}
+          />
+        </Animated.View>
+
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <EmotionalTrendsCard
+            trend={earlyWarning.emotionalTrend}
+            warningLevel={earlyWarning.warningLevel}
+            onPress={() => router.push('/insights')}
+          />
         </Animated.View>
 
         {recentCount > 0 && (
