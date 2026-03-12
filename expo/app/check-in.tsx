@@ -11,14 +11,20 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, ChevronRight, ChevronLeft, Check } from 'lucide-react-native';
+import { X, ChevronRight, ChevronLeft, Check, Wind, Anchor, BookOpen, Heart, RefreshCw, Search, MessageCircle, Timer } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { EMOTIONS, TRIGGERS, BODY_SENSATIONS, URGES } from '@/constants/data';
 import { useApp } from '@/providers/AppProvider';
 import { Emotion, Trigger, BodySensation, Urge, CheckInEntry, JournalEntry } from '@/types';
+import { generateCheckInRecommendations } from '@/services/recommendation/copingRecommendationService';
+import { CopingRecommendation } from '@/types/recommendation';
 
-const STEPS = ['triggers', 'emotions', 'body', 'urges', 'intensity', 'notes'] as const;
+const STEPS = ['triggers', 'emotions', 'body', 'urges', 'intensity', 'notes', 'suggestions'] as const;
+
+const CI_ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string }>> = {
+  Wind, Anchor, BookOpen, Heart, RefreshCw, Search, MessageCircle, Timer,
+};
 type Step = typeof STEPS[number];
 
 const STEP_TITLES: Record<Step, string> = {
@@ -28,6 +34,7 @@ const STEP_TITLES: Record<Step, string> = {
   urges: 'What urges are coming up?',
   intensity: 'How intense is this?',
   notes: 'Anything else?',
+  suggestions: 'Here for you',
 };
 
 const STEP_SUBTITLES: Record<Step, string> = {
@@ -37,6 +44,7 @@ const STEP_SUBTITLES: Record<Step, string> = {
   urges: "It's okay to have urges. Naming them gives you power.",
   intensity: 'On a scale of 1-10, how intense right now?',
   notes: 'Optional. Write anything you need to get out.',
+  suggestions: 'Based on what you shared, these might help right now.',
 };
 
 export default function CheckInScreen() {
@@ -112,7 +120,9 @@ export default function CheckInScreen() {
     }
   }, [stepIndex, animateTransition]);
 
-  const handleComplete = useCallback(() => {
+  const [checkInRecs, setCheckInRecs] = useState<CopingRecommendation[]>([]);
+
+  const handleSaveAndShowSuggestions = useCallback(() => {
     if (Platform.OS !== 'web') {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
@@ -146,12 +156,31 @@ export default function CheckInScreen() {
       setDistressLevel('low');
     }
 
-    router.back();
+    const recs = generateCheckInRecommendations(
+      intensity,
+      selectedEmotions.map(e => e.label),
+      selectedTriggers.map(t => t.label),
+      selectedTriggers.map(t => t.category),
+      selectedUrges.map(u => ({ label: u.label, risk: u.risk })),
+    );
+    setCheckInRecs(recs);
 
+    if (recs.length > 0) {
+      animateTransition('forward', () => setStepIndex(STEPS.length - 1));
+    } else {
+      router.back();
+      if (intensity >= 8) {
+        setTimeout(() => router.push('/safety-mode'), 300);
+      }
+    }
+  }, [selectedTriggers, selectedEmotions, selectedUrges, selectedSensations, intensity, notes, addJournalEntry, setDistressLevel, router, animateTransition]);
+
+  const handleComplete = useCallback(() => {
+    router.back();
     if (intensity >= 8) {
       setTimeout(() => router.push('/safety-mode'), 300);
     }
-  }, [selectedTriggers, selectedEmotions, selectedUrges, selectedSensations, intensity, notes, addJournalEntry, setDistressLevel, router]);
+  }, [intensity, router]);
 
   const toggleItem = useCallback(<T extends { id: string }>(
     items: T[],
@@ -251,12 +280,49 @@ export default function CheckInScreen() {
             textAlignVertical="top"
           />
         );
+      case 'suggestions':
+        return (
+          <View style={styles.suggestionsContainer}>
+            {checkInRecs.map((rec) => {
+              const IconComp = CI_ICON_MAP[rec.icon] ?? Wind;
+              const isHigh = rec.priority === 'high';
+              return (
+                <TouchableOpacity
+                  key={rec.id}
+                  style={[
+                    styles.suggestionCard,
+                    isHigh && styles.suggestionCardHighlight,
+                  ]}
+                  onPress={() => {
+                    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.back();
+                    setTimeout(() => router.push(rec.route as never), 200);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={[
+                    styles.suggestionIconWrap,
+                    { backgroundColor: isHigh ? '#FDE8E3' : Colors.primaryLight },
+                  ]}>
+                    <IconComp size={20} color={isHigh ? Colors.danger : Colors.primary} />
+                  </View>
+                  <View style={styles.suggestionContent}>
+                    <Text style={styles.suggestionTitle}>{rec.title}</Text>
+                    <Text style={styles.suggestionMsg}>{rec.message}</Text>
+                  </View>
+                  <ChevronRight size={16} color={Colors.textMuted} />
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        );
       default:
         return null;
     }
   };
 
   const isLastStep = stepIndex === STEPS.length - 1;
+  const isNotesStep = step === 'notes';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -309,14 +375,19 @@ export default function CheckInScreen() {
           )}
 
           <TouchableOpacity
-            style={[styles.nextButton, isLastStep && styles.completeButton]}
-            onPress={isLastStep ? handleComplete : goNext}
+            style={[styles.nextButton, (isLastStep || isNotesStep) && styles.completeButton]}
+            onPress={isLastStep ? handleComplete : isNotesStep ? handleSaveAndShowSuggestions : goNext}
             activeOpacity={0.8}
           >
             {isLastStep ? (
               <>
                 <Check size={20} color={Colors.white} />
                 <Text style={styles.nextButtonText}>Done</Text>
+              </>
+            ) : isNotesStep ? (
+              <>
+                <Check size={20} color={Colors.white} />
+                <Text style={styles.nextButtonText}>Save</Text>
               </>
             ) : (
               <>
@@ -328,7 +399,7 @@ export default function CheckInScreen() {
         </View>
 
         <Text style={styles.skipHint}>
-          {isLastStep ? 'This will be saved to your journal' : 'You can skip — select what feels right'}
+          {isLastStep ? 'Tap a tool to try it, or Done to close' : isNotesStep ? 'This will be saved to your journal' : 'You can skip — select what feels right'}
         </Text>
       </View>
     </View>
@@ -510,5 +581,44 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textMuted,
     marginTop: 10,
+  },
+  suggestionsContainer: {
+    gap: 12,
+  },
+  suggestionCard: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  suggestionCardHighlight: {
+    backgroundColor: '#FFF8F5',
+    borderColor: '#FDDDD3',
+  },
+  suggestionIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginRight: 14,
+  },
+  suggestionContent: {
+    flex: 1,
+    marginRight: 8,
+  },
+  suggestionTitle: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.text,
+    marginBottom: 3,
+  },
+  suggestionMsg: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 19,
   },
 });

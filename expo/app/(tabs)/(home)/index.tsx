@@ -14,7 +14,9 @@ import { Shield, Heart, Wind, Sparkles, BarChart3, ChevronRight, Zap } from 'luc
 import EmotionalTrendsCard from '@/components/EmotionalTrendsCard';
 import EarlyWarningBanner from '@/components/EarlyWarningBanner';
 import DailyReflectionCard from '@/components/DailyReflectionCard';
+import SmartCopingCard from '@/components/SmartCopingCard';
 import { useEarlyWarning } from '@/hooks/useEarlyWarning';
+import { useRecommendations } from '@/hooks/useRecommendations';
 import { useQuery } from '@tanstack/react-query';
 import { ritualRepository } from '@/services/repositories';
 import { getTodayEntry, getWeeklyReflection } from '@/services/ritual/dailyCheckInService';
@@ -28,6 +30,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { journalEntries } = useApp();
   const earlyWarning = useEarlyWarning();
+  const { recommendations, topRecommendation } = useRecommendations();
 
   const ritualQuery = useQuery({
     queryKey: ['ritual'],
@@ -301,6 +304,13 @@ export default function HomeScreen() {
             </Text>
           </Animated.View>
         )}
+
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <SmartCopingCard
+            recommendations={recommendations}
+            topRecommendation={topRecommendation}
+          />
+        </Animated.View>
 
         <Animated.View style={[{ opacity: fadeAnim }]}>
           <TouchableOpacity

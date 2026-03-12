@@ -4,13 +4,19 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  TouchableOpacity,
   Animated,
+  Platform,
 } from 'react-native';
 import { Stack } from 'expo-router';
-import { TrendingUp, TrendingDown, Minus, Zap, Heart, AlertTriangle, Shield, Layers } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, Minus, Zap, Heart, AlertTriangle, Shield, Layers, Lightbulb, ChevronRight, Wind, Anchor, BookOpen, RefreshCw, Search, MessageCircle, Timer } from 'lucide-react-native';
 import Colors from '@/constants/colors';
+import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useAICompanion } from '@/providers/AICompanionProvider';
 import { InsightCard } from '@/types/memory';
+import { useRecommendations } from '@/hooks/useRecommendations';
+import { CopingRecommendation } from '@/types/recommendation';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   trigger: <Zap size={18} color={Colors.accent} />,
@@ -74,8 +80,45 @@ function InsightCardView({ card, index }: { card: InsightCard; index: number }) 
   );
 }
 
+const REC_ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string }>> = {
+  Wind, Anchor, BookOpen, Heart, RefreshCw, Search, MessageCircle, Timer,
+};
+
+const REC_PRIORITY_COLORS: Record<string, { bg: string; accent: string }> = {
+  high: { bg: '#FFF5F0', accent: Colors.danger },
+  medium: { bg: Colors.warmGlow, accent: Colors.accent },
+  low: { bg: Colors.primaryLight, accent: Colors.primary },
+};
+
+function RecRow({ rec }: { rec: CopingRecommendation }) {
+  const router = useRouter();
+  const IconComp = REC_ICON_MAP[rec.icon] ?? Wind;
+  const colors = REC_PRIORITY_COLORS[rec.priority] ?? REC_PRIORITY_COLORS.low;
+
+  return (
+    <TouchableOpacity
+      style={recStyles.row}
+      onPress={() => {
+        if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.push(rec.route as never);
+      }}
+      activeOpacity={0.7}
+    >
+      <View style={[recStyles.iconWrap, { backgroundColor: colors.bg }]}>
+        <IconComp size={16} color={colors.accent} />
+      </View>
+      <View style={recStyles.content}>
+        <Text style={recStyles.title}>{rec.title}</Text>
+        <Text style={recStyles.msg} numberOfLines={1}>{rec.message}</Text>
+      </View>
+      <ChevronRight size={14} color={Colors.textMuted} />
+    </TouchableOpacity>
+  );
+}
+
 export default function InsightsScreen() {
   const { insightCards, memoryProfile } = useAICompanion();
+  const { recommendations, hasData: hasRecData } = useRecommendations();
 
   const hasData = memoryProfile.recentCheckInCount > 0;
 
@@ -151,6 +194,23 @@ export default function InsightsScreen() {
                 <Text style={styles.barValue}>{item.percentage}%</Text>
               </View>
             ))}
+          </View>
+        )}
+
+        {hasRecData && recommendations.length > 0 && (
+          <View style={recStyles.section}>
+            <View style={recStyles.headerRow}>
+              <Lightbulb size={16} color={Colors.accent} />
+              <Text style={recStyles.headerTitle}>Suggested Coping Tools</Text>
+            </View>
+            <Text style={recStyles.headerHint}>
+              Based on your recent emotions and triggers
+            </Text>
+            <View style={recStyles.list}>
+              {recommendations.slice(0, 3).map(rec => (
+                <RecRow key={rec.id} rec={rec} />
+              ))}
+            </View>
           </View>
         )}
 
@@ -297,5 +357,61 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 30,
+  },
+});
+
+const recStyles = StyleSheet.create({
+  section: {
+    marginBottom: 24,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.text,
+  },
+  headerHint: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    marginBottom: 12,
+  },
+  list: {
+    gap: 8,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  iconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  content: {
+    flex: 1,
+    marginRight: 8,
+  },
+  title: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  msg: {
+    fontSize: 12,
+    color: Colors.textSecondary,
   },
 });
