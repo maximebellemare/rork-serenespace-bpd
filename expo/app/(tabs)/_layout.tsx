@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Home, BookOpen, Wrench, MessageSquare } from "lucide-react-native";
+import { Home, BookOpen, Wrench, MessageSquare, Sparkles } from "lucide-react-native";
 import React from "react";
 import Colors from "@/constants/colors";
 
@@ -40,6 +40,13 @@ export default function TabLayout() {
         options={{
           title: "Tools",
           tabBarIcon: ({ color, size }) => <Wrench size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="companion"
+        options={{
+          title: "Companion",
+          tabBarIcon: ({ color, size }) => <Sparkles size={size} color={color} />,
         }}
       />
       <Tabs.Screen

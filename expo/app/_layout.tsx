@@ -4,6 +4,7 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AppProvider } from "@/providers/AppProvider";
+import { AICompanionProvider } from "@/providers/AICompanionProvider";
 import Colors from "@/constants/colors";
 
 void SplashScreen.preventAutoHideAsync();
@@ -53,7 +54,9 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView>
         <AppProvider>
-          <RootLayoutNav />
+          <AICompanionProvider>
+            <RootLayoutNav />
+          </AICompanionProvider>
         </AppProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
