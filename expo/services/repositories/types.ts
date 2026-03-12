@@ -1,7 +1,10 @@
-import { JournalEntry, MessageDraft } from '@/types';
+import { JournalEntry, MessageDraft, CheckInEntry } from '@/types';
 import { AIConversation } from '@/types/ai';
+import { AuthUser, AuthSession, AuthCredentials, AuthSignUpInput } from '@/types/auth';
+import { AnalyticsEvent, AnalyticsUserProperties } from '@/types/analytics';
 import { UserProfile } from '@/types/profile';
 import { LearnState } from '@/types/learn';
+import { MemoryProfile } from '@/types/memory';
 import {
   CommunityPost,
   PostReply,
@@ -60,4 +63,37 @@ export interface ICommunityRepository {
   createPost(input: NewPostInput): Promise<CommunityPost>;
   createReply(input: NewReplyInput): Promise<PostReply>;
   toggleReaction(postId: string, reactionType: string, replyId?: string): Promise<void>;
+}
+
+export interface IAuthRepository {
+  getCurrentUser(): Promise<AuthUser | null>;
+  getSession(): Promise<AuthSession | null>;
+  signIn(credentials: AuthCredentials): Promise<AuthSession>;
+  signUp(input: AuthSignUpInput): Promise<AuthSession>;
+  signOut(): Promise<void>;
+  refreshSession(): Promise<AuthSession | null>;
+  updateUser(updates: Partial<AuthUser>): Promise<AuthUser>;
+}
+
+export interface ICheckInRepository {
+  getAll(): Promise<CheckInEntry[]>;
+  save(entries: CheckInEntry[]): Promise<void>;
+  add(entry: CheckInEntry): Promise<CheckInEntry[]>;
+  getById(id: string): Promise<CheckInEntry | null>;
+  getByDateRange(start: number, end: number): Promise<CheckInEntry[]>;
+  remove(id: string): Promise<CheckInEntry[]>;
+}
+
+export interface IMemoryRepository {
+  getProfile(): Promise<MemoryProfile | null>;
+  saveProfile(profile: MemoryProfile): Promise<void>;
+  getLastUpdated(): Promise<number | null>;
+  clear(): Promise<void>;
+}
+
+export interface IAnalyticsRepository {
+  trackEvent(name: string, properties?: Record<string, string | number | boolean>): Promise<void>;
+  setUserProperties(properties: AnalyticsUserProperties): Promise<void>;
+  getEvents(): Promise<AnalyticsEvent[]>;
+  flush(): Promise<void>;
 }
