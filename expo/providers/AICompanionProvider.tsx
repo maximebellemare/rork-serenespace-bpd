@@ -11,11 +11,11 @@ import { generateSupportiveInterpretations } from '@/services/insights/aiInsight
 import { conversationRepository } from '@/services/repositories';
 
 export const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
-  { id: 'sp1', label: 'I feel abandoned right now', icon: '💔', prompt: 'I feel abandoned right now' },
-  { id: 'sp2', label: 'Help me calm down', icon: '🌊', prompt: 'Help me calm down, I\'m overwhelmed' },
+  { id: 'sp1', label: 'I feel abandoned right now', icon: '💔', prompt: 'I feel abandoned right now and I need support' },
+  { id: 'sp2', label: 'Help me calm down', icon: '🌊', prompt: 'Help me slow down, everything feels overwhelming right now' },
   { id: 'sp3', label: 'What am I feeling?', icon: '🔍', prompt: 'Help me understand what I\'m feeling right now' },
-  { id: 'sp4', label: 'Rewrite a message', icon: '✏️', prompt: 'Help me rewrite a message I want to send' },
-  { id: 'sp5', label: 'Relationship trigger', icon: '⚡', prompt: 'Talk me through this relationship trigger' },
+  { id: 'sp4', label: 'Help me before I text', icon: '📱', prompt: 'I want to send a message and I\'m not calm right now. Help me pause.' },
+  { id: 'sp5', label: 'Relationship trigger', icon: '⚡', prompt: 'Talk me through this relationship trigger I\'m dealing with' },
   { id: 'sp6', label: 'My patterns lately', icon: '🔄', prompt: 'What pattern do you notice in my check-ins lately?' },
 ];
 
@@ -111,6 +111,12 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
       timestamp: Date.now(),
     };
 
+    const currentConvo = conversations.find(c => c.id === activeConversationId);
+    const conversationHistory = (currentConvo?.messages ?? []).map(m => ({
+      role: m.role,
+      content: m.content,
+    }));
+
     const updatedConvos = conversations.map(c => {
       if (c.id === activeConversationId) {
         const isFirst = c.messages.length === 0;
@@ -133,13 +139,17 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
     setIsGenerating(true);
 
     try {
-      const response = await generateMockResponse(content, contextSummary);
+      const response = await generateMockResponse(content, contextSummary, {
+        conversationHistory,
+      });
 
       const assistantMessage: AIMessage = {
         id: `msg_${Date.now()}_ai`,
         role: 'assistant',
         content: response.content,
         timestamp: response.timestamp,
+        quickActions: response.quickActions,
+        intent: response.intent,
       };
 
       const finalConvos = updatedConvos.map(c => {

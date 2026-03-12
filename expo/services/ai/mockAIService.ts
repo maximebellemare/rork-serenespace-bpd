@@ -1,94 +1,144 @@
 import { AIServiceResponse } from '@/types/ai';
-
-const EMPATHETIC_RESPONSES: Record<string, string[]> = {
-  abandoned: [
-    "I hear you, and that feeling of abandonment is one of the most painful experiences there is. You're not being dramatic — this is real pain. Let's sit with this together for a moment.\n\nCan you tell me what happened that brought this feeling up? Sometimes naming the specific moment helps us understand what our mind is reacting to.",
-    "That fear of being left behind can feel so overwhelming, like the ground is disappearing beneath you. I want you to know — right now, in this moment, you are not alone.\n\nWhat does the abandonment feel like in your body right now? Sometimes checking in with our physical sensations can help us stay grounded.",
-  ],
-  calm: [
-    "Let's take this one breath at a time. You reached out, which means part of you knows you can get through this. That part is right.\n\nFirst — can you place one hand on your chest? Feel it rise and fall. You're breathing. You're here. Let's start there.\n\nWhat feels most overwhelming right now?",
-    "I'm here with you. Let's slow everything down together. Nothing needs to be decided or solved right now.\n\nTry this with me: breathe in for 4 counts... hold for 4... and out for 6. Let's do that twice before we talk about anything else.\n\nHow are you feeling after those breaths?",
-  ],
-  feeling: [
-    "It takes courage to want to understand your own emotions, especially when they feel like a storm. Let's try to untangle this together.\n\nIf you could describe what you're feeling right now using a weather metaphor — like a thunderstorm, fog, freezing cold — what would it be? Sometimes that helps us name what words alone can't.",
-    "Your emotions are giving you important information, even when they feel confusing or too big. Let's listen to them together without judgment.\n\nCan you tell me: what's the strongest feeling right now? And if that feeling could speak, what would it be trying to tell you?",
-  ],
-  rewrite: [
-    "I'd love to help you with that. When our emotions are intense, the words we want to send can sometimes say more about our pain than what we actually need to communicate.\n\nGo ahead and share the message you're thinking of sending. I'll help you find words that honor your feelings while also protecting the relationship and your future self.",
-    "That's such a wise move — pausing before sending a message when you're activated. Let's work on this together.\n\nShare what you want to say, and tell me: what do you actually need from this person right now? Sometimes the real need is different from what the urge wants to express.",
-  ],
-  trigger: [
-    "Relationship triggers can feel like an emotional earthquake. Your reaction makes sense — it's your nervous system trying to protect you based on past experiences.\n\nLet's look at this together. What happened, and what story is your mind telling you about it? Often there's a gap between what happened and what our fear is saying it means.",
-    "When someone triggers us, it can feel like the past and present collapse into one moment. That's not a flaw — it's how our brains protect us. But it can also lead us to react to the past instead of the present.\n\nWhat's the trigger? Let's separate what actually happened from what your fear is telling you.",
-  ],
-  pattern: [
-    "Looking at your patterns takes real bravery. Based on what you've shared with me, I notice a few things:\n\nYour emotions tend to spike around themes of connection and perceived rejection. This is incredibly common with BPD, and it doesn't make you broken — it means you feel deeply.\n\nWould you like to explore any specific pattern you've been noticing?",
-    "I've been paying attention to what you've shared, and I see some themes emerging. You seem to be working through cycles of intense emotion followed by a strong urge to either push away or pull closer.\n\nThis is actually valuable self-knowledge. The fact that you're asking about patterns means you're building awareness — which is the first step toward change.\n\nWhat pattern feels most present for you right now?",
-  ],
-  default: [
-    "Thank you for sharing that with me. I can see this is weighing on you, and I want you to know that whatever you're feeling right now is completely valid.\n\nTell me more about what's going on. I'm here to listen without judgment, and we can figure out the next small step together.",
-    "I'm glad you're talking to me about this. You don't have to have it all figured out — that's what this space is for.\n\nWhat feels most important to address right now? We can take it one piece at a time.",
-    "I hear you. This sounds really hard, and I appreciate you trusting me with it.\n\nLet's take a moment before we dive in. How intense is what you're feeling right now, on a scale of 1-10? This helps me understand where you are so I can support you in the right way.",
-  ],
-};
-
-function detectIntent(message: string): string {
-  const lower = message.toLowerCase();
-
-  if (lower.includes('abandon') || lower.includes('left me') || lower.includes('leaving me') || lower.includes('no one cares')) {
-    return 'abandoned';
-  }
-  if (lower.includes('calm') || lower.includes('overwhelm') || lower.includes('panic') || lower.includes('can\'t breathe') || lower.includes('spiraling')) {
-    return 'calm';
-  }
-  if (lower.includes('feeling') || lower.includes('what i\'m') || lower.includes('understand') || lower.includes('confused about')) {
-    return 'feeling';
-  }
-  if (lower.includes('rewrite') || lower.includes('message') || lower.includes('text') || lower.includes('send') || lower.includes('reply')) {
-    return 'rewrite';
-  }
-  if (lower.includes('trigger') || lower.includes('relationship') || lower.includes('partner') || lower.includes('friend') || lower.includes('fight')) {
-    return 'trigger';
-  }
-  if (lower.includes('pattern') || lower.includes('notice') || lower.includes('keep doing') || lower.includes('cycle') || lower.includes('always')) {
-    return 'pattern';
-  }
-
-  return 'default';
-}
+import {
+  EmotionalIntent,
+  RESPONSE_TEMPLATES,
+  HIGH_DISTRESS_KEYWORDS,
+  FOLLOW_UP_RESPONSES,
+} from './aiResponseTemplates';
 
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function detectHighDistress(message: string): boolean {
+  const lower = message.toLowerCase();
+  return HIGH_DISTRESS_KEYWORDS.some(keyword => lower.includes(keyword));
+}
+
+function detectIntent(message: string): EmotionalIntent {
+  const lower = message.toLowerCase();
+
+  if (detectHighDistress(message)) {
+    return 'high_distress';
+  }
+
+  if (lower.includes('abandon') || lower.includes('left me') || lower.includes('leaving me') || lower.includes('no one cares') || lower.includes('don\'t care about me')) {
+    return 'abandoned';
+  }
+  if (lower.includes('angry') || lower.includes('rage') || lower.includes('furious') || lower.includes('pissed') || lower.includes('hate them') || lower.includes('so mad')) {
+    return 'angry';
+  }
+  if (lower.includes('anxious') || lower.includes('anxiety') || lower.includes('worry') || lower.includes('panic') || lower.includes('dread') || lower.includes('scared')) {
+    return 'anxious';
+  }
+  if (lower.includes('ashamed') || lower.includes('shame') || lower.includes('embarrass') || lower.includes('pathetic') || lower.includes('worthless') || lower.includes('disgusted with myself')) {
+    return 'ashamed';
+  }
+  if (lower.includes('confused') || lower.includes('don\'t know what i feel') || lower.includes('can\'t tell') || lower.includes('overreacting') || lower.includes('what am i feeling') || lower.includes('mixed up')) {
+    return 'confused';
+  }
+  if (lower.includes('calm') || lower.includes('overwhelm') || lower.includes('slow down') || lower.includes('breathe') || lower.includes('spiraling') || lower.includes('too much')) {
+    return 'calming';
+  }
+  if (lower.includes('rewrite') || lower.includes('help me text') || lower.includes('what should i say') || lower.includes('send this') || lower.includes('draft a message') || lower.includes('reply to')) {
+    return 'rewrite';
+  }
+  if (lower.includes('trigger') || lower.includes('relationship') || lower.includes('partner') || lower.includes('friend') || lower.includes('fight') || lower.includes('conflict') || lower.includes('boyfriend') || lower.includes('girlfriend')) {
+    return 'relationship';
+  }
+  if (lower.includes('pattern') || lower.includes('notice') || lower.includes('keep doing') || lower.includes('cycle') || lower.includes('always do this')) {
+    return 'pattern';
+  }
+  if (lower.includes('feeling') || lower.includes('what i\'m') || lower.includes('understand') || lower.includes('what is this')) {
+    return 'confused';
+  }
+  if (lower.includes('message') || lower.includes('text') || lower.includes('send') || lower.includes('reply') || lower.includes('not calm')) {
+    return 'rewrite';
+  }
+
+  return 'general';
+}
+
+function detectConversationContext(
+  messageHistory: Array<{ role: string; content: string }>,
+  currentMessage: string,
+): string | null {
+  if (messageHistory.length < 2) return null;
+
+  const lastAssistant = [...messageHistory].reverse().find(m => m.role === 'assistant');
+  if (!lastAssistant) return null;
+
+  const lower = currentMessage.toLowerCase();
+  if (lower.includes('yes') || lower.includes('okay') || lower.includes('yeah') || lower.includes('sure') || lower.includes('please')) {
+    if (lastAssistant.content.includes('ground') || lastAssistant.content.includes('breath')) {
+      return 'after_grounding';
+    }
+    return 'after_venting';
+  }
+
+  if (currentMessage.length > 150) {
+    return 'after_venting';
+  }
+
+  return null;
+}
+
+export interface MockResponseOptions {
+  contextSummary?: string;
+  conversationHistory?: Array<{ role: string; content: string }>;
+}
+
 export async function generateMockResponse(
   userMessage: string,
   _contextSummary?: string,
-): Promise<AIServiceResponse> {
-  await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 2000));
+  options?: MockResponseOptions,
+): Promise<AIServiceResponse & { intent: EmotionalIntent; quickActions: string[] }> {
+  const delay = detectHighDistress(userMessage) ? 800 + Math.random() * 600 : 1200 + Math.random() * 1500;
+  await new Promise(resolve => setTimeout(resolve, delay));
 
-  const intent = detectIntent(userMessage);
-  const responses = EMPATHETIC_RESPONSES[intent] || EMPATHETIC_RESPONSES.default;
-  const content = pickRandom(responses);
+  const history = options?.conversationHistory ?? [];
+  const contextType = detectConversationContext(history, userMessage);
+
+  let content: string;
+  let intent: EmotionalIntent;
+  let quickActions: string[];
+
+  if (contextType && FOLLOW_UP_RESPONSES[contextType]) {
+    content = pickRandom(FOLLOW_UP_RESPONSES[contextType]);
+    intent = 'general';
+    quickActions = RESPONSE_TEMPLATES.general.quickActions ?? [];
+  } else {
+    intent = detectIntent(userMessage);
+    const template = RESPONSE_TEMPLATES[intent];
+    content = pickRandom(template.responses);
+    quickActions = template.quickActions ?? [];
+  }
+
+  console.log('[MockAI] Detected intent:', intent, 'context:', contextType);
 
   return {
     content,
     timestamp: Date.now(),
+    intent,
+    quickActions,
   };
 }
 
 export function generateConversationTitle(firstMessage: string): string {
   const lower = firstMessage.toLowerCase();
 
+  if (detectHighDistress(firstMessage)) return 'Moment of support';
   if (lower.includes('abandon')) return 'Feeling abandoned';
   if (lower.includes('calm') || lower.includes('overwhelm')) return 'Needing calm';
   if (lower.includes('feeling') || lower.includes('understand')) return 'Exploring feelings';
-  if (lower.includes('rewrite') || lower.includes('message')) return 'Message support';
+  if (lower.includes('rewrite') || lower.includes('message') || lower.includes('text')) return 'Message support';
   if (lower.includes('trigger') || lower.includes('relationship')) return 'Relationship trigger';
   if (lower.includes('pattern')) return 'Exploring patterns';
-  if (lower.includes('angry') || lower.includes('anger')) return 'Working through anger';
+  if (lower.includes('angry') || lower.includes('anger') || lower.includes('rage')) return 'Working through anger';
   if (lower.includes('sad') || lower.includes('crying')) return 'Sitting with sadness';
-  if (lower.includes('scared') || lower.includes('afraid')) return 'Facing fear';
+  if (lower.includes('scared') || lower.includes('afraid') || lower.includes('anxious')) return 'Facing fear';
+  if (lower.includes('ashamed') || lower.includes('shame')) return 'Working through shame';
+  if (lower.includes('confused') || lower.includes('overreacting')) return 'Sorting through feelings';
 
   const words = firstMessage.split(' ').slice(0, 5).join(' ');
   return words.length > 30 ? words.substring(0, 30) + '...' : words;

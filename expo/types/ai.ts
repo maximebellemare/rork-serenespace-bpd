@@ -3,6 +3,8 @@ export interface AIMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
+  quickActions?: string[];
+  intent?: string;
 }
 
 export interface AIConversation {
