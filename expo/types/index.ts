@@ -48,7 +48,7 @@ export interface MessageDraft {
   timestamp: number;
   originalText: string;
   rewrittenText?: string;
-  rewriteType?: 'softer' | 'clearer' | 'boundary' | 'nosend';
+  rewriteType?: 'softer' | 'clearer' | 'boundary' | 'nosend' | 'warmer' | 'boundaried' | 'secure' | 'delay';
   sent: boolean;
   paused: boolean;
 }
