@@ -38,6 +38,8 @@ import {
   OUTCOME_OPTIONS,
   PAUSE_DURATIONS,
   MessageContext,
+  MESSAGE_OUTCOME_OPTIONS,
+  MessageOutcome,
 } from '@/types/messages';
 import { REWRITE_STYLE_META } from '@/services/messages/messageRewriteService';
 
@@ -199,6 +201,7 @@ export default function MessagesScreen() {
     skipPause,
     finishPause,
     selectRewrite,
+    recordOutcome,
     reset,
     goBack,
   } = useMessageRewrite();
@@ -211,6 +214,7 @@ export default function MessagesScreen() {
   const [showPauseOptions, setShowPauseOptions] = useState<boolean>(false);
   const [expandedDraftId, setExpandedDraftId] = useState<string | null>(null);
   const [copiedRewriteStyle, setCopiedRewriteStyle] = useState<string | null>(null);
+  const [selectedOutcome, setSelectedOutcome] = useState<MessageOutcome | null>(null);
   const pauseExpandAnim = useRef(new Animated.Value(0)).current;
   const suggestionsExpandAnim = useRef(new Animated.Value(0)).current;
 
@@ -444,6 +448,25 @@ export default function MessagesScreen() {
                     <View style={styles.historyDivider} />
                     <Text style={styles.historyRewriteLabel}>Rewritten as</Text>
                     <Text style={styles.historyRewriteText}>{draft.rewrittenText.replace(/\[.*?\]\n\n/, '').replace(/\n---\n.*/, '')}</Text>
+                  </View>
+                )}
+                {isExpanded && draft.outcome && (
+                  <View style={styles.historyOutcomeRow}>
+                    <Text style={styles.historyOutcomeLabel}>Outcome:</Text>
+                    <View style={[
+                      styles.historyOutcomeBadge,
+                      { backgroundColor: (MESSAGE_OUTCOME_OPTIONS.find(o => o.value === draft.outcome)?.color ?? Colors.primary) + '18' },
+                    ]}>
+                      <Text style={styles.historyOutcomeEmoji}>
+                        {MESSAGE_OUTCOME_OPTIONS.find(o => o.value === draft.outcome)?.emoji ?? ''}
+                      </Text>
+                      <Text style={[
+                        styles.historyOutcomeText,
+                        { color: MESSAGE_OUTCOME_OPTIONS.find(o => o.value === draft.outcome)?.color ?? Colors.primary },
+                      ]}>
+                        {MESSAGE_OUTCOME_OPTIONS.find(o => o.value === draft.outcome)?.label ?? draft.outcome}
+                      </Text>
+                    </View>
                   </View>
                 )}
               </TouchableOpacity>
@@ -761,10 +784,53 @@ export default function MessagesScreen() {
           <Text style={styles.originalText}>{inputText}</Text>
         </View>
 
+        <View style={styles.outcomeSection}>
+          <Text style={styles.outcomeSectionTitle}>How did it go?</Text>
+          <Text style={styles.outcomeSectionHint}>
+            Tracking outcomes helps you see what works over time.
+          </Text>
+          <View style={styles.outcomeRow}>
+            {MESSAGE_OUTCOME_OPTIONS.map(opt => {
+              const isSelected = selectedOutcome === opt.value;
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[
+                    styles.outcomeChip,
+                    isSelected && { backgroundColor: opt.color + '18', borderColor: opt.color },
+                  ]}
+                  onPress={() => {
+                    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedOutcome(opt.value);
+                    recordOutcome(opt.value);
+                  }}
+                  activeOpacity={0.7}
+                  testID={`outcome-${opt.value}`}
+                >
+                  <Text style={styles.outcomeEmoji}>{opt.emoji}</Text>
+                  <Text style={[
+                    styles.outcomeLabel,
+                    isSelected && { color: opt.color, fontWeight: '600' as const },
+                  ]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          {selectedOutcome && (
+            <View style={styles.outcomeConfirm}>
+              <Check size={14} color={Colors.success} />
+              <Text style={styles.outcomeConfirmText}>Recorded — this helps your insights grow</Text>
+            </View>
+          )}
+        </View>
+
         <TouchableOpacity
           style={styles.primaryButton}
           onPress={() => {
             void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            setSelectedOutcome(null);
             reset();
           }}
           activeOpacity={0.8}
@@ -1532,5 +1598,88 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 20,
+  },
+  outcomeSection: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 16,
+  },
+  outcomeSectionTitle: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  outcomeSectionHint: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    lineHeight: 17,
+    marginBottom: 14,
+  },
+  outcomeRow: {
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
+    gap: 8,
+  },
+  outcomeChip: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+  outcomeEmoji: {
+    fontSize: 14,
+  },
+  outcomeLabel: {
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: Colors.text,
+  },
+  outcomeConfirm: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.successLight,
+    borderRadius: 10,
+  },
+  outcomeConfirmText: {
+    fontSize: 12,
+    color: Colors.success,
+    fontWeight: '500' as const,
+  },
+  historyOutcomeRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    marginTop: 10,
+  },
+  historyOutcomeLabel: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: Colors.textMuted,
+  },
+  historyOutcomeBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  historyOutcomeEmoji: {
+    fontSize: 11,
+  },
+  historyOutcomeText: {
+    fontSize: 11,
+    fontWeight: '600' as const,
   },
 });

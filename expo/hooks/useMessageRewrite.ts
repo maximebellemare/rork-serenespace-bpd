@@ -3,6 +3,7 @@ import {
   MessageContext,
   RewriteResult,
   TriggerSuggestion,
+  MessageOutcome,
 } from '@/types/messages';
 import { generateRewrites, generateTriggerSuggestions } from '@/services/messages/messageRewriteService';
 import { buildMemoryProfile } from '@/services/memory/memoryProfileService';
@@ -12,7 +13,8 @@ import { MemoryProfile } from '@/types/memory';
 export type MessageFlowStep = 'input' | 'context' | 'pause' | 'rewrites' | 'result';
 
 export function useMessageRewrite() {
-  const { journalEntries, triggerPatterns, addMessageDraft } = useApp();
+  const { journalEntries, triggerPatterns, addMessageDraft, updateMessageDraft } = useApp();
+  const [lastDraftId, setLastDraftId] = useState<string | null>(null);
 
   const [inputText, setInputText] = useState<string>('');
   const [step, setStep] = useState<MessageFlowStep>('input');
@@ -111,8 +113,10 @@ export function useMessageRewrite() {
     setSelectedRewrite(rewrite);
     setStep('result');
 
+    const draftId = `m_${Date.now()}`;
+    setLastDraftId(draftId);
     addMessageDraft({
-      id: `m_${Date.now()}`,
+      id: draftId,
       timestamp: Date.now(),
       originalText: inputText,
       rewrittenText: rewrite.text,
@@ -121,6 +125,15 @@ export function useMessageRewrite() {
       paused: rewrite.style === 'delay' || rewrite.style === 'nosend',
     });
   }, [inputText, addMessageDraft]);
+
+  const recordOutcome = useCallback((outcome: MessageOutcome) => {
+    if (!lastDraftId) return;
+    updateMessageDraft(lastDraftId, {
+      outcome,
+      outcomeTimestamp: Date.now(),
+      sent: outcome === 'sent' || outcome === 'helped',
+    });
+  }, [lastDraftId, updateMessageDraft]);
 
   const reset = useCallback(() => {
     setInputText('');
@@ -136,6 +149,7 @@ export function useMessageRewrite() {
     setPauseSeconds(0);
     setPauseRemaining(0);
     setIsPausing(false);
+    setLastDraftId(null);
     if (pauseTimerRef.current) {
       clearInterval(pauseTimerRef.current);
     }
@@ -181,6 +195,7 @@ export function useMessageRewrite() {
     skipPause,
     finishPause,
     selectRewrite,
+    recordOutcome,
     reset,
     goBack,
   };

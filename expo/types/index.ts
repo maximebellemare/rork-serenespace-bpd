@@ -51,6 +51,8 @@ export interface MessageDraft {
   rewriteType?: 'softer' | 'clearer' | 'boundary' | 'nosend' | 'warmer' | 'boundaried' | 'secure' | 'delay';
   sent: boolean;
   paused: boolean;
+  outcome?: 'sent' | 'not_sent' | 'helped' | 'made_worse';
+  outcomeTimestamp?: number;
 }
 
 export type DistressLevel = 'low' | 'moderate' | 'high' | 'crisis';

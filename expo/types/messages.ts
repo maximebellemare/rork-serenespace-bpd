@@ -63,6 +63,15 @@ export interface TriggerSuggestion {
   relevance: string;
 }
 
+export type MessageOutcome = 'sent' | 'not_sent' | 'helped' | 'made_worse';
+
+export const MESSAGE_OUTCOME_OPTIONS: { value: MessageOutcome; label: string; emoji: string; color: string }[] = [
+  { value: 'sent', label: 'Sent', emoji: '📤', color: '#6B9080' },
+  { value: 'not_sent', label: 'Did not send', emoji: '🚫', color: '#9B8EC4' },
+  { value: 'helped', label: 'Helped', emoji: '💚', color: '#00B894' },
+  { value: 'made_worse', label: 'Made things worse', emoji: '💔', color: '#E17055' },
+];
+
 export const RELATIONSHIP_OPTIONS: { value: RelationshipContext; label: string; emoji: string }[] = [
   { value: 'romantic_partner', label: 'Partner', emoji: '💕' },
   { value: 'ex', label: 'Ex', emoji: '💔' },
