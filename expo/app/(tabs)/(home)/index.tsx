@@ -48,6 +48,7 @@ import { useRelationshipCopilot } from '@/hooks/useRelationshipCopilot';
 import TherapistReportCard from '@/components/TherapistReportCard';
 import { generateTherapyReport } from '@/services/therapy/therapyReportService';
 import IdentityBuilderCard from '@/components/IdentityBuilderCard';
+import ProgressDashboardCard from '@/components/ProgressDashboardCard';
 import MessageGuardCard from '@/components/MessageGuardCard';
 import StormEarlyWarningCard from '@/components/StormEarlyWarningCard';
 import { useStormEarlyWarning } from '@/hooks/useStormEarlyWarning';
@@ -366,6 +367,10 @@ export default function HomeScreen() {
 
         <Animated.View style={{ opacity: fadeAnim }}>
           <HomeInsightsPreview />
+        </Animated.View>
+
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <ProgressDashboardCard />
         </Animated.View>
 
         <Animated.View style={{ opacity: fadeAnim }}>
