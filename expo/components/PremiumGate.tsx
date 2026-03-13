@@ -11,30 +11,21 @@ import { useRouter } from 'expo-router';
 import { Crown, Lock, ArrowRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
-import { useSubscription } from '@/providers/SubscriptionProvider';
 import { PremiumFeature } from '@/types/subscription';
+import { useEntitlements } from '@/hooks/useEntitlements';
+import { getUpgradeReason } from '@/services/subscription/entitlementService';
 
 interface PremiumGateProps {
   feature: PremiumFeature;
-  title?: string;
-  description?: string;
   children: React.ReactNode;
   fallback?: React.ReactNode;
-  softPrompt?: boolean;
+  showInline?: boolean;
 }
 
-export default function PremiumGate({
-  feature,
-  title,
-  description,
-  children,
-  fallback,
-  softPrompt = true,
-}: PremiumGateProps) {
-  const { canAccessFeature } = useSubscription();
-  const router = useRouter();
+export default function PremiumGate({ feature, children, fallback, showInline = false }: PremiumGateProps) {
+  const { canAccess } = useEntitlements();
 
-  if (canAccessFeature(feature)) {
+  if (canAccess(feature)) {
     return <>{children}</>;
   }
 
@@ -42,93 +33,16 @@ export default function PremiumGate({
     return <>{fallback}</>;
   }
 
-  if (!softPrompt) {
-    return null;
+  if (showInline) {
+    return <InlineUpgradePrompt feature={feature} />;
   }
 
-  return (
-    <PremiumPromptCard
-      title={title ?? 'Premium Feature'}
-      description={description ?? 'Upgrade to unlock this feature and deeper support.'}
-      onUpgrade={() => router.push('/upgrade')}
-    />
-  );
+  return <FullUpgradePrompt feature={feature} />;
 }
 
-interface PremiumPromptCardProps {
-  title: string;
-  description: string;
-  onUpgrade: () => void;
-}
-
-function PremiumPromptCard({ title, description, onUpgrade }: PremiumPromptCardProps) {
-  const shimmerAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(shimmerAnim, { toValue: 1, duration: 3000, useNativeDriver: true }),
-        Animated.timing(shimmerAnim, { toValue: 0, duration: 3000, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [shimmerAnim]);
-
-  const handlePress = useCallback(() => {
-    if (Platform.OS !== 'web') {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    onUpgrade();
-  }, [onUpgrade]);
-
-  const bgOpacity = shimmerAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.92, 1],
-  });
-
-  return (
-    <Animated.View style={[styles.gateCard, { opacity: bgOpacity }]}>
-      <TouchableOpacity
-        style={styles.gateInner}
-        onPress={handlePress}
-        activeOpacity={0.8}
-        testID="premium-gate-card"
-      >
-        <View style={styles.gateIconRow}>
-          <View style={styles.lockBadge}>
-            <Lock size={14} color="#D4956A" />
-          </View>
-          <View style={styles.crownBadge}>
-            <Crown size={16} color="#D4956A" />
-          </View>
-        </View>
-        <Text style={styles.gateTitle}>{title}</Text>
-        <Text style={styles.gateDesc}>{description}</Text>
-        <View style={styles.gateButton}>
-          <Text style={styles.gateButtonText}>Unlock with Premium</Text>
-          <ArrowRight size={14} color={Colors.white} />
-        </View>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-}
-
-interface PremiumInlinePromptProps {
-  feature: PremiumFeature;
-  message?: string;
-  compact?: boolean;
-}
-
-export function PremiumInlinePrompt({
-  feature,
-  message,
-  compact = false,
-}: PremiumInlinePromptProps) {
-  const { canAccessFeature } = useSubscription();
+function InlineUpgradePrompt({ feature }: { feature: PremiumFeature }) {
   const router = useRouter();
-
-  if (canAccessFeature(feature)) return null;
+  const reason = getUpgradeReason(feature);
 
   const handlePress = useCallback(() => {
     if (Platform.OS !== 'web') {
@@ -137,107 +51,190 @@ export function PremiumInlinePrompt({
     router.push('/upgrade');
   }, [router]);
 
-  if (compact) {
-    return (
+  return (
+    <TouchableOpacity
+      style={styles.inlineContainer}
+      onPress={handlePress}
+      activeOpacity={0.8}
+      testID={`premium-gate-inline-${feature}`}
+    >
+      <View style={styles.inlineIconWrap}>
+        <Lock size={14} color="#D4956A" />
+      </View>
+      <Text style={styles.inlineText} numberOfLines={2}>{reason}</Text>
+      <View style={styles.inlineArrow}>
+        <ArrowRight size={14} color="#D4956A" />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function FullUpgradePrompt({ feature }: { feature: PremiumFeature }) {
+  const router = useRouter();
+  const reason = getUpgradeReason(feature);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, scaleAnim]);
+
+  const handlePress = useCallback(() => {
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    router.push('/upgrade');
+  }, [router]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.fullContainer,
+        { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
+      ]}
+    >
+      <View style={styles.fullIconWrap}>
+        <Crown size={28} color="#D4956A" />
+      </View>
+      <Text style={styles.fullTitle}>Premium Feature</Text>
+      <Text style={styles.fullDescription}>{reason}</Text>
       <TouchableOpacity
-        style={styles.inlineCompact}
+        style={styles.fullButton}
         onPress={handlePress}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
+        testID={`premium-gate-full-${feature}`}
       >
-        <Crown size={12} color="#D4956A" />
-        <Text style={styles.inlineCompactText}>
-          {message ?? 'Premium'}
-        </Text>
+        <Crown size={16} color={Colors.white} />
+        <Text style={styles.fullButtonText}>Unlock with Premium</Text>
       </TouchableOpacity>
-    );
+      <Text style={styles.fullFooter}>7-day free trial available</Text>
+    </Animated.View>
+  );
+}
+
+export function PremiumInlinePrompt({ feature, message }: { feature: PremiumFeature; message?: string }) {
+  const router = useRouter();
+  const { canAccess } = useEntitlements();
+  const reason = message ?? getUpgradeReason(feature);
+
+  const handlePress = useCallback(() => {
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    router.push('/upgrade');
+  }, [router]);
+
+  if (canAccess(feature)) return null;
+
+  return (
+    <TouchableOpacity
+      style={styles.inlinePromptContainer}
+      onPress={handlePress}
+      activeOpacity={0.8}
+      testID={`premium-inline-${feature}`}
+    >
+      <View style={styles.inlinePromptIconWrap}>
+        <Crown size={13} color="#D4956A" />
+      </View>
+      <Text style={styles.inlinePromptText} numberOfLines={2}>{reason}</Text>
+      <View style={styles.inlinePromptArrow}>
+        <ArrowRight size={12} color="#D4956A" />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+export function PremiumBadge() {
+  return (
+    <View style={styles.badge} testID="premium-badge">
+      <Crown size={10} color="#D4956A" />
+      <Text style={styles.badgeText}>PRO</Text>
+    </View>
+  );
+}
+
+export function PremiumLockOverlay({ feature, children }: { feature: PremiumFeature; children: React.ReactNode }) {
+  const router = useRouter();
+  const { canAccess } = useEntitlements();
+
+  const handlePress = useCallback(() => {
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    router.push('/upgrade');
+  }, [router]);
+
+  if (canAccess(feature)) {
+    return <>{children}</>;
   }
 
   return (
     <TouchableOpacity
-      style={styles.inlineBanner}
       onPress={handlePress}
-      activeOpacity={0.7}
-      testID="premium-inline-prompt"
+      activeOpacity={0.85}
+      style={styles.lockOverlayWrap}
+      testID={`premium-lock-${feature}`}
     >
-      <View style={styles.inlineLeft}>
-        <View style={styles.inlineIcon}>
-          <Crown size={14} color="#D4956A" />
+      {children}
+      <View style={styles.lockOverlay}>
+        <View style={styles.lockOverlayBadge}>
+          <Lock size={12} color={Colors.white} />
+          <Text style={styles.lockOverlayText}>Premium</Text>
         </View>
-        <Text style={styles.inlineText}>
-          {message ?? 'Upgrade for full access to this feature.'}
-        </Text>
       </View>
-      <ArrowRight size={14} color="#D4956A" />
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  gateCard: {
-    marginVertical: 12,
-  },
-  gateInner: {
-    backgroundColor: '#FFF8F2',
-    borderRadius: 20,
-    padding: 24,
+  inlinePromptContainer: {
+    flexDirection: 'row' as const,
     alignItems: 'center' as const,
+    backgroundColor: '#FFF8F2',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
     borderWidth: 1,
     borderColor: '#F5E0CC',
   },
-  gateIconRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 8,
-    marginBottom: 14,
-  },
-  lockBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+  inlinePromptIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     backgroundColor: '#FFF0E3',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
+    marginRight: 10,
   },
-  crownBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+  inlinePromptText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#A0785A',
+    lineHeight: 17,
+    fontWeight: '500' as const,
+  },
+  inlinePromptArrow: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
     backgroundColor: '#FFF0E3',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    borderWidth: 1.5,
-    borderColor: '#F5E0CC',
+    marginLeft: 6,
   },
-  gateTitle: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    color: Colors.text,
-    marginBottom: 6,
-    textAlign: 'center' as const,
-  },
-  gateDesc: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: 'center' as const,
-    lineHeight: 20,
-    marginBottom: 18,
-    maxWidth: 280,
-  },
-  gateButton: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 8,
-    backgroundColor: '#D4956A',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 14,
-  },
-  gateButtonText: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-    color: Colors.white,
-  },
-  inlineBanner: {
+  inlineContainer: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     backgroundColor: '#FFF8F2',
@@ -245,21 +242,15 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
     borderColor: '#F5E0CC',
-    marginVertical: 8,
   },
-  inlineLeft: {
-    flex: 1,
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 10,
-  },
-  inlineIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+  inlineIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     backgroundColor: '#FFF0E3',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
+    marginRight: 10,
   },
   inlineText: {
     flex: 1,
@@ -267,18 +258,112 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 18,
   },
-  inlineCompact: {
+  inlineArrow: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#FFF0E3',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginLeft: 8,
+  },
+  fullContainer: {
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingVertical: 48,
+    paddingHorizontal: 32,
+  },
+  fullIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    backgroundColor: '#FFF5EB',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: '#F5E0CC',
+  },
+  fullTitle: {
+    fontSize: 22,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  fullDescription: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    textAlign: 'center' as const,
+    lineHeight: 22,
+    marginBottom: 28,
+    maxWidth: 280,
+  },
+  fullButton: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: 4,
-    backgroundColor: '#FFF0E3',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    justifyContent: 'center' as const,
+    backgroundColor: Colors.primary,
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    gap: 8,
+    shadowColor: Colors.primaryDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  inlineCompactText: {
-    fontSize: 11,
-    fontWeight: '600' as const,
+  fullButtonText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.white,
+  },
+  fullFooter: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 14,
+  },
+  badge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: '#FFF0E3',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    gap: 3,
+  },
+  badgeText: {
+    fontSize: 9,
+    fontWeight: '800' as const,
     color: '#D4956A',
+    letterSpacing: 0.5,
+  },
+  lockOverlayWrap: {
+    position: 'relative' as const,
+  },
+  lockOverlay: {
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    borderRadius: 16,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  lockOverlayBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: 'rgba(45,52,54,0.75)',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  lockOverlayText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.white,
   },
 });

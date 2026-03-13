@@ -13,7 +13,6 @@ import {
   startFreeTrial,
   cancelSubscription,
   restorePurchase,
-  isPremiumFeature,
   getDailyAIUsage,
   incrementDailyAIUsage,
   hasReachedAILimit,
@@ -21,6 +20,12 @@ import {
   getDaysRemaining,
   formatExpirationDate,
 } from '@/services/subscription/subscriptionService';
+import {
+  canAccess,
+  shouldShowUpgradePrompt,
+  getLockedFeatures,
+  FeatureEntitlement,
+} from '@/services/subscription/entitlementService';
 
 export const [SubscriptionProvider, useSubscription] = createContextHook(() => {
   const queryClient = useQueryClient();
@@ -90,7 +95,18 @@ export const [SubscriptionProvider, useSubscription] = createContextHook(() => {
   }, [queryClient]);
 
   const canAccessFeature = useCallback((feature: PremiumFeature): boolean => {
-    return isPremiumFeature(feature, tier);
+    return canAccess(feature, tier);
+  }, [tier]);
+
+  const shouldPromptUpgrade = useCallback((
+    feature: PremiumFeature,
+    context?: { distressLevel?: number; isCrisis?: boolean }
+  ): boolean => {
+    return shouldShowUpgradePrompt(feature, tier, context);
+  }, [tier]);
+
+  const lockedFeatures = useMemo((): FeatureEntitlement[] => {
+    return getLockedFeatures(tier);
   }, [tier]);
 
   const aiLimitReached = useMemo(() => {
@@ -125,6 +141,8 @@ export const [SubscriptionProvider, useSubscription] = createContextHook(() => {
     cancel: cancelMutation.mutate,
     restore: restoreMutation.mutate,
     canAccessFeature,
+    shouldPromptUpgrade,
+    lockedFeatures,
     trackAIUsage,
   }), [
     tier,
@@ -142,6 +160,8 @@ export const [SubscriptionProvider, useSubscription] = createContextHook(() => {
     cancelMutation.mutate,
     restoreMutation.mutate,
     canAccessFeature,
+    shouldPromptUpgrade,
+    lockedFeatures,
     trackAIUsage,
   ]);
 });
