@@ -34,6 +34,9 @@ export interface NotificationPreferences {
   journalReminder: boolean;
   gentleNudges: boolean;
   weeklyInsights: boolean;
+  weeklyReflectionReminder: boolean;
+  relationshipSupportReminders: boolean;
+  regulationFollowUps: boolean;
 }
 
 export interface PrivacySettings {
@@ -76,6 +79,9 @@ export const DEFAULT_PROFILE: UserProfile = {
     journalReminder: true,
     gentleNudges: true,
     weeklyInsights: true,
+    weeklyReflectionReminder: true,
+    relationshipSupportReminders: true,
+    regulationFollowUps: true,
   },
   privacy: {
     anonymousCommunityPosts: true,

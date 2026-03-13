@@ -36,6 +36,9 @@ import {
   Brain,
   BookOpen,
   Bug,
+  RefreshCw,
+  MessageCircle,
+  Thermometer,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
@@ -558,6 +561,54 @@ export default function ProfileScreen() {
                 onValueChange={(val) => updateNotifications({ weeklyInsights: val })}
                 trackColor={{ false: Colors.border, true: Colors.primaryLight }}
                 thumbColor={profile.notifications.weeklyInsights ? Colors.primary : Colors.textMuted}
+              />
+            </View>
+            <View style={styles.toggleDivider} />
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <RefreshCw size={15} color="#8B5CF6" />
+                <View>
+                  <Text style={styles.toggleTitle}>Weekly Reflection Reminder</Text>
+                  <Text style={styles.toggleDesc}>When your reflection is ready</Text>
+                </View>
+              </View>
+              <Switch
+                value={profile.notifications.weeklyReflectionReminder}
+                onValueChange={(val) => updateNotifications({ weeklyReflectionReminder: val })}
+                trackColor={{ false: Colors.border, true: Colors.primaryLight }}
+                thumbColor={profile.notifications.weeklyReflectionReminder ? Colors.primary : Colors.textMuted}
+              />
+            </View>
+            <View style={styles.toggleDivider} />
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <MessageCircle size={15} color="#E84393" />
+                <View>
+                  <Text style={styles.toggleTitle}>Relationship Support</Text>
+                  <Text style={styles.toggleDesc}>Slow-down reminders during triggers</Text>
+                </View>
+              </View>
+              <Switch
+                value={profile.notifications.relationshipSupportReminders}
+                onValueChange={(val) => updateNotifications({ relationshipSupportReminders: val })}
+                trackColor={{ false: Colors.border, true: Colors.primaryLight }}
+                thumbColor={profile.notifications.relationshipSupportReminders ? Colors.primary : Colors.textMuted}
+              />
+            </View>
+            <View style={styles.toggleDivider} />
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <Thermometer size={15} color={Colors.danger} />
+                <View>
+                  <Text style={styles.toggleTitle}>Regulation Follow-ups</Text>
+                  <Text style={styles.toggleDesc}>Check-in after high distress</Text>
+                </View>
+              </View>
+              <Switch
+                value={profile.notifications.regulationFollowUps}
+                onValueChange={(val) => updateNotifications({ regulationFollowUps: val })}
+                trackColor={{ false: Colors.border, true: Colors.primaryLight }}
+                thumbColor={profile.notifications.regulationFollowUps ? Colors.primary : Colors.textMuted}
               />
             </View>
           </View>
