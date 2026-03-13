@@ -4,6 +4,7 @@ import {
   EmotionalLandscape,
   RelationshipReflection,
   WhatHelpedSection,
+  WhatEscalatedSection,
   GrowthSignalSection,
   NextWeekFocus,
 } from '@/types/weeklyReflection';
@@ -515,6 +516,71 @@ export function buildClosingMessage(
   }
 
   return 'Another week of showing up for yourself. That consistency, even when it feels small, is building resilience.';
+}
+
+export function buildWhatEscalated(
+  thisWeek: JournalEntry[],
+  thisWeekDrafts: MessageDraft[],
+): WhatEscalatedSection {
+  const escalationPatterns: string[] = [];
+
+  const highDistressMoments = thisWeek.filter(e => e.checkIn.intensityLevel >= 7).length;
+  const struggledOutcomes = thisWeek.filter(e => e.outcome === 'struggled').length;
+  const sentWithoutPause = thisWeekDrafts.filter(d => d.sent && !d.paused && !d.rewrittenText).length;
+  const madeWorse = thisWeekDrafts.filter(d => d.outcome === 'made_worse').length;
+
+  const missedPauses = sentWithoutPause;
+
+  if (highDistressMoments >= 2) {
+    escalationPatterns.push(
+      `There were ${highDistressMoments} moments of high distress (7+/10) this week. These peaks may be worth exploring gently.`
+    );
+  }
+
+  if (struggledOutcomes >= 2) {
+    escalationPatterns.push(
+      'Several check-ins ended with difficulty managing emotions. This is not failure — it is information about what needs more support.'
+    );
+  }
+
+  if (sentWithoutPause >= 2) {
+    escalationPatterns.push(
+      `${sentWithoutPause} message${sentWithoutPause !== 1 ? 's were' : ' was'} sent without pausing or rewriting. Slowing down in those moments may help next time.`
+    );
+  }
+
+  if (madeWorse > 0) {
+    escalationPatterns.push(
+      `${madeWorse} communication outcome${madeWorse !== 1 ? 's were' : ' was'} recorded as making things harder. Understanding what happened there could be valuable.`
+    );
+  }
+
+  const relEscalation = thisWeek.filter(e =>
+    e.checkIn.triggers.some(t => t.category === 'relationship') &&
+    e.checkIn.intensityLevel >= 6
+  ).length;
+  if (relEscalation >= 2) {
+    escalationPatterns.push(
+      'Relationship-triggered distress appeared multiple times at moderate-to-high intensity. This pattern may benefit from the Relationship Copilot.'
+    );
+  }
+
+  const narrativeParts: string[] = [];
+  if (escalationPatterns.length === 0) {
+    narrativeParts.push('No major escalation patterns stood out this week. That is a quiet sign of stability.');
+  } else {
+    narrativeParts.push('Some moments this week were harder than others.');
+    if (highDistressMoments > 0) {
+      narrativeParts.push('Understanding what drives those peaks — without judgment — can help you prepare for next time.');
+    }
+  }
+
+  return {
+    escalationPatterns,
+    missedPauses,
+    highDistressMoments,
+    narrative: narrativeParts.join(' '),
+  };
 }
 
 function getTopItem(items: string[]): string | null {

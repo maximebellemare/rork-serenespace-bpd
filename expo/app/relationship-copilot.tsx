@@ -26,6 +26,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useRelationshipCopilot } from '@/hooks/useRelationshipCopilot';
+import PostActionReflection from '@/components/PostActionReflection';
 import {
   CopilotSituation,
   CopilotEmotion,
@@ -464,6 +465,11 @@ export default function RelationshipCopilotScreen() {
             <Text style={styles.messageButtonText}>Open Message Support</Text>
           </TouchableOpacity>
         </View>
+
+        <PostActionReflection
+          onComplete={() => router.back()}
+          showReflectionLinks={true}
+        />
 
         <TouchableOpacity
           style={styles.doneButton}

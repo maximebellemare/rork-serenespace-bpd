@@ -7,6 +7,7 @@ import { AppProvider } from "@/providers/AppProvider";
 import { AICompanionProvider } from "@/providers/AICompanionProvider";
 import { ProfileProvider } from "@/providers/ProfileProvider";
 import { SubscriptionProvider } from "@/providers/SubscriptionProvider";
+import { EmotionalContextProvider } from "@/providers/EmotionalContextProvider";
 import Colors from "@/constants/colors";
 
 void SplashScreen.preventAutoHideAsync();
@@ -241,7 +242,9 @@ export default function RootLayout() {
           <SubscriptionProvider>
             <ProfileProvider>
               <AICompanionProvider>
-                <RootLayoutNav />
+                <EmotionalContextProvider>
+                  <RootLayoutNav />
+                </EmotionalContextProvider>
               </AICompanionProvider>
             </ProfileProvider>
           </SubscriptionProvider>

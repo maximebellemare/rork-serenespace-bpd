@@ -29,6 +29,7 @@ import {
   Target,
   FileText,
   ChevronRight,
+  AlertTriangle,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
@@ -316,6 +317,44 @@ export default function WeeklyReflectionScreen() {
             </View>
           )}
         </Animated.View>
+
+        {/* What Escalated */}
+        {reflection.whatEscalated.escalationPatterns.length > 0 && (
+          <Animated.View style={[styles.sectionCard, styles.escalatedCard, { opacity: slideOpacities[3], transform: [{ translateY: slideAnims[3] }] }]}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIconWrap, { backgroundColor: '#FFF0E6' }]}>
+                <AlertTriangle size={18} color="#E17055" />
+              </View>
+              <Text style={styles.sectionTitle}>What Made Things Harder</Text>
+            </View>
+
+            <Text style={styles.narrativeText}>{reflection.whatEscalated.narrative}</Text>
+
+            {reflection.whatEscalated.escalationPatterns.map((pattern, i) => (
+              <View key={i} style={styles.escalationItem}>
+                <View style={styles.escalationDot} />
+                <Text style={styles.escalationText}>{pattern}</Text>
+              </View>
+            ))}
+
+            {(reflection.whatEscalated.missedPauses > 0 || reflection.whatEscalated.highDistressMoments > 0) && (
+              <View style={styles.escalationStats}>
+                {reflection.whatEscalated.highDistressMoments > 0 && (
+                  <View style={styles.escalationStat}>
+                    <Text style={styles.escalationStatValue}>{reflection.whatEscalated.highDistressMoments}</Text>
+                    <Text style={styles.escalationStatLabel}>high distress{"\n"}moments</Text>
+                  </View>
+                )}
+                {reflection.whatEscalated.missedPauses > 0 && (
+                  <View style={styles.escalationStat}>
+                    <Text style={styles.escalationStatValue}>{reflection.whatEscalated.missedPauses}</Text>
+                    <Text style={styles.escalationStatLabel}>sent without{"\n"}pausing</Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </Animated.View>
+        )}
 
         {/* Growth Signals */}
         <Animated.View style={[styles.sectionCard, styles.growthCard, { opacity: slideOpacities[3], transform: [{ translateY: slideAnims[3] }] }]}>
@@ -1076,5 +1115,52 @@ const styles = StyleSheet.create({
   reportLinkDesc: {
     fontSize: 12,
     color: Colors.textSecondary,
+  },
+  escalatedCard: {
+    borderWidth: 1,
+    borderColor: '#FDE8E3',
+  },
+  escalationItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 10,
+  },
+  escalationDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#E17055',
+    marginTop: 7,
+  },
+  escalationText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 21,
+    flex: 1,
+  },
+  escalationStats: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+  },
+  escalationStat: {
+    flex: 1,
+    backgroundColor: '#FFF5F0',
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+  },
+  escalationStatValue: {
+    fontSize: 22,
+    fontWeight: '700' as const,
+    color: '#E17055',
+    marginBottom: 2,
+  },
+  escalationStatLabel: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 15,
   },
 });

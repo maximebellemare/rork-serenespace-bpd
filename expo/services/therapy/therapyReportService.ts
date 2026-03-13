@@ -8,6 +8,7 @@ import {
   TherapyReportCopingSection,
   TherapyReportProgressSection,
   TherapyReportUrgeSection,
+  TherapyReportRegulationSection,
   TherapyDiscussionPrompt,
 } from '@/types/therapyReport';
 
@@ -495,6 +496,50 @@ function buildDiscussionPrompts(
   return prompts.slice(0, 5);
 }
 
+function buildRegulation(drafts: MessageDraft[], days: number): TherapyReportRegulationSection {
+  const recentDrafts = drafts.filter(d => isWithinDays(d.timestamp, days));
+
+  const totalPauses = recentDrafts.filter(d => d.paused).length;
+  const totalRewrites = recentDrafts.filter(d => d.rewrittenText).length;
+  const sentWithoutPause = recentDrafts.filter(d => d.sent && !d.paused && !d.rewrittenText).length;
+  const outcomesRecorded = recentDrafts.filter(d => d.outcome).length;
+  const helpedCount = recentDrafts.filter(d => d.outcome === 'helped').length;
+  const madeWorseCount = recentDrafts.filter(d => d.outcome === 'made_worse').length;
+
+  const parts: string[] = [];
+
+  if (totalPauses > 0 || totalRewrites > 0) {
+    parts.push(`The client paused ${totalPauses} time${totalPauses !== 1 ? 's' : ''} and rewrote ${totalRewrites} message${totalRewrites !== 1 ? 's' : ''} during this period.`);
+  }
+
+  if (sentWithoutPause > 0 && totalPauses > 0) {
+    const pauseRate = Math.round((totalPauses / (totalPauses + sentWithoutPause)) * 100);
+    parts.push(`Pause-before-send rate was approximately ${pauseRate}%.`);
+  }
+
+  if (helpedCount > 0) {
+    parts.push(`${helpedCount} communication outcome${helpedCount !== 1 ? 's were' : ' was'} recorded as helpful.`);
+  }
+
+  if (madeWorseCount > 0) {
+    parts.push(`${madeWorseCount} outcome${madeWorseCount !== 1 ? 's were' : ' was'} recorded as making things harder, which may be worth exploring.`);
+  }
+
+  if (parts.length === 0) {
+    parts.push('No message regulation data was recorded during this period.');
+  }
+
+  return {
+    totalPauses,
+    totalRewrites,
+    sentWithoutPause,
+    outcomesRecorded,
+    helpedCount,
+    madeWorseCount,
+    narrative: parts.join(' '),
+  };
+}
+
 function getPeriodLabel(days: number): string {
   if (days <= 7) return 'This Week';
   if (days <= 14) return 'Past Two Weeks';
@@ -523,6 +568,7 @@ export function generateTherapyReport(
     relationships: buildRelationships(journalEntries, messageDrafts, periodDays),
     coping: buildCoping(journalEntries, periodDays),
     urges: buildUrges(journalEntries, periodDays),
+    regulation: buildRegulation(messageDrafts, periodDays),
     progress: buildProgress(journalEntries, messageDrafts, periodDays),
     therapistNote: buildTherapistNote(journalEntries, messageDrafts, periodDays),
     discussionPrompts: buildDiscussionPrompts(journalEntries, messageDrafts, periodDays),

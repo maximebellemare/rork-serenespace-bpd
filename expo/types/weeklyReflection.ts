@@ -22,6 +22,13 @@ export interface WhatHelpedSection {
   narrative: string;
 }
 
+export interface WhatEscalatedSection {
+  escalationPatterns: string[];
+  missedPauses: number;
+  highDistressMoments: number;
+  narrative: string;
+}
+
 export interface GrowthSignalSection {
   improvements: { area: string; description: string; icon: string }[];
   awarenessGains: string[];
@@ -50,6 +57,7 @@ export interface WeeklyReflection {
   emotionalLandscape: EmotionalLandscape;
   relationshipReflection: RelationshipReflection;
   whatHelped: WhatHelpedSection;
+  whatEscalated: WhatEscalatedSection;
   growthSignals: GrowthSignalSection;
   nextWeekFocus: NextWeekFocus;
   closingMessage: string;

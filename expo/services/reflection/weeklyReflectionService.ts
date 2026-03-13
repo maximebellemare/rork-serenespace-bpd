@@ -6,6 +6,7 @@ import {
   buildEmotionalLandscape,
   buildRelationshipReflection,
   buildWhatHelped,
+  buildWhatEscalated,
   buildGrowthSignals,
   buildNextWeekFocus,
   buildOpeningNarrative,
@@ -99,6 +100,7 @@ export function generateWeeklyReflection(
   const emotionalLandscape = buildEmotionalLandscape(journalEntries, thisWeek, lastWeek);
   const relationshipReflection = buildRelationshipReflection(thisWeek, lastWeek, thisWeekDrafts, lastWeekDrafts, graphSummary);
   const whatHelped = buildWhatHelped(thisWeek, thisWeekDrafts);
+  const whatEscalated = buildWhatEscalated(thisWeek, thisWeekDrafts);
   const growthSignals = buildGrowthSignals(thisWeek, lastWeek, thisWeekDrafts, lastWeekDrafts, graphSummary);
   const nextWeekFocus = buildNextWeekFocus(thisWeek, thisWeekDrafts, graphSummary);
   const openingNarrative = buildOpeningNarrative(thisWeek, lastWeek, thisWeekDrafts);
@@ -116,6 +118,7 @@ export function generateWeeklyReflection(
     emotionalLandscape,
     relationshipReflection,
     whatHelped,
+    whatEscalated,
     growthSignals,
     nextWeekFocus,
     closingMessage,

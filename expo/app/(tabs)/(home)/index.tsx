@@ -61,11 +61,20 @@ import RelationshipGuardBanner from '@/components/RelationshipGuardBanner';
 import { useRelationshipGuard } from '@/hooks/useRelationshipGuard';
 import RelationshipHubCard from '@/components/RelationshipHubCard';
 import PersonalizedSuggestionsCard from '@/components/PersonalizedSuggestionsCard';
+import JourneyFlowBanner from '@/components/JourneyFlowBanner';
+import { useEmotionalContext } from '@/providers/EmotionalContextProvider';
+
+interface CardSlot {
+  key: string;
+  priority: number;
+  render: () => React.ReactNode;
+}
 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { journalEntries, messageDrafts } = useApp();
+  const { zone, getCardPriority, isCardVisible } = useEmotionalContext();
   const earlyWarning = useEarlyWarning();
   const { recommendations, topRecommendation } = useRecommendations();
   const crisisPrediction = useCrisisPrediction();
@@ -224,6 +233,194 @@ export default function HomeScreen() {
     e => Date.now() - e.timestamp < 7 * 24 * 60 * 60 * 1000
   ).length;
 
+  const zoneSubtitle = useMemo(() => {
+    switch (zone) {
+      case 'crisis': return "Let's get through this together.";
+      case 'relationship_distress': return "Relationship stress detected. Support is here.";
+      case 'activated': return "You seem activated. Take a breath.";
+      case 'recovering': return "You're doing the work. That matters.";
+      default: return "You're here. That matters.";
+    }
+  }, [zone]);
+
+  const cardSlots = useMemo<CardSlot[]>(() => {
+    const slots: CardSlot[] = [];
+
+    const addSlot = (key: string, render: () => React.ReactNode) => {
+      if (isCardVisible(key)) {
+        slots.push({ key, priority: getCardPriority(key), render });
+      }
+    };
+
+    addSlot('journey_flow', () => (
+      <JourneyFlowBanner key="journey_flow" />
+    ));
+
+    addSlot('crisis_mode', () => (
+      <CrisisModeCard key="crisis_mode" detection={crisisDetection} />
+    ));
+
+    addSlot('relationship_guard', () => (
+      <RelationshipGuardBanner
+        key="relationship_guard"
+        alertLevel={relationshipGuard.alertLevel}
+        primaryMessage={relationshipGuard.primaryMessage}
+        supportNarrative={relationshipGuard.supportNarrative}
+        signals={relationshipGuard.signals}
+        interventions={relationshipGuard.interventions}
+        shouldShowGuard={relationshipGuard.shouldShowGuard}
+      />
+    ));
+
+    addSlot('relationship_copilot', () => (
+      <RelationshipCopilotCard
+        key="relationship_copilot"
+        shouldShow={recentRelationshipDistress.shouldShowCopilot}
+        relationshipTriggerCount={recentRelationshipDistress.relationshipTriggerCount}
+        recentDraftCount={recentRelationshipDistress.recentDraftCount}
+        lastSessionLabel={lastSession ? 'recent' : null}
+      />
+    ));
+
+    addSlot('relationship_spiral', () => (
+      <RelationshipSpiralCard
+        key="relationship_spiral"
+        riskLevel={relationshipSpiral.riskLevel}
+        message={relationshipSpiral.message}
+        supportMessage={relationshipSpiral.supportMessage}
+        signals={relationshipSpiral.signals}
+        interventions={relationshipSpiral.interventions}
+        score={relationshipSpiral.score}
+      />
+    ));
+
+    addSlot('message_guard', () => (
+      <MessageGuardCard key="message_guard" recentDraftCount={messageDrafts.length} />
+    ));
+
+    addSlot('personalized_suggestions', () => (
+      <PersonalizedSuggestionsCard key="personalized_suggestions" />
+    ));
+
+    addSlot('ai_companion', () => (
+      <AICompanionHomeCard key="ai_companion" />
+    ));
+
+    if (dailyCoaching) {
+      addSlot('coaching', () => (
+        <BehavioralCoachingCard key="coaching" coaching={dailyCoaching} />
+      ));
+    }
+
+    addSlot('home_insights', () => (
+      <HomeInsightsPreview key="home_insights" />
+    ));
+
+    addSlot('progress_dashboard', () => (
+      <ProgressDashboardCard key="progress_dashboard" />
+    ));
+
+    addSlot('weekly_reflection', () => (
+      <WeeklyReflectionCard
+        key="weekly_reflection"
+        weekLabel={weeklyReflection.weekLabel}
+        hasEnoughData={weeklyReflection.hasEnoughData}
+        openingNarrative={weeklyReflection.openingNarrative}
+        improvementCount={weeklyReflection.growthSignals.improvements.length}
+      />
+    ));
+
+    addSlot('therapy_report', () => (
+      <TherapistReportCard
+        key="therapy_report"
+        checkInCount={therapyReport.checkInCount}
+        hasEnoughData={therapyReport.hasEnoughData}
+        overviewNarrative={therapyReport.overviewNarrative}
+        discussionPromptCount={therapyReport.discussionPrompts.length}
+      />
+    ));
+
+    addSlot('emotional_loops', () => (
+      <EmotionalLoopsCard key="emotional_loops" report={emotionalLoops} />
+    ));
+
+    addSlot('relationship_hub', () => (
+      <RelationshipHubCard key="relationship_hub" />
+    ));
+
+    addSlot('emotional_profile', () => (
+      <EmotionalProfileCard key="emotional_profile" />
+    ));
+
+    addSlot('reflection_mirror', () => (
+      <ReflectionMirrorCard
+        key="reflection_mirror"
+        hasEnoughData={reflectionMirror.hasEnoughData}
+        topTheme={reflectionMirror.emotionalThemes[0]?.label ?? null}
+        growthCount={reflectionMirror.growthSignals.length}
+      />
+    ));
+
+    addSlot('emotional_timeline', () => (
+      <EmotionalTimelineCard key="emotional_timeline" replayState={episodeReplayState} />
+    ));
+
+    addSlot('identity_builder', () => (
+      <IdentityBuilderCard key="identity_builder" />
+    ));
+
+    addSlot('storm_warning', () => (
+      <StormEarlyWarningCard key="storm_warning" warning={stormWarning} />
+    ));
+
+    addSlot('emotional_storm', () => (
+      <EmotionalStormCard key="emotional_storm" storm={emotionalStorm} />
+    ));
+
+    addSlot('early_support', () => (
+      <EarlySupportCard key="early_support" prediction={crisisPrediction} />
+    ));
+
+    addSlot('early_warning', () => (
+      <EarlyWarningBanner
+        key="early_warning"
+        warningLevel={earlyWarning.warningLevel}
+        message={earlyWarning.message}
+        patterns={earlyWarning.patterns}
+        suggestions={earlyWarning.suggestions}
+      />
+    ));
+
+    addSlot('emotional_trends', () => (
+      <EmotionalTrendsCard
+        key="emotional_trends"
+        trend={earlyWarning.emotionalTrend}
+        warningLevel={earlyWarning.warningLevel}
+        onPress={() => router.push('/insights')}
+      />
+    ));
+
+    addSlot('smart_coping', () => (
+      <SmartCopingCard
+        key="smart_coping"
+        recommendations={recommendations}
+        topRecommendation={topRecommendation}
+      />
+    ));
+
+    addSlot('upgrade_prompt', () => (
+      <UpgradePromptCard key="upgrade_prompt" />
+    ));
+
+    return slots.sort((a, b) => a.priority - b.priority);
+  }, [
+    isCardVisible, getCardPriority, crisisDetection, relationshipGuard,
+    recentRelationshipDistress, lastSession, relationshipSpiral, messageDrafts,
+    dailyCoaching, weeklyReflection, therapyReport, emotionalLoops,
+    reflectionMirror, episodeReplayState, stormWarning, emotionalStorm,
+    crisisPrediction, earlyWarning, recommendations, topRecommendation, router,
+  ]);
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView
@@ -232,7 +429,7 @@ export default function HomeScreen() {
       >
         <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
           <Text style={styles.greeting}>BPD Companion</Text>
-          <Text style={styles.subtitle}>You're here. That matters.</Text>
+          <Text style={styles.subtitle}>{zoneSubtitle}</Text>
         </Animated.View>
 
         <Animated.View style={{ opacity: fadeAnim }}>
@@ -352,141 +549,11 @@ export default function HomeScreen() {
           />
         </Animated.View>
 
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <CrisisModeCard detection={crisisDetection} />
-        </Animated.View>
-
-        {dailyCoaching && (
-          <Animated.View style={{ opacity: fadeAnim }}>
-            <BehavioralCoachingCard coaching={dailyCoaching} />
+        {cardSlots.map(slot => (
+          <Animated.View key={slot.key} style={{ opacity: fadeAnim }}>
+            {slot.render()}
           </Animated.View>
-        )}
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <PersonalizedSuggestionsCard />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <AICompanionHomeCard />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <HomeInsightsPreview />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <ProgressDashboardCard />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <WeeklyReflectionCard
-            weekLabel={weeklyReflection.weekLabel}
-            hasEnoughData={weeklyReflection.hasEnoughData}
-            openingNarrative={weeklyReflection.openingNarrative}
-            improvementCount={weeklyReflection.growthSignals.improvements.length}
-          />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <TherapistReportCard
-            checkInCount={therapyReport.checkInCount}
-            hasEnoughData={therapyReport.hasEnoughData}
-            overviewNarrative={therapyReport.overviewNarrative}
-            discussionPromptCount={therapyReport.discussionPrompts.length}
-          />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <EmotionalLoopsCard report={emotionalLoops} />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <RelationshipHubCard />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <RelationshipCopilotCard
-            shouldShow={recentRelationshipDistress.shouldShowCopilot}
-            relationshipTriggerCount={recentRelationshipDistress.relationshipTriggerCount}
-            recentDraftCount={recentRelationshipDistress.recentDraftCount}
-            lastSessionLabel={lastSession ? 'recent' : null}
-          />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <MessageGuardCard recentDraftCount={messageDrafts.length} />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <EmotionalProfileCard />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <ReflectionMirrorCard
-            hasEnoughData={reflectionMirror.hasEnoughData}
-            topTheme={reflectionMirror.emotionalThemes[0]?.label ?? null}
-            growthCount={reflectionMirror.growthSignals.length}
-          />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <EmotionalTimelineCard replayState={episodeReplayState} />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <IdentityBuilderCard />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <RelationshipGuardBanner
-            alertLevel={relationshipGuard.alertLevel}
-            primaryMessage={relationshipGuard.primaryMessage}
-            supportNarrative={relationshipGuard.supportNarrative}
-            signals={relationshipGuard.signals}
-            interventions={relationshipGuard.interventions}
-            shouldShowGuard={relationshipGuard.shouldShowGuard}
-          />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <RelationshipSpiralCard
-            riskLevel={relationshipSpiral.riskLevel}
-            message={relationshipSpiral.message}
-            supportMessage={relationshipSpiral.supportMessage}
-            signals={relationshipSpiral.signals}
-            interventions={relationshipSpiral.interventions}
-            score={relationshipSpiral.score}
-          />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <StormEarlyWarningCard warning={stormWarning} />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <EmotionalStormCard storm={emotionalStorm} />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <EarlySupportCard prediction={crisisPrediction} />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <EarlyWarningBanner
-            warningLevel={earlyWarning.warningLevel}
-            message={earlyWarning.message}
-            patterns={earlyWarning.patterns}
-            suggestions={earlyWarning.suggestions}
-          />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <EmotionalTrendsCard
-            trend={earlyWarning.emotionalTrend}
-            warningLevel={earlyWarning.warningLevel}
-            onPress={() => router.push('/insights')}
-          />
-        </Animated.View>
+        ))}
 
         {recentCount > 0 && (
           <Animated.View style={[styles.insightCard, { opacity: fadeAnim }]}>
@@ -497,17 +564,6 @@ export default function HomeScreen() {
             </Text>
           </Animated.View>
         )}
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <SmartCopingCard
-            recommendations={recommendations}
-            topRecommendation={topRecommendation}
-          />
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <UpgradePromptCard />
-        </Animated.View>
 
         <Animated.View style={[{ opacity: fadeAnim }]}>
           <TouchableOpacity

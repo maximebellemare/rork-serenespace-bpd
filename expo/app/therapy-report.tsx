@@ -31,6 +31,7 @@ import {
   ChevronRight,
   CheckCircle,
   BookOpen,
+  PauseCircle,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
@@ -467,6 +468,42 @@ export default function TherapyReportScreen() {
             </View>
           )}
         </Animated.View>
+
+        {(report.regulation.totalPauses > 0 || report.regulation.totalRewrites > 0) && (
+          <Animated.View style={[styles.sectionCard, { opacity: slideOpacities[7], transform: [{ translateY: slideAnims[7] }] }]}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIconWrap, { backgroundColor: '#F0F5FF' }]}>
+                <PauseCircle size={18} color="#3B6FC4" />
+              </View>
+              <Text style={styles.sectionTitle}>Regulation Behavior</Text>
+            </View>
+
+            <Text style={styles.narrativeText}>{report.regulation.narrative}</Text>
+
+            <View style={styles.regulationStatsRow}>
+              <View style={styles.regulationStat}>
+                <Text style={[styles.regulationStatValue, { color: Colors.primary }]}>{report.regulation.totalPauses}</Text>
+                <Text style={styles.regulationStatLabel}>Pauses</Text>
+              </View>
+              <View style={styles.regulationStat}>
+                <Text style={[styles.regulationStatValue, { color: Colors.accent }]}>{report.regulation.totalRewrites}</Text>
+                <Text style={styles.regulationStatLabel}>Rewrites</Text>
+              </View>
+              {report.regulation.helpedCount > 0 && (
+                <View style={styles.regulationStat}>
+                  <Text style={[styles.regulationStatValue, { color: Colors.success }]}>{report.regulation.helpedCount}</Text>
+                  <Text style={styles.regulationStatLabel}>Helped</Text>
+                </View>
+              )}
+              {report.regulation.madeWorseCount > 0 && (
+                <View style={styles.regulationStat}>
+                  <Text style={[styles.regulationStatValue, { color: '#E17055' }]}>{report.regulation.madeWorseCount}</Text>
+                  <Text style={styles.regulationStatLabel}>Harder</Text>
+                </View>
+              )}
+            </View>
+          </Animated.View>
+        )}
 
         <Animated.View style={[styles.sectionCard, styles.progressCard, { opacity: slideOpacities[7], transform: [{ translateY: slideAnims[7] }] }]}>
           <View style={styles.sectionHeader}>
@@ -1279,5 +1316,26 @@ const styles = StyleSheet.create({
   reflectionLinkDesc: {
     fontSize: 12,
     color: Colors.textSecondary,
+  },
+  regulationStatsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  regulationStat: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+  },
+  regulationStatValue: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    marginBottom: 2,
+  },
+  regulationStatLabel: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    fontWeight: '500' as const,
   },
 });

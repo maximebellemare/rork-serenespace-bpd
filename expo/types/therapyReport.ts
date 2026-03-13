@@ -55,6 +55,16 @@ export interface TherapyDiscussionPrompt {
 
 export type TherapyReportPeriod = '7' | '14' | '30';
 
+export interface TherapyReportRegulationSection {
+  totalPauses: number;
+  totalRewrites: number;
+  sentWithoutPause: number;
+  outcomesRecorded: number;
+  helpedCount: number;
+  madeWorseCount: number;
+  narrative: string;
+}
+
 export interface TherapyReport {
   id: string;
   generatedAt: number;
@@ -68,6 +78,7 @@ export interface TherapyReport {
   relationships: TherapyReportRelationshipSection;
   coping: TherapyReportCopingSection;
   urges: TherapyReportUrgeSection;
+  regulation: TherapyReportRegulationSection;
   progress: TherapyReportProgressSection;
   therapistNote: string;
   checkInCount: number;
