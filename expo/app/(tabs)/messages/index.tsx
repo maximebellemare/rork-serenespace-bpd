@@ -435,6 +435,27 @@ export default function MessagesScreen() {
       )}
 
       <TouchableOpacity
+        style={styles.guardBanner}
+        onPress={() => {
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          router.push('/message-guard');
+        }}
+        activeOpacity={0.7}
+        testID="message-guard-btn"
+      >
+        <View style={styles.guardBannerLeft}>
+          <View style={styles.guardBannerIcon}>
+            <Shield size={18} color={Colors.primary} />
+          </View>
+          <View style={styles.guardBannerText}>
+            <Text style={styles.guardBannerTitle}>Message Guard</Text>
+            <Text style={styles.guardBannerDesc}>See how your message may land first</Text>
+          </View>
+        </View>
+        <ChevronRight size={16} color={Colors.primary} />
+      </TouchableOpacity>
+
+      <TouchableOpacity
         style={styles.simulatorBanner}
         onPress={() => {
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1792,6 +1813,43 @@ const styles = StyleSheet.create({
   relInsightsBannerDesc: {
     fontSize: 12,
     color: 'rgba(255,255,255,0.8)',
+  },
+  guardBanner: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.primary + '20',
+  },
+  guardBannerLeft: {
+    flex: 1,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+  },
+  guardBannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    backgroundColor: Colors.primary + '18',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginRight: 10,
+  },
+  guardBannerText: {
+    flex: 1,
+  },
+  guardBannerTitle: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.primaryDark,
+    marginBottom: 1,
+  },
+  guardBannerDesc: {
+    fontSize: 12,
+    color: Colors.textSecondary,
   },
   simulatorBanner: {
     flexDirection: 'row' as const,
