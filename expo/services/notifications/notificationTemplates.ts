@@ -96,6 +96,14 @@ export const NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
     ],
     deepLink: '/check-in',
   },
+  {
+    category: 'premium_upgrade',
+    variants: [
+      { title: 'Deeper support available', body: 'Advanced tools are ready when you are.' },
+      { title: 'More insight awaits', body: 'Unlock deeper understanding of your emotional patterns.' },
+    ],
+    deepLink: '/upgrade',
+  },
 ];
 
 export function getRandomTemplate(category: NotificationCategory): { title: string; body: string; deepLink: string } {

@@ -47,6 +47,8 @@ export function useSmartReminders() {
     eveningRitualTime: profile.notifications.eveningRitualTime ?? '20:00',
     calmFollowups: profile.notifications.calmFollowups ?? true,
     premiumReflections: profile.notifications.premiumReflections ?? true,
+    premiumInsightReminders: profile.notifications.premiumInsightReminders ?? true,
+    upgradeReminders: profile.notifications.upgradeReminders ?? true,
     therapistReportReminder: profile.notifications.therapistReportReminder ?? true,
     reengagementReminders: profile.notifications.reengagementReminders ?? true,
     streakSupport: profile.notifications.streakSupport ?? true,
@@ -112,10 +114,42 @@ export function useSmartReminders() {
           reason: suppressed.reason,
         });
       }
+
+      const recentCrisis = journalEntries.some(e => {
+        const fourHoursAgo = Date.now() - 4 * 60 * 60 * 1000;
+        return e.timestamp > fourHoursAgo && e.checkIn.intensityLevel >= 9;
+      });
+
+      const premiumResult = await smartReminderEngine.evaluatePremiumReminders(
+        fullSettings,
+        {
+          currentDistress: params.currentDistress,
+          highDistressToday: params.highDistressToday,
+          highDistressTimestamp: params.highDistressTimestamp,
+          isPremium: params.isPremium,
+          recentCrisisMode: recentCrisis,
+          recentSpiralEvent: activeContext.activeRelationshipContext && params.currentDistress >= 7,
+        },
+      );
+
+      for (const fired of premiumResult.fired) {
+        trackEvent('premium_reminder_scheduled', {
+          reminder_type: fired.reminderType,
+          intent_strength: fired.intentStrength,
+          upgrade_anchor: fired.upgradeAnchor,
+        });
+      }
+
+      for (const suppressed of premiumResult.suppressed) {
+        trackEvent('premium_reminder_suppressed', {
+          reminder_type: suppressed.reminderType,
+          reason: suppressed.reason,
+        });
+      }
     } catch (error) {
       console.error('[useSmartReminders] Evaluation error:', error);
     }
-  }, [buildEvalParams, fullSettings, trackEvent, isPremium]);
+  }, [buildEvalParams, fullSettings, trackEvent, isPremium, journalEntries, activeContext]);
 
   useEffect(() => {
     if (initializedRef.current) return;
@@ -163,7 +197,12 @@ export function useSmartReminders() {
     if (eventName === 'check_in_completed' ||
         eventName === 'daily_ritual_completed' ||
         eventName === 'weekly_reflection_viewed' ||
-        eventName === 'crisis_mode_triggered') {
+        eventName === 'crisis_mode_triggered' ||
+        eventName === 'ai_limit_reached' ||
+        eventName === 'premium_feature_attempted' ||
+        eventName === 'weekly_reflection_locked' ||
+        eventName === 'therapist_report_locked' ||
+        eventName === 'upgrade_screen_viewed') {
       void runEvaluation();
     }
   }, [runEvaluation]);
@@ -181,11 +220,21 @@ export function useSmartReminders() {
     console.log('[useSmartReminders] Engine reset');
   }, []);
 
+  const getPremiumReminderState = useCallback(() => {
+    return smartReminderEngine.getPremiumReminderState();
+  }, []);
+
+  const getPremiumReminderAnalytics = useCallback(async (limit?: number) => {
+    return smartReminderEngine.getPremiumReminderAnalytics(limit);
+  }, []);
+
   return {
     handleAnalyticsEvent,
     runEvaluation,
     getState,
     getReminderAnalytics,
+    getPremiumReminderState,
+    getPremiumReminderAnalytics,
     resetEngine,
     settings: fullSettings,
   };

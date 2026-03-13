@@ -9,7 +9,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   X,
@@ -63,16 +63,22 @@ const TESTIMONIALS = [
 
 export default function UpgradeScreen() {
   const router = useRouter();
+  const { anchor } = useLocalSearchParams<{ anchor?: string }>();
   const insets = useSafeAreaInsets();
   const { isPremium, subscribe, startTrial, restore, isSubscribing, state } = useSubscription();
   const personalization = usePersonalization();
   const { trackEvent } = useAnalytics();
   const [selectedPlanId, setSelectedPlanId] = useState<string>('yearly');
+  const _scrollRef = React.useRef<ScrollView>(null);
+  const featureSectionY = React.useRef<number>(0);
 
   useEffect(() => {
     trackEvent('upgrade_screen_viewed');
     trackEvent('screen_view', { screen: 'upgrade' });
-  }, [trackEvent]);
+    if (anchor) {
+      trackEvent('upgrade_screen_anchored', { anchor });
+    }
+  }, [trackEvent, anchor]);
   const [testimonialIndex, setTestimonialIndex] = useState<number>(0);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -311,7 +317,23 @@ export default function UpgradeScreen() {
           </View>
         </Animated.View>
 
-        <Animated.View style={[styles.featuresSection, { opacity: fadeAnim }]}>
+        <Animated.View
+          style={[styles.featuresSection, { opacity: fadeAnim }]}
+          onLayout={(e) => { featureSectionY.current = e.nativeEvent.layout.y; }}
+        >
+          {anchor && (
+            <View style={styles.anchorHighlight}>
+              <Sparkles size={14} color="#D4956A" />
+              <Text style={styles.anchorHighlightText}>
+                {anchor === 'weekly_reflection' && 'Unlock deeper weekly reflection insights'}
+                {anchor === 'therapist_report' && 'Keep a complete history of your therapy reports'}
+                {anchor === 'unlimited_ai' && 'Continue with unlimited AI companion support'}
+                {anchor === 'relationship_analysis' && 'Unlock advanced relationship pattern analysis'}
+                {anchor === 'emotional_profile' && 'Discover deeper emotional pattern intelligence'}
+                {!['weekly_reflection', 'therapist_report', 'unlimited_ai', 'relationship_analysis', 'emotional_profile'].includes(anchor) && 'Unlock deeper support tools'}
+              </Text>
+            </View>
+          )}
           <Text style={styles.comparisonTitle}>What Premium unlocks</Text>
           {PREMIUM_FEATURES.map((feature, index) => {
             const IconComponent = ICON_MAP[feature.icon] ?? Sparkles;
@@ -556,6 +578,24 @@ const styles = StyleSheet.create({
   freeRowText: {
     fontSize: 14,
     color: Colors.textSecondary,
+  },
+  anchorHighlight: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 10,
+    backgroundColor: '#FFF5EB',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#F5E0CC',
+  },
+  anchorHighlightText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#8B6A47',
+    lineHeight: 20,
   },
   featuresSection: {
     marginBottom: 28,

@@ -218,3 +218,57 @@ export async function trackNotificationConversionQuality(
     distress_improvement: distressImprovement ?? 0,
   });
 }
+
+export async function trackPremiumReminderScheduled(
+  reminderType: string,
+  intentStrength: number,
+  upgradeAnchor: string,
+  safetyState: string,
+  daysSinceLastUpgradeView: number,
+): Promise<void> {
+  return analyticsEngine.trackEvent('premium_reminder_scheduled', {
+    reminder_type: reminderType,
+    intent_strength: intentStrength,
+    upgrade_anchor: upgradeAnchor,
+    safety_state: safetyState,
+    days_since_last_upgrade_view: daysSinceLastUpgradeView,
+  });
+}
+
+export async function trackPremiumReminderOpened(
+  reminderType: string,
+  upgradeAnchor: string,
+): Promise<void> {
+  return analyticsEngine.trackEvent('premium_reminder_opened', {
+    reminder_type: reminderType,
+    upgrade_anchor: upgradeAnchor,
+  });
+}
+
+export async function trackPremiumReminderDismissed(
+  reminderType: string,
+): Promise<void> {
+  return analyticsEngine.trackEvent('premium_reminder_dismissed', {
+    reminder_type: reminderType,
+  });
+}
+
+export async function trackPremiumReminderConverted(
+  reminderType: string,
+): Promise<void> {
+  return analyticsEngine.trackEvent('premium_reminder_converted', {
+    reminder_type: reminderType,
+  });
+}
+
+export async function trackPremiumReminderSuppressed(
+  reminderType: string,
+  reason: string,
+  safetyState: string,
+): Promise<void> {
+  return analyticsEngine.trackEvent('premium_reminder_suppressed_due_to_safety', {
+    reminder_type: reminderType,
+    reason,
+    safety_state: safetyState,
+  });
+}

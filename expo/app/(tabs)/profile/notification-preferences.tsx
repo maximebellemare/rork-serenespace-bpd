@@ -28,6 +28,8 @@ import {
   Shield,
   ChevronDown,
   Volume2,
+  Crown,
+  Gift,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
@@ -407,7 +409,30 @@ export default function NotificationPreferencesScreen() {
                 (val) => updateNotifications({ premiumReflections: val }),
                 'toggle-premium',
               )}
+              <View style={styles.divider} />
+
+              {renderToggle(
+                <Crown size={16} color="#D4956A" />,
+                'Premium Feature Reminders',
+                'Occasional reminders about advanced features you\'ve explored',
+                n.premiumInsightReminders ?? true,
+                (val) => updateNotifications({ premiumInsightReminders: val }),
+                'toggle-premium-insights',
+              )}
+              <View style={styles.divider} />
+
+              {renderToggle(
+                <Gift size={16} color="#D4956A" />,
+                'Upgrade Reminders',
+                'Respectful reminders about premium benefits',
+                n.upgradeReminders ?? true,
+                (val) => updateNotifications({ upgradeReminders: val }),
+                'toggle-upgrade-reminders',
+              )}
             </View>
+            <Text style={styles.premiumNote}>
+              Premium reminders are never sent during high distress or crisis moments.
+            </Text>
           </View>
 
           <View style={styles.section}>
@@ -704,6 +729,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     lineHeight: 18,
+  },
+  premiumNote: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 8,
+    marginLeft: 4,
+    lineHeight: 16,
   },
   bottomSpacer: {
     height: 30,

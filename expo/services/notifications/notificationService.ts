@@ -108,11 +108,12 @@ class NotificationService {
   ): boolean {
     const safetyBlockCategories: NotificationCategory[] = [
       'premium_reflection',
+      'premium_upgrade',
       'reengagement',
       'streak_support',
     ];
 
-    if (safetyBlockCategories.includes(category) && currentDistress >= 7) {
+    if (safetyBlockCategories.includes(category) && currentDistress >= 6) {
       console.log('[NotificationService] Blocked for safety:', category, 'distress:', currentDistress);
       return true;
     }

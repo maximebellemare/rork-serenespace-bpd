@@ -111,6 +111,16 @@ export const NOTIFICATION_CATEGORIES: NotificationCategoryConfig[] = [
     premiumOnly: false,
     safetyExempt: false,
   },
+  {
+    id: 'premium_upgrade',
+    label: 'Premium Insights Reminders',
+    description: 'Occasional reminders about advanced features you\'ve shown interest in',
+    defaultEnabled: true,
+    defaultTimeWindow: { hour: 12, minute: 0 },
+    respectsQuietHours: true,
+    premiumOnly: false,
+    safetyExempt: false,
+  },
 ];
 
 export function getCategoryConfig(id: string): NotificationCategoryConfig | undefined {
@@ -138,6 +148,8 @@ export function getDeepLinkForCategory(category: string): string {
       return '/therapy-report';
     case 'streak_support':
       return '/check-in';
+    case 'premium_upgrade':
+      return '/upgrade';
     default:
       return '/check-in';
   }

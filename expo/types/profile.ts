@@ -52,6 +52,8 @@ export interface NotificationPreferences {
   eveningRitualTime: string;
   calmFollowups: boolean;
   premiumReflections: boolean;
+  premiumInsightReminders: boolean;
+  upgradeReminders: boolean;
   therapistReportReminder: boolean;
   reengagementReminders: boolean;
   streakSupport: boolean;
@@ -112,6 +114,8 @@ export const DEFAULT_PROFILE: UserProfile = {
     eveningRitualTime: '20:00',
     calmFollowups: true,
     premiumReflections: true,
+    premiumInsightReminders: true,
+    upgradeReminders: true,
     therapistReportReminder: true,
     reengagementReminders: true,
     streakSupport: true,

@@ -5,6 +5,7 @@ export type NotificationCategory =
   | 'relationship_support'
   | 'calm_followup'
   | 'premium_reflection'
+  | 'premium_upgrade'
   | 'therapist_report'
   | 'reengagement'
   | 'streak_support'

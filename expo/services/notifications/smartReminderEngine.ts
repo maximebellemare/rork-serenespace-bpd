@@ -10,6 +10,9 @@ import { FullNotificationSettings } from './notificationScheduler';
 import { reminderDecisionEngine, buildRuleContext } from './reminderDecisionEngine';
 import { notificationService } from './notificationService';
 import { localEventStore } from '@/services/analytics/localEventStore';
+import { premiumReminderEngine } from './premiumReminderEngine';
+import { premiumIntentService } from '@/services/subscription/premiumIntentService';
+import { PremiumReminderDecision } from '@/types/premiumReminder';
 
 
 const STATE_KEY = 'bpd_smart_reminder_state';
@@ -68,6 +71,7 @@ class SmartReminderEngine {
           this.state = parsed;
         }
       }
+      await premiumReminderEngine.initialize();
       console.log('[SmartReminderEngine] Initialized, today fired:', this.state.todayFiredCount);
     } catch (error) {
       console.error('[SmartReminderEngine] Init error:', error);
@@ -344,8 +348,10 @@ class SmartReminderEngine {
     return notifId;
   }
 
-  async handleEventTriggered(eventName: string, _properties?: Record<string, string | number | boolean>): Promise<void> {
+  async handleEventTriggered(eventName: string, properties?: Record<string, string | number | boolean>): Promise<void> {
     console.log('[SmartReminderEngine] Event triggered:', eventName);
+
+    await premiumIntentService.recordIntentEvent(eventName, properties);
 
     switch (eventName) {
       case 'check_in_completed':
@@ -366,15 +372,74 @@ class SmartReminderEngine {
         await notificationService.cancelAllByCategory('reengagement');
         await notificationService.cancelAllByCategory('streak_support');
         await notificationService.cancelAllByCategory('premium_reflection');
+        await notificationService.cancelAllByCategory('premium_upgrade');
+        await premiumReminderEngine.handleSafetySuppression(
+          `crisis_event: ${eventName}`,
+        );
         break;
 
       case 'relationship_spiral_detected':
+        await notificationService.cancelAllByCategory('premium_upgrade');
+        await premiumReminderEngine.handleSafetySuppression(
+          'relationship_spiral_detected',
+        );
+        break;
+
       case 'relationship_copilot_completed':
+        break;
+
+      case 'upgrade_screen_viewed':
+        await premiumIntentService.recordUpgradeView();
         break;
 
       default:
         break;
     }
+  }
+
+  async evaluatePremiumReminders(
+    settings: FullNotificationSettings,
+    params: {
+      currentDistress: number;
+      highDistressToday: boolean;
+      highDistressTimestamp: number | null;
+      isPremium: boolean;
+      recentCrisisMode: boolean;
+      recentSpiralEvent: boolean;
+    },
+  ): Promise<{ fired: PremiumReminderDecision[]; suppressed: PremiumReminderDecision[] }> {
+    const ctx = {
+      isPremium: params.isPremium,
+      currentDistress: params.currentDistress,
+      highDistressToday: params.highDistressToday,
+      highDistressTimestamp: params.highDistressTimestamp,
+      recentCrisisMode: params.recentCrisisMode,
+      recentSpiralEvent: params.recentSpiralEvent,
+      premiumRemindersEnabled: settings.premiumInsightReminders,
+      upgradeRemindersEnabled: settings.upgradeReminders,
+      quietHours: settings.quietHours,
+      frequency: settings.frequency,
+    };
+
+    const decisions = premiumReminderEngine.evaluate(ctx);
+    const fired: PremiumReminderDecision[] = [];
+    const suppressed: PremiumReminderDecision[] = [];
+
+    for (const decision of decisions) {
+      if (decision.shouldFire) {
+        const notifId = await premiumReminderEngine.fireReminder(decision, ctx);
+        if (notifId) {
+          fired.push(decision);
+        } else {
+          suppressed.push(decision);
+        }
+      } else {
+        suppressed.push(decision);
+      }
+    }
+
+    console.log('[SmartReminderEngine] Premium evaluation:', fired.length, 'fired,', suppressed.length, 'suppressed');
+    return { fired, suppressed };
   }
 
   async trackReminderAnalytics(event: ReminderAnalyticsEvent): Promise<void> {
@@ -412,7 +477,17 @@ class SmartReminderEngine {
       lastFiredTimestamp: null,
     };
     await AsyncStorage.removeItem(STATE_KEY);
+    await premiumReminderEngine.resetState();
+    await premiumIntentService.clearSignals();
     console.log('[SmartReminderEngine] State reset');
+  }
+
+  getPremiumReminderState() {
+    return premiumReminderEngine.getState();
+  }
+
+  async getPremiumReminderAnalytics(limit?: number) {
+    return premiumReminderEngine.getAnalytics(limit);
   }
 }
 
