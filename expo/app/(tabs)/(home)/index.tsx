@@ -49,6 +49,8 @@ import TherapistReportCard from '@/components/TherapistReportCard';
 import { generateTherapyReport } from '@/services/therapy/therapyReportService';
 import IdentityBuilderCard from '@/components/IdentityBuilderCard';
 import MessageGuardCard from '@/components/MessageGuardCard';
+import StormEarlyWarningCard from '@/components/StormEarlyWarningCard';
+import { useStormEarlyWarning } from '@/hooks/useStormEarlyWarning';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -63,6 +65,7 @@ export default function HomeScreen() {
   const emotionalLoops = useEmotionalLoops();
   const crisisDetection = useCrisisDetection();
   const { recentRelationshipDistress, lastSession } = useRelationshipCopilot();
+  const stormWarning = useStormEarlyWarning();
 
   const weeklyReflection = useMemo(
     () => generateWeeklyReflection(journalEntries, messageDrafts),
@@ -394,6 +397,10 @@ export default function HomeScreen() {
             interventions={relationshipSpiral.interventions}
             score={relationshipSpiral.score}
           />
+        </Animated.View>
+
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <StormEarlyWarningCard warning={stormWarning} />
         </Animated.View>
 
         <Animated.View style={{ opacity: fadeAnim }}>
