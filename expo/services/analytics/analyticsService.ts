@@ -188,3 +188,33 @@ export async function trackNotificationConverted(
     target_screen: targetScreen,
   });
 }
+
+export async function trackNotificationDeepLink(
+  category: string,
+  targetRoute: string,
+  quickAction: string,
+  sessionId: string,
+): Promise<void> {
+  return analyticsEngine.trackEvent('notification_deep_link', {
+    category,
+    target_route: targetRoute,
+    quick_action: quickAction,
+    session_id: sessionId,
+  });
+}
+
+export async function trackNotificationConversionQuality(
+  sessionId: string,
+  category: string,
+  outcome: string,
+  durationSeconds: number,
+  distressImprovement: number | null,
+): Promise<void> {
+  return analyticsEngine.trackEvent('notification_conversion_quality', {
+    session_id: sessionId,
+    category,
+    outcome,
+    duration_seconds: durationSeconds,
+    distress_improvement: distressImprovement ?? 0,
+  });
+}

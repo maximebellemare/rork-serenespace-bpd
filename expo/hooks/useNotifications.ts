@@ -4,9 +4,10 @@ import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import { notificationService } from '@/services/notifications/notificationService';
 import { notificationScheduler, FullNotificationSettings } from '@/services/notifications/notificationScheduler';
-import { getDeepLinkForCategory } from '@/services/notifications/notificationCategories';
+import { notificationActionHandler } from '@/services/notifications/notificationActionHandler';
 import { useProfile } from '@/providers/ProfileProvider';
 import { useEmotionalContext } from '@/providers/EmotionalContextProvider';
+import { useNotificationEntry } from '@/providers/NotificationEntryProvider';
 import { useApp } from '@/providers/AppProvider';
 import { QuietHours } from '@/types/notifications';
 
@@ -15,6 +16,7 @@ export function useNotifications() {
   const { profile } = useProfile();
   const { activeContext } = useEmotionalContext();
   const { journalEntries } = useApp();
+  const { setNotificationEntry } = useNotificationEntry();
   const lastSyncRef = useRef<string>('');
   const contextCheckRef = useRef<number>(0);
 
@@ -67,15 +69,37 @@ export function useNotifications() {
     if (Platform.OS === 'web') return;
 
     const responseSubscription = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        const data = response.notification.request.content.data;
+      async (response) => {
+        const data = response.notification.request.content.data as Record<string, string> | undefined;
         const category = data?.category as string | undefined;
+        const actionId = response.actionIdentifier;
 
-        console.log('[useNotifications] Notification tapped:', category);
+        console.log('[useNotifications] Notification tapped:', category, 'action:', actionId);
 
-        if (category) {
-          const deepLink = getDeepLinkForCategory(category);
-          router.push(deepLink as never);
+        if (!category) {
+          router.push('/check-in' as never);
+          return;
+        }
+
+        const notifData: Record<string, string> = { ...(data ?? {}) };
+        if (actionId && actionId !== Notifications.DEFAULT_ACTION_IDENTIFIER) {
+          notifData.action_id = actionId;
+        }
+
+        try {
+          const { route, entryState } = await notificationActionHandler.handleNotificationTap(
+            category,
+            notifData,
+          );
+
+          notificationActionHandler.setDistressBefore(activeContext.latestIntensity);
+          setNotificationEntry(entryState);
+
+          console.log('[useNotifications] Routing to:', route);
+          router.push(route as never);
+        } catch (error) {
+          console.error('[useNotifications] Routing failed:', error);
+          router.push('/check-in' as never);
         }
       },
     );
@@ -83,7 +107,7 @@ export function useNotifications() {
     return () => {
       responseSubscription.remove();
     };
-  }, [router]);
+  }, [router, activeContext.latestIntensity, setNotificationEntry]);
 
   useEffect(() => {
     const now = Date.now();

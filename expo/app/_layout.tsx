@@ -9,6 +9,7 @@ import { ProfileProvider } from "@/providers/ProfileProvider";
 import { SubscriptionProvider } from "@/providers/SubscriptionProvider";
 import { EmotionalContextProvider } from "@/providers/EmotionalContextProvider";
 import { AnalyticsProvider } from "@/providers/AnalyticsProvider";
+import { NotificationEntryProvider } from "@/providers/NotificationEntryProvider";
 import Colors from "@/constants/colors";
 import NotificationManager from "@/components/NotificationManager";
 
@@ -302,8 +303,10 @@ export default function RootLayout() {
               <ProfileProvider>
                 <AICompanionProvider>
                   <EmotionalContextProvider>
-                    <NotificationManager />
-                    <RootLayoutNav />
+                    <NotificationEntryProvider>
+                      <NotificationManager />
+                      <RootLayoutNav />
+                    </NotificationEntryProvider>
                   </EmotionalContextProvider>
                 </AICompanionProvider>
               </ProfileProvider>

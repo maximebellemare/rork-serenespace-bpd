@@ -35,6 +35,8 @@ import Colors from '@/constants/colors';
 import { useApp } from '@/providers/AppProvider';
 import { useAnalytics } from '@/providers/AnalyticsProvider';
 import { PremiumInlinePrompt } from '@/components/PremiumGate';
+import { useNotificationEntry } from '@/providers/NotificationEntryProvider';
+import NotificationEntryBanner from '@/components/NotificationEntryBanner';
 import { generateWeeklyReflection, setReflectionFeedback } from '@/services/reflection/weeklyReflectionService';
 import { WeeklyReflection, ReflectionFeedback } from '@/types/weeklyReflection';
 
@@ -44,6 +46,7 @@ export default function WeeklyReflectionScreen() {
   const { journalEntries, messageDrafts } = useApp();
   const { trackEvent } = useAnalytics();
   const [selectedFeedback, setSelectedFeedback] = useState<ReflectionFeedback | null>(null);
+  const { isFromNotification } = useNotificationEntry();
 
   useEffect(() => {
     trackEvent('weekly_reflection_viewed');
@@ -153,6 +156,10 @@ export default function WeeklyReflectionScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <Stack.Screen options={{ headerShown: false }} />
+
+      {isFromNotification('weekly_reflection') && (
+        <NotificationEntryBanner compact />
+      )}
 
       <View style={styles.closeRow}>
         <TouchableOpacity onPress={handleClose} style={styles.closeButton} testID="close-reflection">

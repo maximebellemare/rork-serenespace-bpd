@@ -9,7 +9,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import {
   Bug,
   Bell,
@@ -23,32 +23,54 @@ import {
   CheckCircle,
   XCircle,
   RefreshCw,
+  Navigation,
+  BarChart3,
+  Zap,
+  ArrowRight,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { notificationService } from '@/services/notifications/notificationService';
 import { notificationScheduler } from '@/services/notifications/notificationScheduler';
+import { notificationActionHandler } from '@/services/notifications/notificationActionHandler';
+import { notificationRoutingService } from '@/services/notifications/notificationRoutingService';
 import { NOTIFICATION_CATEGORIES } from '@/services/notifications/notificationCategories';
 import { NotificationDebugEntry, ScheduledReminder, NotificationCategory } from '@/types/notifications';
+import { NotificationConversionEvent } from '@/types/notificationRouting';
+import { useNotificationEntry } from '@/providers/NotificationEntryProvider';
 
 export default function NotificationDebugScreen() {
+  const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [permissionStatus, setPermissionStatus] = useState<string>('loading...');
   const [scheduledReminders, setScheduledReminders] = useState<ScheduledReminder[]>([]);
   const [debugLog, setDebugLog] = useState<NotificationDebugEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [conversions, setConversions] = useState<NotificationConversionEvent[]>([]);
+  const [conversionStats, setConversionStats] = useState<{
+    totalOpened: number;
+    totalCompleted: number;
+    totalBounced: number;
+    completionRate: number;
+    avgDwellTimeMs: number;
+  } | null>(null);
+  const [_loading, setLoading] = useState(true);
+  const { setNotificationEntry } = useNotificationEntry();
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [status, reminders, log] = await Promise.all([
+      const [status, reminders, log, convHistory, stats] = await Promise.all([
         notificationService.getPermissionStatus(),
         notificationService.getScheduledReminders(),
         notificationService.getDebugLog(50),
+        notificationActionHandler.getConversionHistory(20),
+        notificationActionHandler.getConversionStats(),
       ]);
       setPermissionStatus(status);
       setScheduledReminders(reminders);
       setDebugLog(log);
+      setConversions(convHistory);
+      setConversionStats(stats);
     } catch (error) {
       console.error('[NotificationDebug] Load failed:', error);
     } finally {
@@ -77,6 +99,22 @@ export default function NotificationDebugScreen() {
     Alert.alert('Test Sent', `Test notification for "${category}" scheduled in 2 seconds.`);
     setTimeout(() => { void loadData(); }, 1000);
   }, [handleHaptic, loadData]);
+
+  const handleSimulateRouting = useCallback(async (category: NotificationCategory) => {
+    handleHaptic();
+    try {
+      const { route, entryState } = await notificationActionHandler.handleNotificationTap(
+        category,
+        { category, target_screen: notificationRoutingService.resolveRoute(category), notification_entry: 'true' },
+      );
+      setNotificationEntry(entryState);
+      console.log('[NotificationDebug] Simulating route:', route);
+      router.push(route as never);
+    } catch (error) {
+      console.error('[NotificationDebug] Simulate routing failed:', error);
+      Alert.alert('Error', 'Failed to simulate routing');
+    }
+  }, [handleHaptic, router, setNotificationEntry]);
 
   const handleClearLog = useCallback(async () => {
     handleHaptic();
@@ -128,13 +166,28 @@ export default function NotificationDebugScreen() {
       case 'cancelled': return 'CANCELLED';
       case 'blocked_quiet': return 'QUIET BLOCK';
       case 'blocked_safety': return 'SAFETY BLOCK';
-      default: return type.toUpperCase();
+      default: return String(type).toUpperCase();
+    }
+  };
+
+  const getOutcomeColor = (outcome: string): string => {
+    switch (outcome) {
+      case 'completed': return Colors.success;
+      case 'bounced': return Colors.danger;
+      case 'partial': return Colors.accent;
+      default: return Colors.textMuted;
     }
   };
 
   const formatTimestamp = (ts: number): string => {
     const d = new Date(ts);
     return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  };
+
+  const formatDuration = (ms: number): string => {
+    if (ms < 1000) return `${ms}ms`;
+    if (ms < 60000) return `${Math.round(ms / 1000)}s`;
+    return `${Math.round(ms / 60000)}m`;
   };
 
   return (
@@ -149,7 +202,7 @@ export default function NotificationDebugScreen() {
           <View style={styles.headerCard}>
             <Bug size={20} color="#3B82F6" />
             <Text style={styles.headerTitle}>Notification Debug</Text>
-            <Text style={styles.headerSubtitle}>Internal QA and tuning surface</Text>
+            <Text style={styles.headerSubtitle}>Deep linking, routing & conversion QA</Text>
           </View>
 
           <View style={styles.section}>
@@ -165,6 +218,44 @@ export default function NotificationDebugScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {conversionStats && (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>CONVERSION STATS</Text>
+              <View style={styles.statsGrid}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statValue}>{conversionStats.totalOpened}</Text>
+                  <Text style={styles.statLabel}>Opened</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={[styles.statValue, { color: Colors.success }]}>
+                    {conversionStats.totalCompleted}
+                  </Text>
+                  <Text style={styles.statLabel}>Completed</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={[styles.statValue, { color: Colors.danger }]}>
+                    {conversionStats.totalBounced}
+                  </Text>
+                  <Text style={styles.statLabel}>Bounced</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={[styles.statValue, { color: Colors.primary }]}>
+                    {Math.round(conversionStats.completionRate * 100)}%
+                  </Text>
+                  <Text style={styles.statLabel}>Rate</Text>
+                </View>
+              </View>
+              {conversionStats.avgDwellTimeMs > 0 && (
+                <View style={styles.avgDwellCard}>
+                  <Clock size={14} color={Colors.textSecondary} />
+                  <Text style={styles.avgDwellText}>
+                    Avg dwell: {formatDuration(conversionStats.avgDwellTimeMs)}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -195,6 +286,9 @@ export default function NotificationDebugScreen() {
                       <Text style={styles.reminderMeta}>
                         {r.repeating ? 'Repeating' : 'One-time'} · {formatTimestamp(r.scheduledAt)}
                       </Text>
+                      {r.data?.target_screen && (
+                        <Text style={styles.reminderRoute}>→ {r.data.target_screen}</Text>
+                      )}
                     </View>
                   </View>
                 ))}
@@ -218,6 +312,76 @@ export default function NotificationDebugScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>SIMULATE DEEP LINK ROUTING</Text>
+            <Text style={styles.sectionDescription}>
+              Tap to simulate a notification tap and test the routing + entry banner.
+            </Text>
+            <View style={styles.testGrid}>
+              {NOTIFICATION_CATEGORIES.map((cat) => {
+                const route = notificationRoutingService.resolveRoute(cat.id);
+                return (
+                  <TouchableOpacity
+                    key={`route-${cat.id}`}
+                    style={styles.routeTestBtn}
+                    onPress={() => handleSimulateRouting(cat.id)}
+                    activeOpacity={0.7}
+                    testID={`route-test-${cat.id}`}
+                  >
+                    <Navigation size={12} color="#3B82F6" />
+                    <View style={styles.routeTestContent}>
+                      <Text style={styles.routeTestLabel} numberOfLines={1}>{cat.label}</Text>
+                      <Text style={styles.routeTestRoute} numberOfLines={1}>{route}</Text>
+                    </View>
+                    <ArrowRight size={12} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>RECENT CONVERSIONS ({conversions.length})</Text>
+            {conversions.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <BarChart3 size={20} color={Colors.textMuted} />
+                <Text style={styles.emptyText}>No conversion data yet</Text>
+              </View>
+            ) : (
+              <View style={styles.card}>
+                {conversions.slice(0, 15).map((conv, i) => (
+                  <View key={conv.sessionId} style={[styles.conversionRow, i > 0 && styles.conversionRowBorder]}>
+                    <View style={styles.conversionHeader}>
+                      <View style={[styles.outcomeBadge, { backgroundColor: getOutcomeColor(conv.outcome) + '18' }]}>
+                        <Text style={[styles.outcomeText, { color: getOutcomeColor(conv.outcome) }]}>
+                          {conv.outcome.toUpperCase()}
+                        </Text>
+                      </View>
+                      <Text style={styles.conversionCategory}>{conv.category}</Text>
+                    </View>
+                    <Text style={styles.conversionRoute}>→ {conv.targetRoute}</Text>
+                    {conv.quickAction && (
+                      <Text style={styles.conversionQuickAction}>Action: {conv.quickAction}</Text>
+                    )}
+                    <View style={styles.conversionMeta}>
+                      <Text style={styles.conversionTime}>{formatTimestamp(conv.openedAt)}</Text>
+                      {conv.flowCompletedAt && (
+                        <Text style={styles.conversionDuration}>
+                          {formatDuration(conv.flowCompletedAt - conv.openedAt)}
+                        </Text>
+                      )}
+                      {conv.distressBefore !== null && conv.distressAfter !== null && (
+                        <Text style={styles.conversionDistress}>
+                          Distress: {conv.distressBefore} → {conv.distressAfter}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
 
           <View style={styles.section}>
@@ -258,6 +422,27 @@ export default function NotificationDebugScreen() {
           </View>
 
           <View style={styles.section}>
+            <Text style={styles.sectionLabel}>ROUTE MAP</Text>
+            <View style={styles.card}>
+              {NOTIFICATION_CATEGORIES.map((cat, i) => {
+                const route = notificationRoutingService.resolveRoute(cat.id);
+                const entry = notificationRoutingService.getEntryState(cat.id);
+                return (
+                  <View key={cat.id} style={[styles.routeMapRow, i > 0 && styles.routeMapBorder]}>
+                    <View style={styles.routeMapLeft}>
+                      <Text style={styles.routeMapCategory}>{cat.id}</Text>
+                      <Text style={styles.routeMapRoute}>{route}</Text>
+                    </View>
+                    <View style={styles.routeMapRight}>
+                      <Text style={styles.routeMapEntry} numberOfLines={1}>{entry.title}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={styles.section}>
             <Text style={styles.sectionLabel}>SAFETY RULES</Text>
             <View style={styles.card}>
               <View style={styles.ruleRow}>
@@ -278,6 +463,16 @@ export default function NotificationDebugScreen() {
               <View style={styles.ruleRow}>
                 <Bell size={14} color={Colors.success} />
                 <Text style={styles.ruleText}>No guilt-based or urgency-based copy in templates</Text>
+              </View>
+              <View style={styles.ruleDivider} />
+              <View style={styles.ruleRow}>
+                <Navigation size={14} color="#3B82F6" />
+                <Text style={styles.ruleText}>All notifications deep-link to specific support flows</Text>
+              </View>
+              <View style={styles.ruleDivider} />
+              <View style={styles.ruleRow}>
+                <Zap size={14} color={Colors.accent} />
+                <Text style={styles.ruleText}>Entry banners expire after 30 seconds</Text>
               </View>
             </View>
           </View>
@@ -330,6 +525,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     marginLeft: 2,
   },
+  sectionDescription: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 10,
+    marginLeft: 2,
+    lineHeight: 17,
+  },
   sectionHeader: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
@@ -359,6 +561,47 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primaryLight,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
+  },
+  statsGrid: {
+    flexDirection: 'row' as const,
+    gap: 8,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    padding: 14,
+    alignItems: 'center' as const,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: Colors.text,
+  },
+  statLabel: {
+    fontSize: 10,
+    fontWeight: '600' as const,
+    color: Colors.textMuted,
+    marginTop: 2,
+    letterSpacing: 0.3,
+  },
+  avgDwellCard: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: Colors.card,
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 8,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  avgDwellText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: '500' as const,
   },
   card: {
     backgroundColor: Colors.card,
@@ -436,6 +679,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.textMuted,
   },
+  reminderRoute: {
+    fontSize: 11,
+    color: '#3B82F6',
+    marginTop: 2,
+    fontWeight: '500' as const,
+  },
   testGrid: {
     flexDirection: 'row' as const,
     flexWrap: 'wrap' as const,
@@ -456,6 +705,122 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600' as const,
     color: Colors.text,
+  },
+  routeTestBtn: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    width: '100%',
+  },
+  routeTestContent: {
+    flex: 1,
+  },
+  routeTestLabel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.text,
+  },
+  routeTestRoute: {
+    fontSize: 11,
+    color: '#3B82F6',
+    marginTop: 1,
+  },
+  conversionRow: {
+    padding: 12,
+  },
+  conversionRowBorder: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  conversionHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    marginBottom: 4,
+  },
+  outcomeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  outcomeText: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    letterSpacing: 0.5,
+  },
+  conversionCategory: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+  },
+  conversionRoute: {
+    fontSize: 12,
+    color: '#3B82F6',
+    fontWeight: '500' as const,
+    marginBottom: 2,
+  },
+  conversionQuickAction: {
+    fontSize: 11,
+    color: Colors.accent,
+    marginBottom: 2,
+  },
+  conversionMeta: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 10,
+    marginTop: 4,
+  },
+  conversionTime: {
+    fontSize: 10,
+    color: Colors.textMuted,
+  },
+  conversionDuration: {
+    fontSize: 10,
+    color: Colors.primary,
+    fontWeight: '600' as const,
+  },
+  conversionDistress: {
+    fontSize: 10,
+    color: Colors.accent,
+    fontWeight: '500' as const,
+  },
+  routeMapRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    padding: 10,
+    gap: 8,
+  },
+  routeMapBorder: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  routeMapLeft: {
+    flex: 1,
+  },
+  routeMapCategory: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+  },
+  routeMapRoute: {
+    fontSize: 11,
+    color: '#3B82F6',
+    marginTop: 1,
+  },
+  routeMapRight: {
+    flex: 1,
+  },
+  routeMapEntry: {
+    fontSize: 11,
+    color: Colors.text,
+    fontWeight: '500' as const,
+    textAlign: 'right' as const,
   },
   logRow: {
     padding: 12,

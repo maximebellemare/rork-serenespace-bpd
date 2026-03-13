@@ -20,6 +20,8 @@ import { Emotion, Trigger, BodySensation, Urge, CheckInEntry, JournalEntry } fro
 import { generateCheckInRecommendations } from '@/services/recommendation/copingRecommendationService';
 import { CopingRecommendation } from '@/types/recommendation';
 import { useAnalytics } from '@/providers/AnalyticsProvider';
+import { useNotificationEntry } from '@/providers/NotificationEntryProvider';
+import NotificationEntryBanner from '@/components/NotificationEntryBanner';
 
 const STEPS = ['triggers', 'emotions', 'body', 'urges', 'intensity', 'notes', 'suggestions'] as const;
 
@@ -53,6 +55,7 @@ export default function CheckInScreen() {
   const insets = useSafeAreaInsets();
   const { addJournalEntry, setDistressLevel } = useApp();
   const { trackEvent, trackFlowStart, trackFlowComplete } = useAnalytics();
+  const { isFromNotification, markFlowCompleted } = useNotificationEntry();
 
   useEffect(() => {
     trackFlowStart('check_in');
@@ -153,6 +156,10 @@ export default function CheckInScreen() {
 
     addJournalEntry(entry);
 
+    if (isFromNotification()) {
+      markFlowCompleted(intensity);
+    }
+
     trackFlowComplete('check_in', {
       intensity,
       trigger_count: selectedTriggers.length,
@@ -191,7 +198,7 @@ export default function CheckInScreen() {
         setTimeout(() => router.push('/safety-mode'), 300);
       }
     }
-  }, [selectedTriggers, selectedEmotions, selectedUrges, selectedSensations, intensity, notes, addJournalEntry, setDistressLevel, router, animateTransition, trackFlowComplete, trackEvent]);
+  }, [selectedTriggers, selectedEmotions, selectedUrges, selectedSensations, intensity, notes, addJournalEntry, setDistressLevel, router, animateTransition, trackFlowComplete, trackEvent, isFromNotification, markFlowCompleted]);
 
   const handleComplete = useCallback(() => {
     router.back();
@@ -385,6 +392,16 @@ export default function CheckInScreen() {
         </View>
         <Text style={styles.stepCounter}>{stepIndex + 1}/{STEPS.length}</Text>
       </View>
+
+      {stepIndex === 0 && isFromNotification('daily_checkin') && (
+        <NotificationEntryBanner compact />
+      )}
+      {stepIndex === 0 && isFromNotification('calm_followup') && (
+        <NotificationEntryBanner compact />
+      )}
+      {stepIndex === 0 && isFromNotification('regulation_followup') && (
+        <NotificationEntryBanner compact />
+      )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
