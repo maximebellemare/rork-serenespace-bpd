@@ -51,7 +51,7 @@ export const NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
     category: 'regulation_followup',
     variants: [
       { title: 'How are you feeling now?', body: 'Things felt intense earlier. You showed up for yourself — how are you now?' },
-      { title: 'A moment to check in', body: 'After what you went through, it's worth noticing how you feel now.' },
+      { title: 'A moment to check in', body: "After what you went through, it's worth noticing how you feel now." },
       { title: 'Following up', body: 'High distress is exhausting. Take a gentle moment for yourself.' },
     ],
     deepLink: '/check-in',
