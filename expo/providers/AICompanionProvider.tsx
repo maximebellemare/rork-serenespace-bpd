@@ -7,7 +7,8 @@ import { MemoryProfile, InsightCard } from '@/types/memory';
 import { MemorySnapshot } from '@/types/userMemory';
 import { CompanionMemoryStore, UserPsychProfile, WeeklyCompanionInsight } from '@/types/companionMemory';
 import { useApp } from '@/providers/AppProvider';
-import { generateMockResponse, generateConversationTitle } from '@/services/ai/mockAIService';
+import { generateConversationTitle } from '@/services/ai/mockAIService';
+import { generateCompanionResponse } from '@/services/companion/companionAIService';
 import { buildMemoryProfile, buildInsightCards, buildContextSummary } from '@/services/memory/memoryProfileService';
 import { buildConversationTags } from '@/services/ai/aiPromptBuilder';
 import { generateSupportiveInterpretations } from '@/services/insights/aiInsightsService';
@@ -42,9 +43,7 @@ import {
   shouldGenerateWeeklyInsight,
   generateWeeklyInsight,
 } from '@/services/companion/weeklyInsightService';
-import {
-  buildSkillSuggestionForAI,
-} from '@/services/companion/skillExerciseService';
+
 import { trackEvent } from '@/services/analytics/analyticsService';
 import { assembleCompanionContext } from '@/services/companion/contextAssembler';
 import { selectCompanionMode } from '@/services/companion/companionPromptBuilder';
@@ -188,7 +187,7 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
     return buildInsightCards(memoryProfile);
   }, [memoryProfile]);
 
-  const contextSummary = useMemo(() => {
+  const _contextSummary = useMemo(() => {
     return buildContextSummary(memoryProfile);
   }, [memoryProfile]);
 
@@ -305,33 +304,15 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
       });
     }
 
-    const skillSuggestion = companionMemoryStore
-      ? buildSkillSuggestionForAI(detectEmotionalState(content))
-      : null;
-    const companionContext = skillSuggestion
-      ? assembled.fullContext + skillSuggestion
-      : assembled.fullContext;
-
-    const enrichedContextSummary = [contextSummary, companionContext]
-      .filter(Boolean)
-      .join('\n');
-
     try {
-      const response = await generateMockResponse(content, enrichedContextSummary, {
+      const response = await generateCompanionResponse({
+        userMessage: content,
         conversationHistory,
-        personalization: {
-          topTrigger: memoryProfile.topTriggers[0]?.label,
-          topEmotion: memoryProfile.topEmotions[0]?.label,
-          topUrge: memoryProfile.topUrges[0]?.label,
-          mostEffectiveCoping: memoryProfile.mostEffectiveCoping?.label,
-          intensityTrend: memoryProfile.intensityTrend,
-          messageRewriteFrequent: memoryProfile.messageUsage.totalRewrites > 2,
-          pauseFrequent: memoryProfile.messageUsage.totalPauses > 1,
-          averageIntensity: memoryProfile.averageIntensity,
-        },
-        activeMode: manualMode ?? undefined,
+        assembledContext: assembled,
+        detectedMode,
+        manualMode,
         memoryProfile,
-        memorySnapshot: memorySnapshot ?? undefined,
+        memorySnapshot,
       });
 
       setCurrentActiveMode(response.activeMode);
@@ -417,7 +398,7 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
     } finally {
       setIsGenerating(false);
     }
-  }, [activeConversationId, isGenerating, conversations, contextSummary, saveConversationsMutation, memoryProfile, manualMode, memorySnapshot, companionMemoryStore, psychProfile, companionPatternInsights, weeklyInsights]);
+  }, [activeConversationId, isGenerating, conversations, saveConversationsMutation, memoryProfile, manualMode, memorySnapshot, companionMemoryStore, psychProfile, companionPatternInsights, weeklyInsights]);
 
   const toggleSaveConversation = useCallback((conversationId: string) => {
     const updated = conversations.map(c =>
