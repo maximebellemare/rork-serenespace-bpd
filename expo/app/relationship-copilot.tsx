@@ -38,11 +38,14 @@ import {
   URGE_OPTIONS,
   NEED_OPTIONS,
 } from '@/types/relationshipCopilot';
+import { RELATIONSHIP_TYPE_META } from '@/types/relationship';
+import { Users } from 'lucide-react-native';
 
-type Step = 'situation' | 'emotions' | 'urge' | 'intensity' | 'need' | 'result';
-const STEPS: Step[] = ['situation', 'emotions', 'urge', 'intensity', 'need', 'result'];
+type Step = 'profile' | 'situation' | 'emotions' | 'urge' | 'intensity' | 'need' | 'result';
+const STEPS: Step[] = ['profile', 'situation', 'emotions', 'urge', 'intensity', 'need', 'result'];
 
 const STEP_TITLES: Record<Step, string> = {
+  profile: 'Who is this about?',
   situation: 'What happened?',
   emotions: 'What are you feeling?',
   urge: 'What urge is strongest?',
@@ -52,6 +55,7 @@ const STEP_TITLES: Record<Step, string> = {
 };
 
 const STEP_SUBTITLES: Record<Step, string> = {
+  profile: 'Optional — helps personalize support.',
   situation: "Let's slow this down together.",
   emotions: 'You can pick more than one.',
   urge: 'No judgment — just awareness.',
@@ -73,9 +77,10 @@ const ICON_MAP: Record<string, typeof Wind> = {
 export default function RelationshipCopilotScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { startSession } = useRelationshipCopilot();
+  const { startSession, profiles } = useRelationshipCopilot();
 
-  const [step, setStep] = useState<Step>('situation');
+  const [step, setStep] = useState<Step>('profile');
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [situation, setSituation] = useState<CopilotSituation | null>(null);
   const [emotions, setEmotions] = useState<CopilotEmotion[]>([]);
   const [urge, setUrge] = useState<CopilotUrge | null>(null);
@@ -119,6 +124,18 @@ export default function RelationshipCopilotScreen() {
     }
   }, []);
 
+  const handleProfileSelect = useCallback((profileId: string | null) => {
+    handleHaptic();
+    setSelectedProfileId(profileId);
+    animateTransition('situation');
+  }, [handleHaptic, animateTransition]);
+
+  const handleSkipProfile = useCallback(() => {
+    handleHaptic();
+    setSelectedProfileId(null);
+    animateTransition('situation');
+  }, [handleHaptic, animateTransition]);
+
   const handleSituation = useCallback((s: CopilotSituation) => {
     handleHaptic();
     setSituation(s);
@@ -161,6 +178,7 @@ export default function RelationshipCopilotScreen() {
       strongestUrge: urge,
       intensity,
       deepestNeed: n,
+      relationshipProfileId: selectedProfileId ?? undefined,
     };
 
     try {
@@ -173,7 +191,7 @@ export default function RelationshipCopilotScreen() {
     } catch (err) {
       console.log('[CopilotScreen] Error starting session:', err);
     }
-  }, [situation, emotions, urge, intensity, handleHaptic, startSession, animateTransition, resultFade]);
+  }, [situation, emotions, urge, intensity, selectedProfileId, handleHaptic, startSession, animateTransition, resultFade]);
 
   const handleNextStep = useCallback((route?: string) => {
     handleHaptic();
@@ -196,6 +214,43 @@ export default function RelationshipCopilotScreen() {
     inputRange: [0, 1],
     outputRange: ['0%', '100%'],
   });
+
+  const renderProfilePicker = () => (
+    <>
+      <View style={styles.optionsGrid}>
+        {profiles.map(p => {
+          const meta = RELATIONSHIP_TYPE_META[p.relationshipType];
+          const selected = selectedProfileId === p.id;
+          return (
+            <TouchableOpacity
+              key={p.id}
+              style={[styles.optionCard, selected && styles.optionCardSelected]}
+              onPress={() => handleProfileSelect(p.id)}
+              activeOpacity={0.7}
+              testID={`profile-${p.id}`}
+            >
+              <Text style={styles.optionEmoji}>{meta.emoji}</Text>
+              <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
+                {p.name}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <TouchableOpacity
+        style={styles.skipButton}
+        onPress={handleSkipProfile}
+        activeOpacity={0.7}
+        testID="skip-profile"
+      >
+        <Users size={16} color={Colors.textSecondary} />
+        <Text style={styles.skipButtonText}>
+          {profiles.length === 0 ? 'Continue without a profile' : 'Skip — not about a specific person'}
+        </Text>
+        <ChevronRight size={14} color={Colors.textMuted} />
+      </TouchableOpacity>
+    </>
+  );
 
   const renderSituation = () => (
     <View style={styles.optionsGrid}>
@@ -461,6 +516,7 @@ export default function RelationshipCopilotScreen() {
         )}
 
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+          {step === 'profile' && renderProfilePicker()}
           {step === 'situation' && renderSituation()}
           {step === 'emotions' && renderEmotions()}
           {step === 'urge' && renderUrge()}
@@ -809,5 +865,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600' as const,
     color: Colors.textSecondary,
+  },
+  skipButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 10,
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  skipButtonText: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '500' as const,
   },
 });

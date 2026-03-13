@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Anchor, Heart, Eye, ArrowRightLeft, Clock, Brain, ChevronRight, Zap } from 'lucide-react-native';
+import { Anchor, Heart, Eye, ArrowRightLeft, Clock, Brain, ChevronRight, Zap, HeartHandshake } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { COPING_EXERCISES } from '@/constants/data';
@@ -119,6 +119,27 @@ export default function ToolsScreen() {
               </View>
             </View>
             <ChevronRight size={18} color={Colors.accent} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.relationshipCard}
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/relationship-profiles' as never);
+            }}
+            activeOpacity={0.7}
+            testID="relationship-card"
+          >
+            <View style={styles.relationshipLeft}>
+              <View style={styles.relationshipIcon}>
+                <HeartHandshake size={20} color="#E84393" />
+              </View>
+              <View style={styles.relationshipInfo}>
+                <Text style={styles.relationshipTitle}>Relationship Support</Text>
+                <Text style={styles.relationshipDesc}>Profiles, copilot, spiral guard, and insights</Text>
+              </View>
+            </View>
+            <ChevronRight size={18} color="#E84393" />
           </TouchableOpacity>
 
           {CATEGORIES.map(category => {
@@ -330,6 +351,45 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   simulatorDesc: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+  },
+  relationshipCard: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    backgroundColor: '#FFF5F9',
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 28,
+    borderWidth: 1,
+    borderColor: '#F8D7E8',
+  },
+  relationshipLeft: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 14,
+    flex: 1,
+  },
+  relationshipIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: '#FFEDF5',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  relationshipInfo: {
+    flex: 1,
+  },
+  relationshipTitle: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: '#C23876',
+    marginBottom: 3,
+  },
+  relationshipDesc: {
     fontSize: 13,
     color: Colors.textSecondary,
     lineHeight: 18,

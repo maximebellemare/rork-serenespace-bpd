@@ -58,6 +58,7 @@ import EmotionalTimelineCard from '@/components/EmotionalTimelineCard';
 import { buildEpisodeReplayState } from '@/services/timeline/emotionalEpisodeService';
 import RelationshipGuardBanner from '@/components/RelationshipGuardBanner';
 import { useRelationshipGuard } from '@/hooks/useRelationshipGuard';
+import RelationshipHubCard from '@/components/RelationshipHubCard';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -387,6 +388,10 @@ export default function HomeScreen() {
 
         <Animated.View style={{ opacity: fadeAnim }}>
           <EmotionalLoopsCard report={emotionalLoops} />
+        </Animated.View>
+
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <RelationshipHubCard />
         </Animated.View>
 
         <Animated.View style={{ opacity: fadeAnim }}>
