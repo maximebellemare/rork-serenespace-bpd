@@ -43,6 +43,8 @@ import EmotionalLoopsCard from '@/components/EmotionalLoopsCard';
 import { useEmotionalLoops } from '@/hooks/useEmotionalLoops';
 import CrisisModeCard from '@/components/CrisisModeCard';
 import { useCrisisDetection } from '@/hooks/useCrisisDetection';
+import RelationshipCopilotCard from '@/components/RelationshipCopilotCard';
+import { useRelationshipCopilot } from '@/hooks/useRelationshipCopilot';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -56,6 +58,7 @@ export default function HomeScreen() {
   const relationshipSpiral = useRelationshipSpiral();
   const emotionalLoops = useEmotionalLoops();
   const crisisDetection = useCrisisDetection();
+  const { recentRelationshipDistress, lastSession } = useRelationshipCopilot();
 
   const weeklyReflection = useMemo(
     () => generateWeeklyReflection(journalEntries, messageDrafts),
@@ -345,6 +348,15 @@ export default function HomeScreen() {
 
         <Animated.View style={{ opacity: fadeAnim }}>
           <EmotionalLoopsCard report={emotionalLoops} />
+        </Animated.View>
+
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <RelationshipCopilotCard
+            shouldShow={recentRelationshipDistress.shouldShowCopilot}
+            relationshipTriggerCount={recentRelationshipDistress.relationshipTriggerCount}
+            recentDraftCount={recentRelationshipDistress.recentDraftCount}
+            lastSessionLabel={lastSession ? 'recent' : null}
+          />
         </Animated.View>
 
         <Animated.View style={{ opacity: fadeAnim }}>

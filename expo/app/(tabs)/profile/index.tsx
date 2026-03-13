@@ -278,6 +278,27 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            style={styles.copilotBanner}
+            onPress={() => {
+              handleHaptic();
+              router.push('/relationship-copilot' as never);
+            }}
+            activeOpacity={0.7}
+            testID="relationship-copilot-btn"
+          >
+            <View style={styles.patternsBannerLeft}>
+              <View style={[styles.patternsBannerIcon, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                <HeartHandshake size={20} color={Colors.white} />
+              </View>
+              <View style={styles.patternsBannerContent}>
+                <Text style={styles.patternsBannerTitle}>Relationship Copilot</Text>
+                <Text style={styles.patternsBannerDesc}>Get support during relationship triggers</Text>
+              </View>
+            </View>
+            <ChevronRight size={18} color={Colors.white} style={{ opacity: 0.7 }} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={styles.relationshipProfilesBanner}
             onPress={() => {
               handleHaptic();
@@ -933,6 +954,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     backgroundColor: '#E84393',
+    padding: 18,
+    borderRadius: 18,
+    marginTop: 10,
+  },
+  copilotBanner: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: '#D63384',
     padding: 18,
     borderRadius: 18,
     marginTop: 10,
