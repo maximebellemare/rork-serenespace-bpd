@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Animated,
   Platform,
+  Switch,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import {
@@ -35,7 +36,7 @@ import {
   Brain,
   BookOpen,
   Bug,
-  RefreshCw,
+  Zap,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
@@ -43,13 +44,24 @@ import { useProfile } from '@/providers/ProfileProvider';
 import { useSubscription } from '@/providers/SubscriptionProvider';
 import { useCoaching } from '@/hooks/useCoaching';
 import { usePersonalization } from '@/hooks/usePersonalization';
+import { useSmartReminders } from '@/hooks/useSmartReminders';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { profile, patternSummary, updateProfile, updateNotifications, updatePrivacy } = useProfile();
+  const { profile, patternSummary, updateProfile, updatePrivacy } = useProfile();
   const { isPremium, daysRemaining, state: subState } = useSubscription();
   const { wins } = useCoaching();
   const personalization = usePersonalization();
+  const { getState: getSmartState } = useSmartReminders();
+  const [smartInfo, setSmartInfo] = useState({ todayFired: 0, activeCount: 0 });
+
+  useEffect(() => {
+    const state = getSmartState();
+    setSmartInfo({
+      todayFired: state.todayFiredCount,
+      activeCount: state.activeReminders.length,
+    });
+  }, [getSmartState]);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -512,6 +524,37 @@ export default function ProfileScreen() {
 
         <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
           <Text style={styles.sectionLabel}>NOTIFICATIONS</Text>
+          <View style={styles.smartReminderCard}>
+            <View style={styles.smartReminderHeader}>
+              <View style={[styles.smartReminderIcon, { backgroundColor: '#E8F5E9' }]}>
+                <Zap size={14} color={Colors.success} />
+              </View>
+              <View style={styles.smartReminderInfo}>
+                <Text style={styles.smartReminderTitle}>Smart Reminders</Text>
+                <Text style={styles.smartReminderDesc}>
+                  Reminders adapt to how you use the app
+                </Text>
+              </View>
+            </View>
+            <View style={styles.smartReminderStats}>
+              <View style={styles.smartReminderStat}>
+                <Text style={styles.smartReminderStatValue}>{smartInfo.todayFired}</Text>
+                <Text style={styles.smartReminderStatLabel}>Sent today</Text>
+              </View>
+              <View style={styles.smartReminderStatDivider} />
+              <View style={styles.smartReminderStat}>
+                <Text style={styles.smartReminderStatValue}>{smartInfo.activeCount}</Text>
+                <Text style={styles.smartReminderStatLabel}>Active rules</Text>
+              </View>
+              <View style={styles.smartReminderStatDivider} />
+              <View style={styles.smartReminderStat}>
+                <Text style={styles.smartReminderStatValue}>
+                  {(profile.notifications.frequency ?? 'balanced').charAt(0).toUpperCase() + (profile.notifications.frequency ?? 'balanced').slice(1)}
+                </Text>
+                <Text style={styles.smartReminderStatLabel}>Frequency</Text>
+              </View>
+            </View>
+          </View>
           <View style={styles.navGroup}>
             {renderNavRow(
               <View style={[styles.navIcon, { backgroundColor: Colors.accentLight }]}>
@@ -598,6 +641,15 @@ export default function ProfileScreen() {
               'Scheduled reminders, logs, test triggers',
               () => router.push('/profile/notification-debug' as never),
               'notification-debug-btn',
+            )}
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: '#E8F5E9' }]}>
+                <Zap size={16} color={Colors.success} />
+              </View>,
+              'Smart Reminder Debug',
+              'Engine state, rules, analytics',
+              () => router.push('/profile/smart-reminder-debug' as never),
+              'smart-reminder-debug-btn',
             )}
           </View>
         </Animated.View>
@@ -969,5 +1021,67 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 30,
+  },
+  smartReminderCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    padding: 16,
+    marginBottom: 10,
+  },
+  smartReminderHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    marginBottom: 14,
+  },
+  smartReminderIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginRight: 12,
+  },
+  smartReminderInfo: {
+    flex: 1,
+  },
+  smartReminderTitle: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.text,
+  },
+  smartReminderDesc: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  smartReminderStats: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+  },
+  smartReminderStat: {
+    flex: 1,
+    alignItems: 'center' as const,
+  },
+  smartReminderStatValue: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  smartReminderStatLabel: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    fontWeight: '500' as const,
+  },
+  smartReminderStatDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: Colors.borderLight,
   },
 });

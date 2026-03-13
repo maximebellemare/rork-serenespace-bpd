@@ -130,3 +130,61 @@ export async function trackCoreJourneyStep(
     ...properties,
   });
 }
+
+export async function trackNotificationScheduled(
+  category: string,
+  ruleId: string,
+  priority: string,
+  targetScreen: string,
+  reason: string,
+  safetyState: string,
+  isPremium: boolean,
+): Promise<void> {
+  return analyticsEngine.trackEvent('notification_scheduled', {
+    category,
+    rule_id: ruleId,
+    priority,
+    target_screen: targetScreen,
+    reason,
+    safety_state: safetyState,
+    is_premium: isPremium,
+  });
+}
+
+export async function trackNotificationOpened(
+  category: string,
+  ruleId: string,
+  targetScreen: string,
+  timeSinceLastOpen: number,
+): Promise<void> {
+  return analyticsEngine.trackEvent('notification_opened', {
+    category,
+    rule_id: ruleId,
+    target_screen: targetScreen,
+    time_since_last_open_hours: Math.round(timeSinceLastOpen / (60 * 60 * 1000)),
+  });
+}
+
+export async function trackNotificationSuppressed(
+  category: string,
+  ruleId: string,
+  reason: string,
+): Promise<void> {
+  return analyticsEngine.trackEvent('notification_suppressed', {
+    category,
+    rule_id: ruleId,
+    reason,
+  });
+}
+
+export async function trackNotificationConverted(
+  category: string,
+  ruleId: string,
+  targetScreen: string,
+): Promise<void> {
+  return analyticsEngine.trackEvent('notification_converted_to_action', {
+    category,
+    rule_id: ruleId,
+    target_screen: targetScreen,
+  });
+}
