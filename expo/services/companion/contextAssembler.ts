@@ -18,6 +18,7 @@ export interface AssembledContext {
   patternNarrative: string;
   weeklyNarrative: string;
   fullContext: string;
+  liveContextNarrative: string;
   retrievedMemories: RetrievedMemoryContext | null;
   emotionalState: string;
   relevantInsights: CompanionPatternInsight[];
@@ -96,6 +97,7 @@ export function assembleCompanionContext(params: {
     patternNarrative,
     weeklyNarrative,
     fullContext,
+    liveContextNarrative: '',
     retrievedMemories,
     emotionalState,
     relevantInsights,

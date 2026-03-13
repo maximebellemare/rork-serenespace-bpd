@@ -46,6 +46,7 @@ import {
 
 import { trackEvent } from '@/services/analytics/analyticsService';
 import { assembleCompanionContext } from '@/services/companion/contextAssembler';
+import { buildLiveEmotionalContext } from '@/services/companion/emotionalContextService';
 import { selectCompanionMode } from '@/services/companion/companionPromptBuilder';
 import { CompanionMode, FollowUpPrompt } from '@/types/companionModes';
 import {
@@ -62,10 +63,12 @@ import {
 export const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   { id: 'sp1', label: 'I feel abandoned right now', icon: '💔', prompt: 'I feel abandoned right now and I need support' },
   { id: 'sp2', label: 'Help me calm down', icon: '🌊', prompt: 'Help me slow down, everything feels overwhelming right now' },
-  { id: 'sp3', label: 'What am I feeling?', icon: '🔍', prompt: 'Help me understand what I\'m feeling right now' },
-  { id: 'sp4', label: 'Help me before I text', icon: '📱', prompt: 'I want to send a message and I\'m not calm right now. Help me pause.' },
-  { id: 'sp5', label: 'Relationship trigger', icon: '⚡', prompt: 'Talk me through this relationship trigger I\'m dealing with' },
-  { id: 'sp6', label: 'My patterns lately', icon: '🔄', prompt: 'What pattern do you notice in my check-ins lately?' },
+  { id: 'sp3', label: 'Am I overreacting?', icon: '🤔', prompt: 'I can\'t tell if I\'m overreacting to something. Help me figure out what\'s real.' },
+  { id: 'sp4', label: 'Help me before I text', icon: '📱', prompt: 'I want to send a message and I\'m not calm right now. Help me pause and think clearly.' },
+  { id: 'sp5', label: 'After a conflict', icon: '🩹', prompt: 'I just had a conflict and I feel terrible about how I handled it. Help me process what happened.' },
+  { id: 'sp6', label: 'My patterns lately', icon: '🔄', prompt: 'Based on what you know about me, what patterns do you notice in my emotions and triggers lately?' },
+  { id: 'sp7', label: 'What do I actually need?', icon: '🔍', prompt: 'Help me figure out what I actually need right now — I\'m not sure if it\'s reassurance, space, or something else.' },
+  { id: 'sp8', label: 'Late night spiral', icon: '🌙', prompt: 'It\'s late and my thoughts are spiraling. Help me get through tonight.' },
 ];
 
 export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
@@ -288,6 +291,16 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
       conversationHistory,
     });
 
+    const liveContext = buildLiveEmotionalContext({
+      journalEntries,
+      messageDrafts,
+      memoryProfile,
+      memoryStore: companionMemoryStore,
+      weeklyInsights,
+      patternInsights: companionPatternInsights,
+    });
+    assembled.liveContextNarrative = liveContext.contextNarrative;
+
     const detectedMode = selectCompanionMode(
       content,
       assembled.emotionalState,
@@ -398,7 +411,7 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
     } finally {
       setIsGenerating(false);
     }
-  }, [activeConversationId, isGenerating, conversations, saveConversationsMutation, memoryProfile, manualMode, memorySnapshot, companionMemoryStore, psychProfile, companionPatternInsights, weeklyInsights]);
+  }, [activeConversationId, isGenerating, conversations, saveConversationsMutation, memoryProfile, manualMode, memorySnapshot, companionMemoryStore, psychProfile, companionPatternInsights, weeklyInsights, journalEntries, messageDrafts]);
 
   const toggleSaveConversation = useCallback((conversationId: string) => {
     const updated = conversations.map(c =>

@@ -39,9 +39,20 @@ const STARTER_CHIPS = [
   { id: 's1', label: 'I feel abandoned right now', icon: '💔', prompt: 'I feel abandoned right now and I need support' },
   { id: 's2', label: 'Help me slow down', icon: '🌊', prompt: 'Help me slow down, everything feels overwhelming right now' },
   { id: 's3', label: 'I want to text and I\'m not calm', icon: '📱', prompt: 'I want to send a message and I\'m not calm right now. Help me pause.' },
-  { id: 's4', label: 'I feel ashamed and overwhelmed', icon: '😔', prompt: 'I feel deeply ashamed and overwhelmed right now' },
-  { id: 's5', label: 'Am I overreacting?', icon: '🤔', prompt: 'I can\'t tell if I\'m overreacting to something that happened' },
-  { id: 's6', label: 'Help me understand what I need', icon: '🔍', prompt: 'Help me understand what I actually need right now' },
+  { id: 's4', label: 'Am I overreacting?', icon: '🤔', prompt: 'I can\'t tell if I\'m overreacting to something that happened. Help me figure out what\'s real.' },
+  { id: 's5', label: 'What pattern do you see?', icon: '🔄', prompt: 'Based on what you know about me, what patterns do you notice in my emotions lately?' },
+  { id: 's6', label: 'I need to understand what I need', icon: '🔍', prompt: 'Help me figure out what I actually need right now — I\'m not sure if it\'s reassurance, space, or something else' },
+  { id: 's7', label: 'After a conflict', icon: '🩹', prompt: 'I just had a conflict and I feel terrible about how I handled it' },
+  { id: 's8', label: 'Help me write a response', icon: '✍️', prompt: 'I need to respond to someone but I want to do it from a calm place, not from reactivity' },
+];
+
+const CONTEXT_SUGGESTION_CHIPS = [
+  { id: 'cs1', label: 'What exactly happened?', prompt: 'Let me tell you exactly what happened...' },
+  { id: 'cs2', label: 'Could I be misreading this?', prompt: 'Could I be misinterpreting this situation? Help me see it differently.' },
+  { id: 'cs3', label: 'How should I respond?', prompt: 'What would be a secure, thoughtful way to respond to this?' },
+  { id: 'cs4', label: 'Help me calm down first', prompt: 'Before anything else, I need help calming down.' },
+  { id: 'cs5', label: 'What\'s the pattern here?', prompt: 'Do you see a pattern in what I\'m describing? Help me see it.' },
+  { id: 'cs6', label: 'Help me write a secure reply', prompt: 'Help me craft a response that comes from a place of security, not fear.' },
 ];
 
 interface QuickActionConfig {
@@ -58,6 +69,8 @@ const QUICK_ACTION_CONFIG: Record<string, QuickActionConfig> = {
   'Slow this down': { icon: <Wind size={13} color={Colors.primary} />, message: 'I need to slow this down. Can we take it one small step at a time?' },
   'Safety mode': { icon: <Shield size={13} color={Colors.danger} />, route: '/safety-mode' },
   'Reflection': { icon: <PenLine size={13} color={Colors.primary} />, message: 'I want to reflect on what I\'m feeling right now. Can you help me explore this?' },
+  'What pattern do you see?': { icon: <Brain size={13} color={Colors.primary} />, message: 'Based on what you know about me, what patterns do you notice here?' },
+  'Help me respond securely': { icon: <MessageSquareText size={13} color={Colors.primary} />, message: 'Help me craft a response that comes from security, not reactivity.' },
 };
 
 function TypingIndicator() {
@@ -620,6 +633,27 @@ export default function ChatScreen() {
 
         {isGenerating && <TypingIndicator />}
 
+        {hasMessages && !isGenerating && messages.length >= 2 && (
+          <View style={styles.contextChipsContainer}>
+            <FlatList
+              horizontal
+              data={CONTEXT_SUGGESTION_CHIPS.slice(0, 4)}
+              keyExtractor={(item) => item.id}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.contextChipsContent}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.contextChip}
+                  onPress={() => handlePrompt(item.prompt)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.contextChipText}>{item.label}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        )}
+
         <ModeSelector
           activeMode={currentActiveMode}
           manualMode={manualMode}
@@ -1081,5 +1115,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500' as const,
     color: Colors.textMuted,
+  },
+  contextChipsContainer: {
+    paddingTop: 6,
+    paddingBottom: 2,
+    backgroundColor: Colors.background,
+  },
+  contextChipsContent: {
+    paddingHorizontal: 14,
+    gap: 6,
+  },
+  contextChip: {
+    backgroundColor: Colors.card,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  contextChipText: {
+    fontSize: 12,
+    fontWeight: '500' as const,
+    color: Colors.primary,
   },
 });
