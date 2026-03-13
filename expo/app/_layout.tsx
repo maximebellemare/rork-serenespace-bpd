@@ -14,6 +14,7 @@ import { NotificationEntryProvider } from "@/providers/NotificationEntryProvider
 import { OnboardingProvider } from "@/providers/OnboardingProvider";
 import { MedicationProvider } from "@/providers/MedicationProvider";
 import { AppointmentProvider } from "@/providers/AppointmentProvider";
+import { RewardsProvider } from "@/providers/RewardsProvider";
 import Colors from "@/constants/colors";
 import DeferredProviders from "@/components/DeferredProviders";
 import OnboardingGate from "@/components/OnboardingGate";
@@ -400,6 +401,13 @@ function RootLayoutNav() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="milestones"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }
@@ -422,6 +430,7 @@ export default function RootLayout() {
                       <EmotionalContextProvider>
                         <MedicationProvider>
                         <AppointmentProvider>
+                        <RewardsProvider>
                         <NotificationEntryProvider>
                           {NotificationManagerLazy && (
                             <Suspense fallback={null}>
@@ -431,6 +440,7 @@ export default function RootLayout() {
                           <OnboardingGate />
                           <RootLayoutNav />
                         </NotificationEntryProvider>
+                        </RewardsProvider>
                         </AppointmentProvider>
                         </MedicationProvider>
                       </EmotionalContextProvider>

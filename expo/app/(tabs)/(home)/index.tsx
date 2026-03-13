@@ -82,6 +82,7 @@ import LearningRecommendationCard from '@/components/LearningRecommendationCard'
 import MedicationHomeCard from '@/components/MedicationHomeCard';
 import AppointmentHomeCard from '@/components/AppointmentHomeCard';
 import CorrelationInsightsCard from '@/components/CorrelationInsightsCard';
+import MilestoneHomeCard from '@/components/MilestoneHomeCard';
 
 interface CardSlot {
   key: string;
@@ -506,6 +507,10 @@ export default function HomeScreen() {
 
     addSlot('correlation_insights', () => (
       <CorrelationInsightsCard key="correlation_insights" />
+    ));
+
+    addSlot('milestones', () => (
+      <MilestoneHomeCard key="milestones" />
     ));
 
     addSlot('learning_recommendations', () => (

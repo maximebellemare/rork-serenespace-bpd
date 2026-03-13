@@ -45,6 +45,7 @@ import { useSubscription } from '@/providers/SubscriptionProvider';
 import { useCoaching } from '@/hooks/useCoaching';
 import { usePersonalization } from '@/hooks/usePersonalization';
 import { useSmartReminders } from '@/hooks/useSmartReminders';
+import { useRewards } from '@/providers/RewardsProvider';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -53,6 +54,7 @@ export default function ProfileScreen() {
   const { wins } = useCoaching();
   const personalization = usePersonalization();
   const { getState: getSmartState } = useSmartReminders();
+  const { totalUnlocked, hasUnseen } = useRewards();
   const [smartInfo, setSmartInfo] = useState({ todayFired: 0, activeCount: 0 });
 
   useEffect(() => {
@@ -261,6 +263,16 @@ export default function ProfileScreen() {
               () => router.push('/profile/progress' as never),
               'progress-btn',
               !isPremium ? premiumBadge : undefined,
+            )}
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: '#FFF8F0' }]}>
+                <Flame size={16} color="#D4956A" />
+              </View>,
+              'Milestones',
+              totalUnlocked > 0 ? `${totalUnlocked} earned` : 'Track your consistency',
+              () => router.push('/milestones' as never),
+              'milestones-btn',
+              hasUnseen ? <View style={styles.unseenDot} /> : undefined,
             )}
             {renderNavRow(
               <View style={[styles.navIcon, { backgroundColor: '#F0E6FF' }]}>
@@ -1083,5 +1095,11 @@ const styles = StyleSheet.create({
     width: 1,
     height: 24,
     backgroundColor: Colors.borderLight,
+  },
+  unseenDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.accent,
   },
 });
