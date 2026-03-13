@@ -83,6 +83,71 @@ export interface IdentityState {
   conflictSessions: ConflictAlignmentSession[];
 }
 
+export interface GrowthSignal {
+  id: string;
+  type: 'value_alignment' | 'regulation_win' | 'boundary_set' | 'self_awareness' | 'relationship_skill' | 'emotional_growth';
+  label: string;
+  description: string;
+  detectedAt: number;
+  relatedValueId?: string;
+}
+
+export interface PersonalStrength {
+  id: string;
+  label: string;
+  description: string;
+  evidence: string[];
+  discoveredAt: number;
+}
+
+export interface DailyIdentityPrompt {
+  id: string;
+  text: string;
+  category: 'values' | 'conflict' | 'relationships' | 'self-image' | 'future-self';
+}
+
+export interface DailyIdentityResponse {
+  id: string;
+  promptId: string;
+  promptText: string;
+  response: string;
+  date: string;
+  createdAt: number;
+}
+
+export interface GrowthSnapshot {
+  totalJournalEntries: number;
+  totalSelfTrustResponses: number;
+  totalAnchorStatements: number;
+  totalConflictSessions: number;
+  totalGrowthSignals: number;
+  selectedValuesCount: number;
+  identityStreakDays: number;
+  topValues: Array<{ label: string; emoji: string }>;
+  recentGrowthSignals: GrowthSignal[];
+  personalStrengths: PersonalStrength[];
+}
+
+export interface GrowthState {
+  growthSignals: GrowthSignal[];
+  personalStrengths: PersonalStrength[];
+  dailyResponses: DailyIdentityResponse[];
+}
+
+export const DEFAULT_GROWTH_STATE: GrowthState = {
+  growthSignals: [],
+  personalStrengths: [],
+  dailyResponses: [],
+};
+
+export interface IdentityState {
+  values: UserValuesState;
+  selfTrustResponses: SelfTrustResponse[];
+  journalEntries: IdentityJournalEntry[];
+  anchorStatements: AnchorStatement[];
+  conflictSessions: ConflictAlignmentSession[];
+}
+
 export const DEFAULT_IDENTITY_STATE: IdentityState = {
   values: { selectedValues: [], updatedAt: 0 },
   selfTrustResponses: [],

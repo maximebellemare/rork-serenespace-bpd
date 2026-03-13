@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Anchor, Heart, Eye, ArrowRightLeft, Clock, Brain, ChevronRight, Zap, HeartHandshake } from 'lucide-react-native';
+import { Anchor, Heart, Eye, ArrowRightLeft, Clock, Brain, ChevronRight, Zap, HeartHandshake, Sprout } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { COPING_EXERCISES } from '@/constants/data';
@@ -119,6 +119,27 @@ export default function ToolsScreen() {
               </View>
             </View>
             <ChevronRight size={18} color={Colors.accent} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.growthCard}
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/my-growth' as never);
+            }}
+            activeOpacity={0.7}
+            testID="growth-card"
+          >
+            <View style={styles.growthLeft}>
+              <View style={styles.growthIcon}>
+                <Sprout size={20} color="#6B9080" />
+              </View>
+              <View style={styles.growthInfo}>
+                <Text style={styles.growthTitle}>My Growth</Text>
+                <Text style={styles.growthDesc}>Values, strengths, identity reflections & growth signals</Text>
+              </View>
+            </View>
+            <ChevronRight size={18} color="#6B9080" />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -351,6 +372,45 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   simulatorDesc: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+  },
+  growthCard: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    backgroundColor: '#E3EDE8',
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 28,
+    borderWidth: 1,
+    borderColor: '#C8DDD2',
+  },
+  growthLeft: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 14,
+    flex: 1,
+  },
+  growthIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: '#D4E8DC',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  growthInfo: {
+    flex: 1,
+  },
+  growthTitle: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: '#507A66',
+    marginBottom: 3,
+  },
+  growthDesc: {
     fontSize: 13,
     color: Colors.textSecondary,
     lineHeight: 18,

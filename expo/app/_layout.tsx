@@ -242,6 +242,13 @@ function RootLayoutNav() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="my-growth"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }
