@@ -78,6 +78,7 @@ import PlaybookCard from '@/components/PlaybookCard';
 import { usePlaybook } from '@/hooks/usePlaybook';
 import NextInterventionCard from '@/components/NextInterventionCard';
 import OutcomePromptBanner from '@/components/OutcomePromptBanner';
+import LearningRecommendationCard from '@/components/LearningRecommendationCard';
 
 interface CardSlot {
   key: string;
@@ -490,6 +491,10 @@ export default function HomeScreen() {
 
     addSlot('trusted_support', () => (
       <TrustedSupportCard key="trusted_support" variant="home" />
+    ));
+
+    addSlot('learning_recommendations', () => (
+      <LearningRecommendationCard key="learning_recommendations" />
     ));
 
     addSlot('upgrade_prompt', () => (

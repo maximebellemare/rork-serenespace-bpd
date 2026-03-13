@@ -333,6 +333,8 @@ function computeHomePriorities(
   add('trusted_support', isCrisis || (isActivated && context.highDistressRecent) ? 5 : 99,
     isCrisis || (isActivated && context.highDistressRecent));
 
+  add('learning_recommendations', !isCrisis ? (isCalm || isRecovering ? 13 : 20) : 99, !isCrisis);
+
   add('upgrade_prompt', isCalm || isRecovering ? 35 : 99, isCalm || isRecovering);
 
   return priorities.sort((a, b) => a.priority - b.priority);

@@ -29,6 +29,7 @@ import {
   MessageCircle,
   CloudLightning,
   Sprout,
+  Sparkles,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
@@ -41,6 +42,9 @@ import {
   getCategoryProgress,
 } from '@/services/learn/learnService';
 import { LearnState, LessonCategory, Lesson } from '@/types/learn';
+import { LEARN_CATEGORIES } from '@/data/lessons';
+import { useLearningRecommendations } from '@/hooks/useLearningRecommendations';
+import { useAnalytics } from '@/providers/AnalyticsProvider';
 
 const ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string }>> = {
   brain: Brain,
@@ -60,6 +64,8 @@ export default function LearnScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const { recommendations, contextMessage, trackArticleOpened } = useLearningRecommendations();
+  const { trackEvent } = useAnalytics();
 
   const [learnState, setLearnState] = useState<LearnState | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -115,12 +121,17 @@ export default function LearnScreen() {
     router.push(`/learn/category?id=${categoryId}` as any);
   }, [router]);
 
-  const handleLessonPress = useCallback((lessonId: string) => {
+  const handleLessonPress = useCallback((lessonId: string, source: 'browse' | 'search' | 'recommendation' = 'browse') => {
     if (Platform.OS !== 'web') {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+    trackEvent('learning_article_opened', {
+      article_id: lessonId,
+      trigger_context: source,
+    });
+    void trackArticleOpened(lessonId, source);
     router.push(`/learn/lesson?id=${lessonId}` as any);
-  }, [router]);
+  }, [router, trackEvent, trackArticleOpened]);
 
   const renderCategoryIcon = useCallback((iconName: string, color: string) => {
     const IconComponent = ICON_MAP[iconName] || BookOpen;
@@ -271,6 +282,35 @@ export default function LearnScreen() {
           >
             {activeTab === 'explore' ? (
               <Animated.View style={{ opacity: fadeAnim }}>
+                {recommendations.length > 0 && (
+                  <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                      <Sparkles size={16} color={Colors.accent} />
+                      <Text style={styles.sectionTitle}>Recommended For You</Text>
+                    </View>
+                    <Text style={styles.recContextLabel}>{contextMessage}</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
+                      {recommendations.map(rec => (
+                        <TouchableOpacity
+                          key={rec.lessonId}
+                          style={styles.recCard}
+                          onPress={() => handleLessonPress(rec.lessonId, 'recommendation')}
+                          activeOpacity={0.7}
+                          testID={`learn-rec-${rec.lessonId}`}
+                        >
+                          <View style={[styles.recAccent, { backgroundColor: LEARN_CATEGORIES.find(c => c.id === rec.lesson.categoryId)?.color ?? Colors.primary }]} />
+                          <Text style={styles.recCardTitle} numberOfLines={2}>{rec.lesson.title}</Text>
+                          <Text style={styles.recCardReason} numberOfLines={2}>{rec.reason}</Text>
+                          <View style={styles.recCardMeta}>
+                            <Clock size={11} color={Colors.textMuted} />
+                            <Text style={styles.recCardTime}>{rec.lesson.readingTime} min</Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+
                 {recentLessons.length > 0 && (
                   <View style={styles.section}>
                     <View style={styles.sectionHeader}>
@@ -600,5 +640,57 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  recContextLabel: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    fontStyle: 'italic' as const,
+    paddingHorizontal: 24,
+    marginBottom: 10,
+    marginTop: -4,
+  },
+  recCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 16,
+    width: 180,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
+    justifyContent: 'space-between',
+    minHeight: 130,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  recAccent: {
+    width: 28,
+    height: 3,
+    borderRadius: 2,
+    marginBottom: 10,
+  },
+  recCardTitle: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.text,
+    lineHeight: 20,
+  },
+  recCardReason: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 4,
+    lineHeight: 16,
+    fontStyle: 'italic' as const,
+  },
+  recCardMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 10,
+  },
+  recCardTime: {
+    fontSize: 12,
+    color: Colors.textMuted,
   },
 });
