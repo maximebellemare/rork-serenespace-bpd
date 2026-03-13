@@ -6,11 +6,12 @@ import {
   RetrievedMemoryContext,
 } from '@/types/companionMemory';
 import { MemoryProfile } from '@/types/memory';
-import { retrieveRelevantMemories } from './memoryRetrieval';
+import { retrieveRankedMemories } from './memoryRankingService';
 import { buildProfileContext } from './userPsychProfile';
 import { detectEmotionalState } from './memoryService';
 import { buildConversationTags } from '@/services/ai/aiPromptBuilder';
 import { CompanionPatternInsight } from './patternInsightService';
+import { estimateTokens } from '@/services/ai/tokenBudgetService';
 
 export interface AssembledContext {
   memoryNarrative: string;
@@ -58,7 +59,7 @@ export function assembleCompanionContext(params: {
       conversationTags: buildConversationTags(userMessage),
       recentMessageContent: userMessage,
     };
-    retrievedMemories = retrieveRelevantMemories(memoryStore, retrievalContext);
+    retrievedMemories = retrieveRankedMemories(memoryStore, retrievalContext, 400);
     memoryNarrative = retrievedMemories.contextNarrative;
   }
 
@@ -89,7 +90,8 @@ export function assembleCompanionContext(params: {
 
   const fullContext = contextParts.join('\n\n');
 
-  console.log('[ContextAssembler] Assembled context length:', fullContext.length, 'relevant insights:', relevantInsights.length);
+  const contextTokens = estimateTokens(fullContext);
+  console.log('[ContextAssembler] Assembled context length:', fullContext.length, 'chars,', contextTokens, 'tokens, relevant insights:', relevantInsights.length);
 
   return {
     memoryNarrative,

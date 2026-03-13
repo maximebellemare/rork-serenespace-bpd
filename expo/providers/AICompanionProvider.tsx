@@ -59,6 +59,11 @@ import {
   createOutcomeRecord,
   saveOutcome,
 } from '@/services/companion/outcomeLearningService';
+import {
+  runMemoryLifecycle,
+  shouldRunLifecycle,
+} from '@/services/companion/memoryLifecycleService';
+import { contextCache } from '@/services/companion/contextCacheService';
 
 export const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   { id: 'sp1', label: 'I feel abandoned right now', icon: '💔', prompt: 'I feel abandoned right now and I need support' },
@@ -108,8 +113,24 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
 
   useEffect(() => {
     if (companionMemoryQuery.data) {
-      setCompanionMemoryStore(companionMemoryQuery.data);
-      const insights = generateCompanionPatternInsights(companionMemoryQuery.data);
+      let store = companionMemoryQuery.data;
+      if (shouldRunLifecycle(store)) {
+        const { store: cleanedStore, report } = runMemoryLifecycle(store);
+        store = cleanedStore;
+        if (report.totalRemoved > 0) {
+          void saveMemoryStore(store);
+          void trackEvent('memory_lifecycle_run', {
+            short_term_removed: report.shortTermRemoved,
+            episodic_removed: report.episodicRemoved,
+            semantic_removed: report.semanticRemoved,
+            semantic_decayed: report.semanticDecayed,
+            total_removed: report.totalRemoved,
+          });
+          console.log('[AICompanion] Memory lifecycle cleaned up', report.totalRemoved, 'memories');
+        }
+      }
+      setCompanionMemoryStore(store);
+      const insights = generateCompanionPatternInsights(store);
       setCompanionPatternInsights(insights);
       console.log('[AICompanion] Loaded companion memory store,', insights.length, 'pattern insights');
     }
@@ -330,6 +351,13 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
 
       setCurrentActiveMode(response.activeMode);
       setSessionCount(prev => prev + 1);
+
+      if (response.costMetrics) {
+        console.log('[AICompanion] Cost metrics:', response.costMetrics);
+      }
+
+      contextCache.invalidate(activeConversationId);
+
       console.log('[AICompanion] Response mode:', response.activeMode, 'companion mode:', detectedMode, 'manual:', !!manualMode);
 
       const assistantMessage: AIMessage = {

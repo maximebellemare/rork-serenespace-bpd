@@ -3,6 +3,7 @@ import { AIMode } from '@/types/aiModes';
 import { CompanionMode } from '@/types/companionModes';
 import { MemoryProfile } from '@/types/memory';
 import { MemorySnapshot } from '@/types/userMemory';
+import { EmotionalState } from '@/types/companionMemory';
 import { EmotionalIntent } from '@/services/ai/aiResponseTemplates';
 import { AssembledContext } from './contextAssembler';
 import { ReasoningOutput, performReasoning, buildReasoningPromptSection } from './reasoningEngine';
@@ -10,6 +11,10 @@ import { buildCompanionSystemPrompt } from './companionPromptBuilder';
 import { detectAIMode } from '@/services/ai/aiModeService';
 import { detectEmotionalState } from './memoryService';
 import { buildModeSystemPrompt } from '@/services/ai/aiResponseStrategy';
+import { compressConversationHistory } from './contextCompressionService';
+import { routeToModel, getResponseLengthInstruction } from '@/services/ai/modelRouterService';
+import { enforceTokenBudget, estimateTokens } from '@/services/ai/tokenBudgetService';
+import { trackEvent } from '@/services/analytics/analyticsService';
 
 const QUICK_ACTIONS_BY_MODE: Record<CompanionMode, string[]> = {
   calm: ['Ground me', 'Safety mode'],
@@ -35,6 +40,15 @@ const INTENT_BY_MODE: Record<CompanionMode, EmotionalIntent> = {
   coaching: 'general',
 };
 
+export interface CostMetrics {
+  modelTier: string;
+  estimatedInputTokens: number;
+  estimatedOutputTokens: number;
+  wasCompressed: boolean;
+  conversationCompressed: boolean;
+  memoriesUsed: number;
+}
+
 export interface CompanionAIResponse {
   content: string;
   timestamp: number;
@@ -42,6 +56,7 @@ export interface CompanionAIResponse {
   quickActions: string[];
   activeMode: AIMode;
   reasoning: ReasoningOutput;
+  costMetrics?: CostMetrics;
 }
 
 export interface CompanionAIRequestParams {
@@ -60,6 +75,7 @@ function buildFullSystemPrompt(
   reasoning: ReasoningOutput,
   memoryProfile: MemoryProfile,
   activeMode: AIMode,
+  responseLengthRule: string,
 ): string {
   const basePrompt = buildCompanionSystemPrompt(detectedMode, assembledContext);
   const modePrompt = buildModeSystemPrompt(activeMode);
@@ -86,14 +102,14 @@ function buildFullSystemPrompt(
 - If the user shares a specific situation, respond to THAT situation specifically.
 - If the user answers a question you asked, acknowledge their answer before moving on.
 - Reference specific words or phrases the user used to show you are truly listening.
-- Keep responses concise. 2-5 sentences for high distress, 3-8 sentences for normal conversation.
 - Do NOT start every response with "I hear you" or "That makes sense" — vary your openings.
 - Use the user's own language and emotional vocabulary when reflecting back.
 - If you have memory context about this user, weave it in naturally — do not dump it.
 - Never list multiple coping tools at once. Suggest ONE specific thing.
 - Avoid ending every message with a question. Sometimes a reflection or validation is enough.
 - Be specific, not generic. "That fear of being forgotten when they don't reply" is better than "That feeling of abandonment."
-- When the user shares something vulnerable, sit with it before moving to solutions.`);
+- When the user shares something vulnerable, sit with it before moving to solutions.
+- ${responseLengthRule}`);
 
   return parts.join('\n');
 }
@@ -142,8 +158,7 @@ function buildConversationMessages(
     content: 'I understand the context. I will respond as the companion, directly to the user.',
   });
 
-  const recentHistory = conversationHistory.slice(-12);
-  for (const msg of recentHistory) {
+  for (const msg of conversationHistory) {
     messages.push({
       role: msg.role === 'user' ? 'user' as const : 'assistant' as const,
       content: msg.content,
@@ -194,20 +209,82 @@ export async function generateCompanionResponse(
 
   const activeMode: AIMode = manualMode ?? modeDetection.mode;
 
+  const routingDecision = routeToModel({
+    userMessage,
+    conversationLength: conversationHistory.length,
+    emotionalState: emotionalState as EmotionalState,
+    hasRelationshipContext: memoryProfile.topTriggers.some(t => t.label.toLowerCase().includes('relationship')),
+    isFollowUp: conversationHistory.length > 0,
+    hasMemoryContext: !!assembledContext.retrievedMemories && assembledContext.retrievedMemories.relevantEpisodes.length > 0,
+  });
+
+  const responseLengthRule = getResponseLengthInstruction(routingDecision.tier, emotionalState as EmotionalState);
+
   const systemPrompt = buildFullSystemPrompt(
     detectedMode,
     assembledContext,
     reasoning,
     memoryProfile,
     activeMode,
+    responseLengthRule,
   );
 
-  const messages = buildConversationMessages(systemPrompt, conversationHistory, userMessage);
+  const compressed = compressConversationHistory(conversationHistory);
+
+  let effectiveHistory = compressed.recentMessages;
+  if (compressed.summary) {
+    effectiveHistory = [
+      { role: 'user', content: `[Context: ${compressed.summary}]` },
+      { role: 'assistant', content: 'I understand the earlier context.' },
+      ...compressed.recentMessages,
+    ];
+  }
+
+  const rawMessages = buildConversationMessages(systemPrompt, effectiveHistory, userMessage);
+
+  const budgetResult = enforceTokenBudget({
+    systemPrompt,
+    conversationMessages: rawMessages,
+    memoryNarrative: assembledContext.memoryNarrative,
+    contextNarrative: assembledContext.fullContext,
+    tier: routingDecision.tier,
+  });
+
+  const messages = budgetResult.conversationMessages.map(m => ({
+    role: m.role as 'user' | 'assistant',
+    content: m.content,
+  }));
+
+  const memoriesUsed = assembledContext.retrievedMemories
+    ? assembledContext.retrievedMemories.relevantEpisodes.length + assembledContext.retrievedMemories.relevantTraits.length
+    : 0;
+
+  console.log('[CompanionAI] Cost optimization:', {
+    modelTier: routingDecision.tier,
+    reason: routingDecision.reason,
+    originalTokens: budgetResult.originalTokens,
+    finalTokens: budgetResult.finalTokens,
+    wasCompressed: budgetResult.wasCompressed,
+    conversationCompressed: compressed.tokensSaved > 0,
+    tokensSavedFromConversation: compressed.tokensSaved,
+    memoriesUsed,
+  });
 
   try {
     const content = await generateText({ messages });
 
-    console.log('[CompanionAI] AI response generated, length:', content.length);
+    const outputTokens = estimateTokens(content);
+    console.log('[CompanionAI] AI response generated, length:', content.length, 'output tokens:', outputTokens);
+
+    void trackEvent('companion_request_sent', {
+      model_tier: routingDecision.tier,
+      input_tokens: budgetResult.finalTokens,
+      output_tokens: outputTokens,
+      was_compressed: budgetResult.wasCompressed,
+      conversation_compressed: compressed.tokensSaved > 0,
+      memories_used: memoriesUsed,
+      routing_reason: routingDecision.reason,
+    });
 
     const quickActions = selectQuickActions(detectedMode, reasoning);
     const intent = INTENT_BY_MODE[detectedMode] ?? 'general';
@@ -219,6 +296,14 @@ export async function generateCompanionResponse(
       quickActions,
       activeMode,
       reasoning,
+      costMetrics: {
+        modelTier: routingDecision.tier,
+        estimatedInputTokens: budgetResult.finalTokens,
+        estimatedOutputTokens: outputTokens,
+        wasCompressed: budgetResult.wasCompressed,
+        conversationCompressed: compressed.tokensSaved > 0,
+        memoriesUsed,
+      },
     };
   } catch (error) {
     console.log('[CompanionAI] AI generation failed, falling back to contextual response:', error);
@@ -247,7 +332,7 @@ function selectQuickActions(mode: CompanionMode, reasoning: ReasoningOutput): st
 }
 
 function generateFallbackResponse(
-  userMessage: string,
+  _userMessage: string,
   mode: CompanionMode,
   reasoning: ReasoningOutput,
   activeMode: AIMode,
