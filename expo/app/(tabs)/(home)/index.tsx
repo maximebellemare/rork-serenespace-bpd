@@ -74,6 +74,8 @@ import { useBreakthroughs } from '@/hooks/useBreakthroughs';
 import DailyRitualsCard from '@/components/DailyRitualsCard';
 import { dailyRitualsRepository } from '@/services/repositories';
 import TrustedSupportCard from '@/components/TrustedSupportCard';
+import PlaybookCard from '@/components/PlaybookCard';
+import { usePlaybook } from '@/hooks/usePlaybook';
 
 interface CardSlot {
   key: string;
@@ -110,6 +112,7 @@ export default function HomeScreen() {
   const conflictReplay = useConflictReplay();
   const safetyPrediction = useEmotionalSafety();
   const breakthroughs = useBreakthroughs();
+  const playbook = usePlaybook();
 
   const dailyRitualsQuery = useQuery({
     queryKey: ['daily_rituals'],
@@ -471,6 +474,10 @@ export default function HomeScreen() {
       />
     ));
 
+    addSlot('emotional_playbook', () => (
+      <PlaybookCard key="emotional_playbook" playbook={playbook} />
+    ));
+
     addSlot('trusted_support', () => (
       <TrustedSupportCard key="trusted_support" variant="home" />
     ));
@@ -486,7 +493,7 @@ export default function HomeScreen() {
     dailyCoaching, weeklyReflection, therapyReport, emotionalLoops,
     reflectionMirror, episodeReplayState, stormWarning, emotionalStorm,
     crisisPrediction, earlyWarning, recommendations, topRecommendation, router,
-    conflictReplay, safetyPrediction, breakthroughs.summary, dailyRitualCompletions,
+    conflictReplay, safetyPrediction, breakthroughs.summary, dailyRitualCompletions, playbook,
   ]);
 
   const maxCards = MAX_CARDS_BY_ZONE[zone] ?? 10;
