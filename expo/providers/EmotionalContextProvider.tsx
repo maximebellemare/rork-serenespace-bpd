@@ -334,6 +334,8 @@ function computeHomePriorities(
   add('emotional_trends', !isCrisis ? 32 : 99, false);
   add('smart_coping', !isCrisis ? 33 : 99, false);
 
+  add('smart_recommendations', !isCrisis ? (isCalm || isRecovering ? 9 : 7) : 99, !isCrisis);
+
   add('trusted_support', isCrisis || (isActivated && context.highDistressRecent) ? 5 : 99,
     isCrisis || (isActivated && context.highDistressRecent));
 

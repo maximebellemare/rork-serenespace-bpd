@@ -83,6 +83,7 @@ import MedicationHomeCard from '@/components/MedicationHomeCard';
 import AppointmentHomeCard from '@/components/AppointmentHomeCard';
 import CorrelationInsightsCard from '@/components/CorrelationInsightsCard';
 import MilestoneHomeCard from '@/components/MilestoneHomeCard';
+import SmartRecommendationCard from '@/components/SmartRecommendationCard';
 
 interface CardSlot {
   key: string;
@@ -479,6 +480,10 @@ export default function HomeScreen() {
         recommendations={recommendations}
         topRecommendation={topRecommendation}
       />
+    ));
+
+    addSlot('smart_recommendations', () => (
+      <SmartRecommendationCard key="smart_recommendations" />
     ));
 
     addSlot('daily_rituals', () => (
