@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Stack } from 'expo-router';
-import { MessageCircle, Sparkles, BookmarkCheck, BarChart3, ChevronRight, Plus, Zap, Brain, TrendingDown, TrendingUp, Minus, Eye, Compass, HeartCrack } from 'lucide-react-native';
+import { MessageCircle, Sparkles, BookmarkCheck, BarChart3, ChevronRight, Plus, Zap, Brain, TrendingDown, TrendingUp, Minus, Eye, Compass, HeartCrack, Repeat } from 'lucide-react-native';
 import { settingsRepository } from '@/services/repositories';
 import AICompanionOnboarding from '@/components/AICompanionOnboarding';
 import * as Haptics from 'expo-haptics';
@@ -18,6 +18,7 @@ import Colors from '@/constants/colors';
 import { useAICompanion, SUGGESTED_PROMPTS } from '@/providers/AICompanionProvider';
 import { useCoaching } from '@/hooks/useCoaching';
 import { useRelationshipSpiral } from '@/hooks/useRelationshipSpiral';
+import { useEmotionalLoops } from '@/hooks/useEmotionalLoops';
 
 const ONBOARDING_KEY = 'ai_companion_onboarded';
 
@@ -35,6 +36,7 @@ export default function CompanionScreen() {
 
   const { dailyCoaching } = useCoaching();
   const relationshipSpiral = useRelationshipSpiral();
+  const emotionalLoops = useEmotionalLoops();
 
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
   const [onboardingChecked, setOnboardingChecked] = useState<boolean>(false);
@@ -389,6 +391,25 @@ export default function CompanionScreen() {
                 {relationshipSpiral.isActive
                   ? `${relationshipSpiral.signals.length} active signal${relationshipSpiral.signals.length !== 1 ? 's' : ''} detected`
                   : 'Monitor spiral patterns early'}
+              </Text>
+            </View>
+            <ChevronRight size={18} color={Colors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.exploreCard}
+            onPress={() => router.push('/emotional-loops' as never)}
+            activeOpacity={0.7}
+            testID="loops-btn"
+          >
+            <View style={[styles.exploreCardIcon, { backgroundColor: '#FFF7ED' }]}>
+              <Repeat size={20} color="#C8762A" />
+            </View>
+            <View style={styles.exploreCardContent}>
+              <Text style={styles.exploreCardTitle}>Emotional Loops</Text>
+              <Text style={styles.exploreCardDesc}>
+                {emotionalLoops.totalPatternsDetected > 0
+                  ? `${emotionalLoops.totalPatternsDetected} pattern${emotionalLoops.totalPatternsDetected !== 1 ? 's' : ''} detected`
+                  : 'Discover recurring patterns you can interrupt'}
               </Text>
             </View>
             <ChevronRight size={18} color={Colors.textMuted} />

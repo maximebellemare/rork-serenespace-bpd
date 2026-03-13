@@ -24,10 +24,12 @@ import {
   Sparkles,
   TrendingUp,
   AlertCircle,
+  Shield,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useEmotionalLoops } from '@/hooks/useEmotionalLoops';
+import { useLoopInterruptPlans } from '@/hooks/useLoopInterruptPlans';
 import { EmotionalLoop, InterruptPoint, LoopNodeType } from '@/types/emotionalLoop';
 
 const NODE_COLORS: Record<LoopNodeType, { bg: string; text: string; border: string }> = {
@@ -60,6 +62,7 @@ export default function EmotionalLoopsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const report = useEmotionalLoops();
+  const { plans } = useLoopInterruptPlans();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(24)).current;
 
@@ -84,7 +87,22 @@ export default function EmotionalLoopsScreen() {
     router.push(route as never);
   }, [router]);
 
+  const handleLoopPress = useCallback((loopId: string) => {
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    router.push(`/loop-detail?loopId=${loopId}` as never);
+  }, [router]);
+
+  const handleViewPlans = useCallback(() => {
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    router.push('/loop-interrupt-plan' as never);
+  }, [router]);
+
   const hasData = report.totalPatternsDetected > 0;
+  const favoritePlans = plans.filter(p => p.isFavorite);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -130,11 +148,35 @@ export default function EmotionalLoopsScreen() {
           )}
         </Animated.View>
 
+        {(plans.length > 0 || hasData) && (
+          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+            <TouchableOpacity
+              style={styles.plansButton}
+              onPress={handleViewPlans}
+              activeOpacity={0.7}
+              testID="view-interrupt-plans"
+            >
+              <View style={styles.plansIconWrap}>
+                <Shield size={18} color={Colors.primary} />
+              </View>
+              <View style={styles.plansTextWrap}>
+                <Text style={styles.plansTitle}>Interrupt Plans</Text>
+                <Text style={styles.plansSubtitle}>
+                  {plans.length > 0
+                    ? `${plans.length} plan${plans.length !== 1 ? 's' : ''} saved${favoritePlans.length > 0 ? ` · ${favoritePlans.length} favorite${favoritePlans.length !== 1 ? 's' : ''}` : ''}`
+                    : 'Create your first interrupt plan'}
+                </Text>
+              </View>
+              <ChevronRight size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
         {report.triggerChains.length > 0 && (
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
             <SectionHeader icon={<Zap size={16} color="#C94438" />} title="Trigger Chains" color="#C94438" />
             {report.triggerChains.map(loop => (
-              <LoopCard key={loop.id} loop={loop} />
+              <LoopCard key={loop.id} loop={loop} onPress={handleLoopPress} />
             ))}
           </Animated.View>
         )}
@@ -143,7 +185,7 @@ export default function EmotionalLoopsScreen() {
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
             <SectionHeader icon={<Heart size={16} color="#7C3AED" />} title="Emotion Chains" color="#7C3AED" />
             {report.emotionChains.map(loop => (
-              <LoopCard key={loop.id} loop={loop} />
+              <LoopCard key={loop.id} loop={loop} onPress={handleLoopPress} />
             ))}
           </Animated.View>
         )}
@@ -152,7 +194,7 @@ export default function EmotionalLoopsScreen() {
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
             <SectionHeader icon={<Repeat size={16} color="#0369A1" />} title="Behavior Chains" color="#0369A1" />
             {report.behaviorChains.map(loop => (
-              <LoopCard key={loop.id} loop={loop} />
+              <LoopCard key={loop.id} loop={loop} onPress={handleLoopPress} />
             ))}
           </Animated.View>
         )}
@@ -224,9 +266,14 @@ function SectionHeader({ icon, title, color }: { icon: React.ReactNode; title: s
   );
 }
 
-const LoopCard = React.memo(function LoopCard({ loop }: { loop: EmotionalLoop }) {
+const LoopCard = React.memo(function LoopCard({ loop, onPress }: { loop: EmotionalLoop; onPress: (id: string) => void }) {
   return (
-    <View style={styles.loopCard}>
+    <TouchableOpacity
+      style={styles.loopCard}
+      onPress={() => onPress(loop.id)}
+      activeOpacity={0.7}
+      testID={`loop-card-${loop.id}`}
+    >
       <View style={styles.chainRow}>
         {loop.nodes.map((node, idx) => {
           const colors = NODE_COLORS[node.type];
@@ -248,13 +295,19 @@ const LoopCard = React.memo(function LoopCard({ loop }: { loop: EmotionalLoop })
       {loop.narrative ? (
         <Text style={styles.narrativeText}>{loop.narrative}</Text>
       ) : null}
-      <View style={styles.loopMeta}>
-        <Text style={styles.loopMetaText}>Seen {loop.occurrences} time{loop.occurrences !== 1 ? 's' : ''}</Text>
-        {loop.averageDistress > 0 && (
-          <Text style={styles.loopMetaText}>Avg. intensity: {loop.averageDistress}/10</Text>
-        )}
+      <View style={styles.loopFooter}>
+        <View style={styles.loopMeta}>
+          <Text style={styles.loopMetaText}>Seen {loop.occurrences} time{loop.occurrences !== 1 ? 's' : ''}</Text>
+          {loop.averageDistress > 0 && (
+            <Text style={styles.loopMetaText}>Avg. intensity: {loop.averageDistress}/10</Text>
+          )}
+        </View>
+        <View style={styles.detailHint}>
+          <Text style={styles.detailHintText}>Details</Text>
+          <ChevronRight size={12} color={Colors.primary} />
+        </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 });
 
@@ -374,7 +427,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderRadius: 16,
     padding: 16,
-    marginBottom: 24,
+    marginBottom: 20,
     alignItems: 'flex-start',
     gap: 12,
   },
@@ -399,7 +452,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: 16,
     padding: 16,
-    marginBottom: 24,
+    marginBottom: 20,
     alignItems: 'flex-start',
     gap: 12,
   },
@@ -408,6 +461,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 21,
+  },
+  plansButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: Colors.primaryLight,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  plansIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  plansTextWrap: {
+    flex: 1,
+  },
+  plansTitle: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    letterSpacing: -0.2,
+  },
+  plansSubtitle: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -475,15 +566,30 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontStyle: 'italic',
   },
+  loopFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
   loopMeta: {
     flexDirection: 'row',
     gap: 16,
-    marginTop: 8,
   },
   loopMetaText: {
     fontSize: 12,
     color: Colors.textMuted,
     fontWeight: '500' as const,
+  },
+  detailHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  detailHintText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.primary,
   },
   interruptCard: {
     backgroundColor: Colors.white,

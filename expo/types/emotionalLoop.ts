@@ -65,3 +65,52 @@ export interface EmotionalLoopReport {
   lastUpdated: number;
   totalPatternsDetected: number;
 }
+
+export interface InterruptPlanStep {
+  id: string;
+  label: string;
+  description: string;
+  route?: string;
+  icon: string;
+}
+
+export interface InterruptPlan {
+  id: string;
+  loopId: string;
+  loopLabel: string;
+  triggerDescription: string;
+  steps: InterruptPlanStep[];
+  isFavorite: boolean;
+  isHelpful: boolean | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface LoopDetailData {
+  loop: EmotionalLoop;
+  triggerPhase: LoopPhase;
+  emotionalRise: LoopPhase;
+  urgePhase: LoopPhase;
+  actionPhase: LoopPhase;
+  aftereffect: LoopPhase;
+  interruptOptions: InterruptPoint[];
+  frequencyLabel: string;
+  distressLabel: string;
+  isRelationshipRelated: boolean;
+}
+
+export interface LoopPhase {
+  label: string;
+  description: string;
+  nodes: LoopNode[];
+  intensity: number;
+}
+
+export interface ActiveLoopSignal {
+  loopId: string;
+  loopLabel: string;
+  confidence: number;
+  message: string;
+  suggestedAction: string;
+  suggestedRoute: string;
+}

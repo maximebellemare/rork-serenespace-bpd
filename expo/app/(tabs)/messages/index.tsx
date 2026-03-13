@@ -36,8 +36,10 @@ import { useApp } from '@/providers/AppProvider';
 import { useMessageRewrite } from '@/hooks/useMessageRewrite';
 import CoachingNudgeBanner from '@/components/CoachingNudgeBanner';
 import SpiralMessageBanner from '@/components/SpiralMessageBanner';
+import ActiveLoopBanner from '@/components/ActiveLoopBanner';
 import { useMessageCoaching } from '@/hooks/useCoaching';
 import { useRelationshipSpiral } from '@/hooks/useRelationshipSpiral';
+import { useActiveLoops } from '@/hooks/useActiveLoops';
 import {
   RELATIONSHIP_OPTIONS,
   EMOTIONAL_STATE_OPTIONS,
@@ -216,6 +218,7 @@ export default function MessagesScreen() {
 
   const messageCoachingNudge = useMessageCoaching();
   const relationshipSpiral = useRelationshipSpiral();
+  const activeLoops = useActiveLoops();
   const [coachingDismissed, setCoachingDismissed] = useState<boolean>(false);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -354,6 +357,10 @@ export default function MessagesScreen() {
           <Text style={styles.charCount}>{inputText.length} characters</Text>
         )}
       </View>
+
+      {activeLoops.length > 0 && inputText.trim().length === 0 && (
+        <ActiveLoopBanner signals={activeLoops} />
+      )}
 
       {relationshipSpiral.isActive && relationshipSpiral.messageIntervention && inputText.trim().length === 0 && (
         <SpiralMessageBanner
