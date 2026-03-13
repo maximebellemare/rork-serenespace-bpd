@@ -38,6 +38,8 @@ import {
   Bug,
   Zap,
 } from 'lucide-react-native';
+import BrandLogo from '@/components/branding/BrandLogo';
+import { BRAND } from '@/constants/branding';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useProfile } from '@/providers/ProfileProvider';
@@ -135,11 +137,11 @@ export default function ProfileScreen() {
           <View style={styles.headerTop}>
             <View style={styles.avatarContainer}>
               <View style={styles.avatar}>
-                <User size={24} color={Colors.primary} />
+                <User size={24} color={Colors.brandTeal} />
               </View>
               {isPremium && (
                 <View style={styles.premiumAvatarBadge}>
-                  <Crown size={10} color="#D4956A" />
+                  <Crown size={10} color="#C4956A" />
                 </View>
               )}
             </View>
@@ -667,8 +669,9 @@ export default function ProfileScreen() {
         </Animated.View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>BPD Companion</Text>
-          <Text style={styles.footerVersion}>You're doing something brave by being here.</Text>
+          <BrandLogo size={36} />
+          <Text style={styles.footerText}>{BRAND.name}</Text>
+          <Text style={styles.footerVersion}>{BRAND.tagline}</Text>
         </View>
 
         <View style={styles.bottomSpacer} />
@@ -687,7 +690,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: 60,
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
   },
   header: {
     marginBottom: 20,
@@ -705,11 +708,11 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: Colors.brandTealSoft,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     borderWidth: 2.5,
-    borderColor: Colors.primary,
+    borderColor: Colors.brandTeal,
   },
   premiumAvatarBadge: {
     position: 'absolute' as const,
@@ -730,7 +733,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: '700' as const,
-    color: Colors.text,
+    color: Colors.brandNavy,
     letterSpacing: -0.3,
   },
   headerSubtitle: {
@@ -774,9 +777,9 @@ const styles = StyleSheet.create({
   upgradeBanner: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.brandNavy,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 18,
     marginBottom: 20,
   },
   upgradeBannerActive: {
@@ -1019,17 +1022,18 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center' as const,
     paddingVertical: 24,
+    gap: 8,
   },
   footerText: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: Colors.textMuted,
-    marginBottom: 4,
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.brandNavy,
+    letterSpacing: -0.3,
   },
   footerVersion: {
-    fontSize: 13,
-    color: Colors.textMuted,
-    fontStyle: 'italic' as const,
+    fontSize: 12,
+    color: Colors.brandTeal,
+    fontWeight: '500' as const,
   },
   bottomSpacer: {
     height: 30,

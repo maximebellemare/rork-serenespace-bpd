@@ -29,11 +29,12 @@ import {
   Clock,
   ChevronRight,
   Check,
-  Leaf,
   Shield,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
+import { BRAND } from '@/constants/branding';
+import BrandLogo from '@/components/branding/BrandLogo';
 import { useOnboarding } from '@/providers/OnboardingProvider';
 import { useAnalytics } from '@/providers/AnalyticsProvider';
 import {
@@ -264,12 +265,15 @@ export default function OnboardingScreen() {
 
   const renderWelcome = () => (
     <View style={styles.welcomeContainer}>
-      <View style={styles.welcomeIconRow}>
-        <View style={[styles.welcomeIconCircle, { backgroundColor: Colors.primaryLight }]}>
-          <Leaf size={28} color={Colors.primary} />
+      <View style={styles.welcomeHeroBg}>
+        <View style={styles.welcomeOrbitOuter} />
+        <View style={styles.welcomeOrbitInner} />
+        <View style={styles.welcomeHeroContent}>
+          <BrandLogo size={64} variant="light" animated />
+          <Text style={styles.welcomeTitle}>{BRAND.name}</Text>
+          <Text style={styles.welcomeTagline}>{BRAND.tagline}</Text>
         </View>
       </View>
-      <Text style={styles.welcomeTitle}>BPD Companion</Text>
       <Text style={styles.welcomeSubtitle}>
         A calm, private space designed to support you through emotional storms, relationship triggers, and daily life.
       </Text>
@@ -603,7 +607,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.brandTeal,
     borderRadius: 2,
   },
   stepIndicator: {
@@ -636,7 +640,7 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: 28,
     fontWeight: '700' as const,
-    color: Colors.text,
+    color: Colors.brandNavy,
     letterSpacing: -0.5,
   },
   stepSubtitle: {
@@ -655,50 +659,80 @@ const styles = StyleSheet.create({
     fontWeight: '500' as const,
   },
   welcomeContainer: {
-    paddingTop: 40,
+    paddingTop: 20,
   },
-  welcomeIconRow: {
-    alignItems: 'center',
+  welcomeHeroBg: {
+    backgroundColor: Colors.brandNavy,
+    borderRadius: 24,
+    paddingVertical: 40,
+    paddingHorizontal: 24,
     marginBottom: 24,
+    overflow: 'hidden' as const,
+    position: 'relative' as const,
   },
-  welcomeIconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
+  welcomeHeroContent: {
+    alignItems: 'center' as const,
+    zIndex: 2,
+  },
+  welcomeOrbitOuter: {
+    position: 'absolute' as const,
+    top: -50,
+    right: -50,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    borderWidth: 1,
+    borderColor: 'rgba(74, 139, 141, 0.12)',
+  },
+  welcomeOrbitInner: {
+    position: 'absolute' as const,
+    bottom: -30,
+    left: -30,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 1,
+    borderColor: 'rgba(155, 142, 196, 0.1)',
   },
   welcomeTitle: {
-    fontSize: 32,
-    fontWeight: '700' as const,
-    color: Colors.text,
-    textAlign: 'center',
-    letterSpacing: -0.5,
+    fontSize: 30,
+    fontWeight: '800' as const,
+    color: '#F0EDE9',
+    textAlign: 'center' as const,
+    letterSpacing: -0.8,
+    marginTop: 16,
+  },
+  welcomeTagline: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: 'rgba(74, 139, 141, 0.85)',
+    textAlign: 'center' as const,
+    marginTop: 6,
+    letterSpacing: 0.3,
   },
   welcomeSubtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 12,
-    lineHeight: 24,
+    textAlign: 'center' as const,
+    lineHeight: 23,
     paddingHorizontal: 8,
   },
   welcomeFeatures: {
-    marginTop: 32,
+    marginTop: 28,
     gap: 14,
   },
   welcomeFeatureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     gap: 14,
   },
   welcomeFeatureIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: Colors.warmGlow,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: Colors.brandTealSoft,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   welcomeFeatureLabel: {
     fontSize: 15,
@@ -709,9 +743,9 @@ const styles = StyleSheet.create({
   welcomeNote: {
     fontSize: 14,
     color: Colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 32,
-    fontStyle: 'italic',
+    textAlign: 'center' as const,
+    marginTop: 28,
+    fontStyle: 'italic' as const,
     lineHeight: 21,
   },
   reasonCard: {
@@ -724,20 +758,20 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderLight,
   },
   reasonCardSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryLight,
+    borderColor: Colors.brandTeal,
+    backgroundColor: Colors.brandTealSoft,
   },
   reasonIconWrap: {
     width: 40,
     height: 40,
-    borderRadius: 12,
-    backgroundColor: Colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 14,
+    backgroundColor: Colors.brandTealSoft,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     marginRight: 14,
   },
   reasonIconWrapSelected: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.brandTeal,
   },
   reasonLabel: {
     flex: 1,
@@ -746,14 +780,14 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   reasonLabelSelected: {
-    color: Colors.primaryDark,
+    color: Colors.brandNavy,
     fontWeight: '600' as const,
   },
   checkCircle: {
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.brandTeal,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -761,7 +795,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.brandTeal,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -781,8 +815,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderLight,
   },
   chipSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: Colors.brandTeal,
+    borderColor: Colors.brandTeal,
   },
   chipText: {
     fontSize: 14,
@@ -805,8 +839,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderLight,
   },
   treatmentCardSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryLight,
+    borderColor: Colors.brandTeal,
+    backgroundColor: Colors.brandTealSoft,
   },
   treatmentTextWrap: {
     flex: 1,
@@ -818,7 +852,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   treatmentLabelSelected: {
-    color: Colors.primaryDark,
+    color: Colors.brandNavy,
     fontWeight: '600' as const,
   },
   treatmentSub: {
@@ -835,7 +869,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   toggleTrackActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.brandTeal,
   },
   toggleThumb: {
     width: 22,
@@ -856,20 +890,20 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderLight,
   },
   toolCardSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryLight,
+    borderColor: Colors.brandTeal,
+    backgroundColor: Colors.brandTealSoft,
   },
   toolIconWrap: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: Colors.brandTealSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
   toolIconWrapSelected: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.brandTeal,
   },
   toolLabel: {
     flex: 1,
@@ -878,7 +912,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   toolLabelSelected: {
-    color: Colors.primaryDark,
+    color: Colors.brandNavy,
     fontWeight: '600' as const,
   },
   toneSection: {
@@ -909,8 +943,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderLight,
   },
   toneCardSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryLight,
+    borderColor: Colors.brandTeal,
+    backgroundColor: Colors.brandTealSoft,
   },
   toneLabel: {
     fontSize: 14,
@@ -919,7 +953,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   toneLabelSelected: {
-    color: Colors.primaryDark,
+    color: Colors.brandNavy,
   },
   toneDesc: {
     fontSize: 11,
@@ -927,7 +961,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   toneDescSelected: {
-    color: Colors.primaryDark,
+    color: Colors.brandNavy,
   },
   outcomeChip: {
     flexDirection: 'row',
@@ -940,8 +974,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderLight,
   },
   outcomeChipSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: Colors.brandTeal,
+    borderColor: Colors.brandTeal,
   },
   outcomeChipText: {
     fontSize: 14,
@@ -985,14 +1019,14 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    backgroundColor: Colors.brandTeal,
     borderRadius: 14,
     paddingVertical: 16,
     gap: 6,
-    shadowColor: Colors.primaryDark,
+    shadowColor: Colors.brandNavy,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 12,

@@ -34,6 +34,7 @@ import {
   Target,
   ArrowRight,
 } from 'lucide-react-native';
+import BrandLogo from '@/components/branding/BrandLogo';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import {
@@ -238,8 +239,13 @@ export default function LearnScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
-        <Text style={styles.headerTitle}>Learn</Text>
-        <Text style={styles.headerSubtitle}>Knowledge is power — and healing</Text>
+        <View style={styles.learnHeaderRow}>
+          <BrandLogo size={38} />
+          <View style={styles.learnHeaderText}>
+            <Text style={styles.headerTitle}>Learn</Text>
+            <Text style={styles.headerSubtitle}>Knowledge is power — and healing</Text>
+          </View>
+        </View>
       </Animated.View>
 
       <View style={styles.searchContainer}>
@@ -440,20 +446,29 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   header: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 22,
     paddingTop: 16,
     paddingBottom: 4,
   },
+  learnHeaderRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 14,
+  },
+  learnHeaderText: {
+    flex: 1,
+  },
   headerTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700' as const,
-    color: Colors.text,
+    color: Colors.brandNavy,
     letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 15,
-    color: Colors.textSecondary,
+    fontSize: 13,
+    color: Colors.brandTeal,
     marginTop: 2,
+    fontWeight: '500' as const,
   },
   searchContainer: {
     paddingHorizontal: 24,
@@ -495,8 +510,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderLight,
   },
   tabActive: {
-    backgroundColor: Colors.primaryLight,
-    borderColor: Colors.primary,
+    backgroundColor: Colors.brandTealSoft,
+    borderColor: Colors.brandTeal,
   },
   tabText: {
     fontSize: 14,
@@ -504,7 +519,7 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
   },
   tabTextActive: {
-    color: Colors.primary,
+    color: Colors.brandTeal,
   },
   scrollView: {
     flex: 1,

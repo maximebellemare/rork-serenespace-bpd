@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Stack } from 'expo-router';
-import { MessageCircle, Sparkles, BookmarkCheck, BarChart3, ChevronRight, Plus, Zap, Brain, TrendingDown, TrendingUp, Minus, Eye, Compass, HeartCrack, Repeat, Calendar, ArrowRight, X, Lightbulb } from 'lucide-react-native';
+import { MessageCircle, BookmarkCheck, BarChart3, ChevronRight, Plus, Zap, Brain, TrendingDown, TrendingUp, Minus, Eye, Compass, HeartCrack, Repeat, Calendar, ArrowRight, X, Lightbulb } from 'lucide-react-native';
+import BrandLogo from '@/components/branding/BrandLogo';
 import { settingsRepository } from '@/services/repositories';
 import AICompanionOnboarding from '@/components/AICompanionOnboarding';
 import * as Haptics from 'expo-haptics';
@@ -160,15 +161,17 @@ export default function CompanionScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          <View style={styles.headerIconRow}>
-            <View style={styles.headerIcon}>
-              <Sparkles size={22} color={Colors.primary} />
+          <View style={styles.companionHeroBg}>
+            <View style={styles.companionOrbitOuter} />
+            <View style={styles.companionOrbitInner} />
+            <View style={styles.companionHeroContent}>
+              <BrandLogo size={52} variant="light" animated />
+              <Text style={styles.headerTitle}>AI Companion</Text>
+              <Text style={styles.headerSubtitle}>
+                A calm space to reflect, slow down, and get support.
+              </Text>
             </View>
           </View>
-          <Text style={styles.headerTitle}>AI Companion</Text>
-          <Text style={styles.headerSubtitle}>
-            A calm space to reflect, slow down, and get support.
-          </Text>
         </Animated.View>
 
         {onboardingChecked && showOnboarding && (
@@ -640,36 +643,56 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: 60,
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
   },
   header: {
-    alignItems: 'center' as const,
-    marginBottom: 28,
-    paddingTop: 12,
+    marginBottom: 24,
   },
-  headerIconRow: {
-    marginBottom: 14,
+  companionHeroBg: {
+    backgroundColor: Colors.brandNavy,
+    borderRadius: 24,
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+    overflow: 'hidden' as const,
+    position: 'relative' as const,
   },
-  headerIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: Colors.primaryLight,
+  companionHeroContent: {
     alignItems: 'center' as const,
-    justifyContent: 'center' as const,
+    zIndex: 2,
+  },
+  companionOrbitOuter: {
+    position: 'absolute' as const,
+    top: -50,
+    right: -50,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    borderWidth: 1,
+    borderColor: 'rgba(155, 142, 196, 0.12)',
+  },
+  companionOrbitInner: {
+    position: 'absolute' as const,
+    bottom: -30,
+    left: -30,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 1,
+    borderColor: 'rgba(74, 139, 141, 0.1)',
   },
   headerTitle: {
     fontSize: 26,
-    fontWeight: '700' as const,
-    color: Colors.text,
+    fontWeight: '800' as const,
+    color: '#F0EDE9',
+    marginTop: 14,
     marginBottom: 8,
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 15,
-    color: Colors.textSecondary,
+    fontSize: 14,
+    color: 'rgba(240, 237, 233, 0.65)',
     textAlign: 'center' as const,
-    lineHeight: 22,
+    lineHeight: 21,
     paddingHorizontal: 10,
   },
   continueCard: {
@@ -745,7 +768,7 @@ const styles = StyleSheet.create({
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     gap: 8,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.brandTeal,
     paddingVertical: 16,
     borderRadius: 16,
   },
@@ -760,14 +783,14 @@ const styles = StyleSheet.create({
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     gap: 8,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: Colors.brandTealSoft,
     paddingVertical: 16,
     borderRadius: 16,
   },
   actionButtonSecondaryText: {
     fontSize: 16,
     fontWeight: '600' as const,
-    color: Colors.primary,
+    color: Colors.brandTeal,
   },
   section: {
     marginBottom: 28,

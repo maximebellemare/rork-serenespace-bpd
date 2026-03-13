@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 28,
     fontWeight: '800' as const,
-    color: Colors.text,
+    color: Colors.brandNavy,
     textAlign: 'center' as const,
     letterSpacing: -0.5,
     lineHeight: 36,
@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row' as const,
     alignItems: 'flex-start' as const,
     gap: 10,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: Colors.brandTealSoft,
     borderRadius: 14,
     padding: 14,
     marginBottom: 16,
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
   personalizationText: {
     flex: 1,
     fontSize: 13,
-    color: Colors.primaryDark,
+    color: Colors.brandNavy,
     lineHeight: 19,
   },
   testimonialCard: {
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: Colors.brandTealSoft,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     marginRight: 12,
@@ -667,8 +667,8 @@ const styles = StyleSheet.create({
     position: 'relative' as const,
   },
   planCardSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryLight,
+    borderColor: Colors.brandTeal,
+    backgroundColor: Colors.brandTealSoft,
   },
   popularBadge: {
     position: 'absolute' as const,
@@ -691,7 +691,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   planNameSelected: {
-    color: Colors.primaryDark,
+    color: Colors.brandNavy,
   },
   planPrice: {
     fontSize: 22,
@@ -700,7 +700,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   planPriceSelected: {
-    color: Colors.primaryDark,
+    color: Colors.brandNavy,
   },
   planSavings: {
     fontSize: 12,
@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   planSavingsSelected: {
-    color: Colors.primaryDark,
+    color: Colors.brandTeal,
   },
   planRadio: {
     width: 22,
@@ -722,13 +722,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   planRadioSelected: {
-    borderColor: Colors.primary,
+    borderColor: Colors.brandTeal,
   },
   planRadioInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.brandTeal,
   },
   ctaSection: {
     marginBottom: 16,
@@ -737,11 +737,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    backgroundColor: Colors.primary,
-    borderRadius: 16,
+    backgroundColor: Colors.brandNavy,
+    borderRadius: 18,
     paddingVertical: 18,
     gap: 10,
-    shadowColor: Colors.primaryDark,
+    shadowColor: Colors.brandNavy,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
@@ -764,13 +764,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: Colors.primaryLight,
+    borderColor: Colors.brandTealSoft,
     backgroundColor: Colors.card,
   },
   trialButtonText: {
     fontSize: 15,
     fontWeight: '600' as const,
-    color: Colors.primary,
+    color: Colors.brandTeal,
   },
   trustSection: {
     flexDirection: 'row' as const,
@@ -790,7 +790,7 @@ const styles = StyleSheet.create({
   },
   restoreText: {
     fontSize: 13,
-    color: Colors.primary,
+    color: Colors.brandTeal,
     fontWeight: '500' as const,
   },
   disclaimerSection: {
@@ -822,7 +822,7 @@ const styles = StyleSheet.create({
   activeTitle: {
     fontSize: 26,
     fontWeight: '800' as const,
-    color: Colors.text,
+    color: Colors.brandNavy,
     marginBottom: 6,
   },
   activeSubtitle: {
@@ -897,7 +897,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   doneBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.brandTeal,
     borderRadius: 14,
     paddingVertical: 16,
     paddingHorizontal: 48,

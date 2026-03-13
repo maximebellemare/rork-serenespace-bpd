@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Shield, Heart, Wind, Sparkles, BarChart3, ChevronRight, Zap } from 'lucide-react-native';
+import BrandHero from '@/components/branding/BrandHero';
 import EmotionalTrendsCard from '@/components/EmotionalTrendsCard';
 import EarlyWarningBanner from '@/components/EarlyWarningBanner';
 import DailyReflectionCard from '@/components/DailyReflectionCard';
@@ -558,9 +559,8 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
-          <Text style={styles.greeting}>BPD Companion</Text>
-          <Text style={styles.subtitle}>{zoneSubtitle}</Text>
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <BrandHero contextMessage={zoneSubtitle} />
         </Animated.View>
 
         <Animated.View style={{ opacity: fadeAnim }}>
@@ -752,38 +752,25 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   scrollContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 22,
     paddingBottom: 32,
+    paddingTop: 8,
   },
-  header: {
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  greeting: {
-    fontSize: 32,
-    fontWeight: '700' as const,
-    color: Colors.text,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    marginTop: 4,
-  },
+
   validationCard: {
-    backgroundColor: Colors.warmGlow,
-    borderRadius: 16,
+    backgroundColor: Colors.brandTealSoft,
+    borderRadius: 18,
     padding: 20,
     marginTop: 20,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: Colors.accentLight,
+    borderColor: 'rgba(74, 139, 141, 0.15)',
   },
   validationText: {
-    fontSize: 16,
-    color: Colors.accent,
+    fontSize: 15,
+    color: Colors.brandTeal,
     fontWeight: '500' as const,
-    lineHeight: 24,
+    lineHeight: 23,
     textAlign: 'center',
     fontStyle: 'italic',
   },
@@ -798,23 +785,23 @@ const styles = StyleSheet.create({
     width: 180,
     height: 180,
     borderRadius: 90,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.brandTeal,
   },
   glowRing: {
     position: 'absolute',
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.brandTeal,
   },
   triggeredButton: {
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.brandTeal,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.primaryDark,
+    shadowColor: Colors.brandNavy,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.25,
     shadowRadius: 20,
@@ -842,14 +829,14 @@ const styles = StyleSheet.create({
   quickAction: {
     flex: 1,
     backgroundColor: Colors.white,
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
     alignItems: 'center',
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: 'rgba(27,40,56,0.08)',
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowRadius: 12,
+    elevation: 3,
   },
   quickIconWrap: {
     width: 44,
@@ -905,8 +892,8 @@ const styles = StyleSheet.create({
   insightsBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primary,
-    borderRadius: 18,
+    backgroundColor: Colors.brandNavy,
+    borderRadius: 20,
     padding: 18,
     marginTop: 16,
   },
@@ -953,7 +940,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 14,
-    backgroundColor: Colors.accentLight,
+    backgroundColor: '#F5E8DA',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
