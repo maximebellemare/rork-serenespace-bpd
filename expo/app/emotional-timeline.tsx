@@ -29,6 +29,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useApp } from '@/providers/AppProvider';
+import { PremiumInlinePrompt } from '@/components/PremiumGate';
 import {
   buildEpisodeReplayState,
 } from '@/services/timeline/emotionalEpisodeService';
@@ -459,6 +460,10 @@ export default function EmotionalTimelineReplayScreen() {
               <Text style={styles.introText}>
                 Review emotional episodes to understand how escalation unfolds — and where you might interrupt it next time.
               </Text>
+              <PremiumInlinePrompt
+                feature="emotional_timeline"
+                message="Upgrade for full emotional timeline replay and AI reflections."
+              />
             </View>
 
             {replayState.episodes.length > 0 && (

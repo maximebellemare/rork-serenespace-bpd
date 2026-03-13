@@ -13,7 +13,6 @@ import { Stack, useRouter } from 'expo-router';
 import {
   User,
   Heart,
-  Zap,
   Shield,
   Bell,
   Lock,
@@ -24,28 +23,32 @@ import {
   Activity,
   Target,
   Sparkles,
-  AlertTriangle,
   Phone,
   BarChart3,
   Users,
-  RefreshCw,
   Award,
   Calendar,
-  LayoutDashboard,
   FileText,
+  Crown,
+  Compass,
+  HeartHandshake,
+  Fingerprint,
+  Brain,
+  BookOpen,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useProfile } from '@/providers/ProfileProvider';
 import { useSubscription } from '@/providers/SubscriptionProvider';
-import { Crown, Compass, HeartHandshake, Fingerprint } from 'lucide-react-native';
 import { useCoaching } from '@/hooks/useCoaching';
+import { usePersonalization } from '@/hooks/usePersonalization';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { profile, patternSummary, updateProfile, updateNotifications, updatePrivacy } = useProfile();
   const { isPremium, daysRemaining, state: subState } = useSubscription();
   const { wins } = useCoaching();
+  const personalization = usePersonalization();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -73,6 +76,38 @@ export default function ProfileScreen() {
 
   const daysSinceJoined = Math.max(1, Math.floor((Date.now() - profile.createdAt) / (24 * 60 * 60 * 1000)));
 
+  const renderNavRow = useCallback((
+    icon: React.ReactNode,
+    title: string,
+    desc: string,
+    onPress: () => void,
+    testId?: string,
+    badge?: React.ReactNode,
+  ) => (
+    <TouchableOpacity
+      style={styles.navRow}
+      onPress={() => { handleHaptic(); onPress(); }}
+      activeOpacity={0.7}
+      testID={testId}
+    >
+      {icon}
+      <View style={styles.navRowText}>
+        <View style={styles.navRowTitleRow}>
+          <Text style={styles.navRowTitle}>{title}</Text>
+          {badge}
+        </View>
+        <Text style={styles.navRowDesc}>{desc}</Text>
+      </View>
+      <ChevronRight size={16} color={Colors.textMuted} />
+    </TouchableOpacity>
+  ), [handleHaptic]);
+
+  const premiumBadge = (
+    <View style={styles.premiumBadge}>
+      <Crown size={10} color="#D4956A" />
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -82,453 +117,349 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
-              <User size={28} color={Colors.primary} />
+          <View style={styles.headerTop}>
+            <View style={styles.avatarContainer}>
+              <View style={styles.avatar}>
+                <User size={24} color={Colors.primary} />
+              </View>
+              {isPremium && (
+                <View style={styles.premiumAvatarBadge}>
+                  <Crown size={10} color="#D4956A" />
+                </View>
+              )}
+            </View>
+            <View style={styles.headerInfo}>
+              <Text style={styles.headerTitle}>
+                {profile.displayName || 'Your Profile'}
+              </Text>
+              <Text style={styles.headerSubtitle}>
+                {daysSinceJoined} day{daysSinceJoined !== 1 ? 's' : ''} of showing up for yourself
+              </Text>
             </View>
           </View>
-          <Text style={styles.headerTitle}>Your Profile</Text>
-          <Text style={styles.headerSubtitle}>
-            {daysSinceJoined} day{daysSinceJoined !== 1 ? 's' : ''} of showing up for yourself
-          </Text>
-        </Animated.View>
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <TouchableOpacity
-            style={styles.upgradeBanner}
-            onPress={() => {
-              handleHaptic();
-              router.push('/upgrade' as never);
-            }}
-            activeOpacity={0.7}
-            testID="upgrade-btn"
-          >
-            <View style={styles.patternsBannerLeft}>
-              <View style={[styles.patternsBannerIcon, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                <Crown size={20} color={Colors.white} />
-              </View>
-              <View style={styles.patternsBannerContent}>
-                <Text style={styles.patternsBannerTitle}>
-                  {isPremium ? 'Premium Active' : 'Upgrade to Premium'}
-                </Text>
-                <Text style={styles.patternsBannerDesc}>
-                  {isPremium
-                    ? (subState.isTrialActive ? `Trial • ${daysRemaining} days left` : 'All features unlocked')
-                    : 'Unlock deeper insights & AI support'}
-                </Text>
-              </View>
-            </View>
-            <ChevronRight size={18} color={Colors.white} style={{ opacity: 0.7 }} />
-          </TouchableOpacity>
         </Animated.View>
 
         <Animated.View style={[styles.statsRow, { opacity: fadeAnim }]}>
           <View style={styles.statCard}>
             <View style={[styles.statIcon, { backgroundColor: Colors.primaryLight }]}>
-              <Flame size={16} color={Colors.primary} />
+              <Flame size={14} color={Colors.primary} />
             </View>
             <Text style={styles.statValue}>{patternSummary.journalStreak}</Text>
-            <Text style={styles.statLabel}>Day Streak</Text>
+            <Text style={styles.statLabel}>Streak</Text>
           </View>
           <View style={styles.statCard}>
             <View style={[styles.statIcon, { backgroundColor: Colors.accentLight }]}>
-              <Target size={16} color={Colors.accent} />
+              <Target size={14} color={Colors.accent} />
             </View>
             <Text style={styles.statValue}>{patternSummary.checkInCount}</Text>
             <Text style={styles.statLabel}>Check-ins</Text>
           </View>
           <View style={styles.statCard}>
             <View style={[styles.statIcon, { backgroundColor: Colors.successLight }]}>
-              <Activity size={16} color={Colors.success} />
+              <Activity size={14} color={Colors.success} />
             </View>
             <Text style={styles.statValue}>{patternSummary.averageDistressIntensity || '—'}</Text>
-            <Text style={styles.statLabel}>Avg Intensity</Text>
+            <Text style={styles.statLabel}>Avg Dist.</Text>
+          </View>
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: '#F0E6FF' }]}>
+              <BookOpen size={14} color="#8B5CF6" />
+            </View>
+            <Text style={styles.statValue}>{patternSummary.totalJournalEntries}</Text>
+            <Text style={styles.statLabel}>Entries</Text>
           </View>
         </Animated.View>
 
-        <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+        <Animated.View style={{ opacity: fadeAnim }}>
           <TouchableOpacity
-            style={styles.patternsBanner}
-            onPress={() => {
-              handleHaptic();
-              router.push('/profile/patterns' as never);
-            }}
+            style={[styles.upgradeBanner, isPremium && styles.upgradeBannerActive]}
+            onPress={() => { handleHaptic(); router.push('/upgrade' as never); }}
             activeOpacity={0.7}
-            testID="patterns-btn"
+            testID="upgrade-btn"
           >
-            <View style={styles.patternsBannerLeft}>
-              <View style={styles.patternsBannerIcon}>
-                <TrendingUp size={20} color={Colors.white} />
-              </View>
-              <View style={styles.patternsBannerContent}>
-                <Text style={styles.patternsBannerTitle}>My Patterns</Text>
-                <Text style={styles.patternsBannerDesc}>
-                  {patternSummary.topTriggerThisMonth
-                    ? `Top trigger: ${patternSummary.topTriggerThisMonth}`
-                    : 'Start checking in to see your patterns'}
-                </Text>
-              </View>
+            <View style={styles.upgradeBannerIcon}>
+              <Crown size={20} color={isPremium ? '#D4956A' : Colors.white} />
             </View>
-            <ChevronRight size={18} color={Colors.white} style={{ opacity: 0.7 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.insightsBanner}
-            onPress={() => {
-              handleHaptic();
-              router.push('/insights' as never);
-            }}
-            activeOpacity={0.7}
-            testID="insights-btn"
-          >
-            <View style={styles.patternsBannerLeft}>
-              <View style={[styles.patternsBannerIcon, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                <BarChart3 size={20} color={Colors.white} />
-              </View>
-              <View style={styles.patternsBannerContent}>
-                <Text style={styles.patternsBannerTitle}>Insights</Text>
-                <Text style={styles.patternsBannerDesc}>Charts, trends, and emotional patterns</Text>
-              </View>
+            <View style={styles.upgradeBannerContent}>
+              <Text style={[styles.upgradeBannerTitle, isPremium && styles.upgradeBannerTitleActive]}>
+                {isPremium ? 'Premium Active' : 'Upgrade to Premium'}
+              </Text>
+              <Text style={[styles.upgradeBannerDesc, isPremium && styles.upgradeBannerDescActive]}>
+                {isPremium
+                  ? (subState.isTrialActive ? `Trial · ${daysRemaining} days left` : 'All features unlocked')
+                  : 'Deeper insights, unlimited AI, therapy reports'}
+              </Text>
             </View>
-            <ChevronRight size={18} color={Colors.white} style={{ opacity: 0.7 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.progressBanner}
-            onPress={() => {
-              handleHaptic();
-              router.push('/profile/progress' as never);
-            }}
-            activeOpacity={0.7}
-            testID="progress-btn"
-          >
-            <View style={styles.patternsBannerLeft}>
-              <View style={[styles.patternsBannerIcon, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                <Award size={20} color={Colors.white} />
-              </View>
-              <View style={styles.patternsBannerContent}>
-                <Text style={styles.patternsBannerTitle}>Recovery Progress</Text>
-                <Text style={styles.patternsBannerDesc}>Track your growth and milestones</Text>
-              </View>
-            </View>
-            <ChevronRight size={18} color={Colors.white} style={{ opacity: 0.7 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.dashboardBanner}
-            onPress={() => {
-              handleHaptic();
-              router.push('/profile/insights-dashboard' as never);
-            }}
-            activeOpacity={0.7}
-            testID="insights-dashboard-btn"
-          >
-            <View style={styles.patternsBannerLeft}>
-              <View style={[styles.patternsBannerIcon, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                <LayoutDashboard size={20} color={Colors.white} />
-              </View>
-              <View style={styles.patternsBannerContent}>
-                <Text style={styles.patternsBannerTitle}>Insights Dashboard</Text>
-                <Text style={styles.patternsBannerDesc}>Emotional trends, triggers, and coping</Text>
-              </View>
-            </View>
-            <ChevronRight size={18} color={Colors.white} style={{ opacity: 0.7 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.therapyBanner}
-            onPress={() => {
-              handleHaptic();
-              router.push('/profile/therapy-plan' as never);
-            }}
-            activeOpacity={0.7}
-            testID="therapy-plan-btn"
-          >
-            <View style={styles.patternsBannerLeft}>
-              <View style={[styles.patternsBannerIcon, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                <Calendar size={20} color={Colors.white} />
-              </View>
-              <View style={styles.patternsBannerContent}>
-                <Text style={styles.patternsBannerTitle}>Therapy Plan</Text>
-                <Text style={styles.patternsBannerDesc}>Your personalized weekly plan</Text>
-              </View>
-            </View>
-            <ChevronRight size={18} color={Colors.white} style={{ opacity: 0.7 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.relationshipBanner}
-            onPress={() => {
-              handleHaptic();
-              router.push('/relationship-insights' as never);
-            }}
-            activeOpacity={0.7}
-            testID="relationship-insights-btn"
-          >
-            <View style={styles.patternsBannerLeft}>
-              <View style={[styles.patternsBannerIcon, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                <Heart size={20} color={Colors.white} />
-              </View>
-              <View style={styles.patternsBannerContent}>
-                <Text style={styles.patternsBannerTitle}>Relationship Patterns</Text>
-                <Text style={styles.patternsBannerDesc}>Understand your emotional reactions</Text>
-              </View>
-            </View>
-            <ChevronRight size={18} color={Colors.white} style={{ opacity: 0.7 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.copilotBanner}
-            onPress={() => {
-              handleHaptic();
-              router.push('/relationship-copilot' as never);
-            }}
-            activeOpacity={0.7}
-            testID="relationship-copilot-btn"
-          >
-            <View style={styles.patternsBannerLeft}>
-              <View style={[styles.patternsBannerIcon, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                <HeartHandshake size={20} color={Colors.white} />
-              </View>
-              <View style={styles.patternsBannerContent}>
-                <Text style={styles.patternsBannerTitle}>Relationship Copilot</Text>
-                <Text style={styles.patternsBannerDesc}>Get support during relationship triggers</Text>
-              </View>
-            </View>
-            <ChevronRight size={18} color={Colors.white} style={{ opacity: 0.7 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.relationshipProfilesBanner}
-            onPress={() => {
-              handleHaptic();
-              router.push('/profile/relationship-profiles' as never);
-            }}
-            activeOpacity={0.7}
-            testID="relationship-profiles-btn"
-          >
-            <View style={styles.patternsBannerLeft}>
-              <View style={[styles.patternsBannerIcon, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                <HeartHandshake size={20} color={Colors.white} />
-              </View>
-              <View style={styles.patternsBannerContent}>
-                <Text style={styles.patternsBannerTitle}>Relationship Profiles</Text>
-                <Text style={styles.patternsBannerDesc}>Track patterns with specific people</Text>
-              </View>
-            </View>
-            <ChevronRight size={18} color={Colors.white} style={{ opacity: 0.7 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.identityBanner}
-            onPress={() => {
-              handleHaptic();
-              router.push('/values-explorer' as never);
-            }}
-            activeOpacity={0.7}
-            testID="identity-values-btn"
-          >
-            <View style={styles.patternsBannerLeft}>
-              <View style={[styles.patternsBannerIcon, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                <Fingerprint size={20} color={Colors.white} />
-              </View>
-              <View style={styles.patternsBannerContent}>
-                <Text style={styles.patternsBannerTitle}>Identity & Values</Text>
-                <Text style={styles.patternsBannerDesc}>Build self-trust and a stable sense of self</Text>
-              </View>
-            </View>
-            <ChevronRight size={18} color={Colors.white} style={{ opacity: 0.7 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.reflectionBanner}
-            onPress={() => {
-              handleHaptic();
-              router.push('/profile/reflection-report' as never);
-            }}
-            activeOpacity={0.7}
-            testID="reflection-report-btn"
-          >
-            <View style={styles.patternsBannerLeft}>
-              <View style={[styles.patternsBannerIcon, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                <FileText size={20} color={Colors.white} />
-              </View>
-              <View style={styles.patternsBannerContent}>
-                <Text style={styles.patternsBannerTitle}>Reflection Report</Text>
-                <Text style={styles.patternsBannerDesc}>AI-powered therapy-style summaries</Text>
-              </View>
-            </View>
-            <ChevronRight size={18} color={Colors.white} style={{ opacity: 0.7 }} />
+            <ChevronRight size={18} color={isPremium ? '#D4956A' : Colors.white} style={{ opacity: 0.7 }} />
           </TouchableOpacity>
         </Animated.View>
 
+        {personalization.growthSignals.length > 0 && (
+          <Animated.View style={[styles.growthSection, { opacity: fadeAnim }]}>
+            <View style={styles.growthHeader}>
+              <Sparkles size={14} color={Colors.success} />
+              <Text style={styles.growthHeaderText}>Growth Signals</Text>
+            </View>
+            {personalization.growthSignals.slice(0, 2).map((signal, i) => (
+              <Text key={i} style={styles.growthText}>{signal}</Text>
+            ))}
+          </Animated.View>
+        )}
+
         {wins.length > 0 && (
           <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-            <Text style={styles.sectionTitle}>Coaching Wins</Text>
-            {wins.slice(0, 3).map(win => (
-              <View key={win.id} style={styles.coachingWinCard}>
-                <View style={styles.coachingWinIcon}>
-                  <Compass size={16} color={Colors.success} />
-                </View>
-                <Text style={styles.coachingWinText}>{win.description}</Text>
+            <Text style={styles.sectionLabel}>RECENT WINS</Text>
+            {wins.slice(0, 2).map(win => (
+              <View key={win.id} style={styles.winCard}>
+                <Compass size={14} color={Colors.success} />
+                <Text style={styles.winText}>{win.description}</Text>
               </View>
             ))}
           </Animated.View>
         )}
 
         <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-          <Text style={styles.sectionTitle}>Support Profile</Text>
-
-          <TouchableOpacity
-            style={styles.settingCard}
-            onPress={() => {
-              handleHaptic();
-              router.push('/profile/edit-list?type=triggers' as never);
-            }}
-            activeOpacity={0.7}
-            testID="edit-triggers-btn"
-          >
-            <View style={[styles.settingCardIcon, { backgroundColor: '#FFF0E6' }]}>
-              <Zap size={18} color="#E17055" />
-            </View>
-            <View style={styles.settingCardContent}>
-              <Text style={styles.settingCardTitle}>My Common Triggers</Text>
-              <Text style={styles.settingCardValue}>
-                {profile.commonTriggers.length > 0
-                  ? `${profile.commonTriggers.length} selected`
-                  : 'Tap to set up'}
-              </Text>
-            </View>
-            <ChevronRight size={16} color={Colors.textMuted} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.settingCard}
-            onPress={() => {
-              handleHaptic();
-              router.push('/profile/edit-list?type=urges' as never);
-            }}
-            activeOpacity={0.7}
-            testID="edit-urges-btn"
-          >
-            <View style={[styles.settingCardIcon, { backgroundColor: '#F0E6FF' }]}>
-              <AlertTriangle size={18} color="#8B5CF6" />
-            </View>
-            <View style={styles.settingCardContent}>
-              <Text style={styles.settingCardTitle}>My Common Urges</Text>
-              <Text style={styles.settingCardValue}>
-                {profile.commonUrges.length > 0
-                  ? `${profile.commonUrges.length} selected`
-                  : 'Tap to set up'}
-              </Text>
-            </View>
-            <ChevronRight size={16} color={Colors.textMuted} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.settingCard}
-            onPress={() => {
-              handleHaptic();
-              router.push('/profile/edit-list?type=coping' as never);
-            }}
-            activeOpacity={0.7}
-            testID="edit-coping-btn"
-          >
-            <View style={[styles.settingCardIcon, { backgroundColor: Colors.primaryLight }]}>
-              <Heart size={18} color={Colors.primary} />
-            </View>
-            <View style={styles.settingCardContent}>
-              <Text style={styles.settingCardTitle}>What Usually Helps Me</Text>
-              <Text style={styles.settingCardValue}>
-                {profile.whatHelpsMe.length > 0
-                  ? `${profile.whatHelpsMe.length} selected`
-                  : 'Tap to set up'}
-              </Text>
-            </View>
-            <ChevronRight size={16} color={Colors.textMuted} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.settingCard}
-            onPress={() => {
-              handleHaptic();
-              router.push('/profile/edit-list?type=grounding' as never);
-            }}
-            activeOpacity={0.7}
-            testID="edit-grounding-btn"
-          >
-            <View style={[styles.settingCardIcon, { backgroundColor: Colors.successLight }]}>
-              <Sparkles size={18} color={Colors.success} />
-            </View>
-            <View style={styles.settingCardContent}>
-              <Text style={styles.settingCardTitle}>Preferred Grounding Tools</Text>
-              <Text style={styles.settingCardValue}>
-                {profile.preferredGroundingTools.length > 0
-                  ? `${profile.preferredGroundingTools.length} selected`
-                  : 'Tap to set up'}
-              </Text>
-            </View>
-            <ChevronRight size={16} color={Colors.textMuted} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.settingCard}
-            onPress={() => {
-              handleHaptic();
-              router.push('/profile/edit-list?type=relationship' as never);
-            }}
-            activeOpacity={0.7}
-            testID="edit-relationship-btn"
-          >
-            <View style={[styles.settingCardIcon, { backgroundColor: '#FFE6F0' }]}>
-              <Heart size={18} color="#E84393" />
-            </View>
-            <View style={styles.settingCardContent}>
-              <Text style={styles.settingCardTitle}>Relationship Triggers</Text>
-              <Text style={styles.settingCardValue}>
-                {profile.relationshipTriggers.length > 0
-                  ? `${profile.relationshipTriggers.length} selected`
-                  : 'Tap to set up'}
-              </Text>
-            </View>
-            <ChevronRight size={16} color={Colors.textMuted} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.settingCard}
-            onPress={() => {
-              handleHaptic();
-              router.push('/profile/edit-list?type=spirals' as never);
-            }}
-            activeOpacity={0.7}
-            testID="edit-spirals-btn"
-          >
-            <View style={[styles.settingCardIcon, { backgroundColor: '#FFF0E6' }]}>
-              <RefreshCw size={18} color="#D4956A" />
-            </View>
-            <View style={styles.settingCardContent}>
-              <Text style={styles.settingCardTitle}>My Emotional Spirals</Text>
-              <Text style={styles.settingCardValue}>
-                {(profile.emotionalSpirals?.length ?? 0) > 0
-                  ? `${profile.emotionalSpirals.length} identified`
-                  : 'Recognize your patterns'}
-              </Text>
-            </View>
-            <ChevronRight size={16} color={Colors.textMuted} />
-          </TouchableOpacity>
+          <Text style={styles.sectionLabel}>INSIGHTS & PROGRESS</Text>
+          <View style={styles.navGroup}>
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: Colors.primaryLight }]}>
+                <TrendingUp size={16} color={Colors.primary} />
+              </View>,
+              'My Patterns',
+              patternSummary.topTriggerThisMonth ? `Top: ${patternSummary.topTriggerThisMonth}` : 'See your emotional patterns',
+              () => router.push('/profile/patterns' as never),
+              'patterns-btn',
+            )}
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: '#E6F0FF' }]}>
+                <BarChart3 size={16} color="#3B82F6" />
+              </View>,
+              'Insights Dashboard',
+              'Emotional trends, triggers, and coping',
+              () => router.push('/profile/insights-dashboard' as never),
+              'insights-dashboard-btn',
+            )}
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: Colors.accentLight }]}>
+                <Award size={16} color={Colors.accent} />
+              </View>,
+              'Recovery Progress',
+              'Track your growth and milestones',
+              () => router.push('/profile/progress' as never),
+              'progress-btn',
+              !isPremium ? premiumBadge : undefined,
+            )}
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: '#F0E6FF' }]}>
+                <FileText size={16} color="#8B5CF6" />
+              </View>,
+              'Weekly Reflection',
+              'Therapy-style summary of your week',
+              () => router.push('/weekly-reflection' as never),
+              'weekly-reflection-btn',
+              !isPremium ? premiumBadge : undefined,
+            )}
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: Colors.successLight }]}>
+                <Calendar size={16} color={Colors.success} />
+              </View>,
+              'Therapist Report',
+              'Structured summaries for therapy',
+              () => router.push('/therapy-report' as never),
+              'therapy-report-btn',
+              !isPremium ? premiumBadge : undefined,
+            )}
+          </View>
         </Animated.View>
 
         <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-          <Text style={styles.sectionTitle}>Message Settings</Text>
+          <Text style={styles.sectionLabel}>RELATIONSHIPS</Text>
+          <View style={styles.navGroup}>
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: '#FFE6F0' }]}>
+                <Heart size={16} color="#E84393" />
+              </View>,
+              'Relationship Patterns',
+              'Understand your emotional reactions',
+              () => router.push('/relationship-insights' as never),
+              'relationship-insights-btn',
+              !isPremium ? premiumBadge : undefined,
+            )}
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: '#FDE6E9' }]}>
+                <HeartHandshake size={16} color="#D63384" />
+              </View>,
+              'Relationship Copilot',
+              'Guided support during triggers',
+              () => router.push('/relationship-copilot' as never),
+              'relationship-copilot-btn',
+              !isPremium ? premiumBadge : undefined,
+            )}
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: '#FCE4EC' }]}>
+                <Users size={16} color="#C44D8E" />
+              </View>,
+              'Relationship Profiles',
+              'Track patterns with specific people',
+              () => router.push('/profile/relationship-profiles' as never),
+              'relationship-profiles-btn',
+            )}
+          </View>
+        </Animated.View>
+
+        <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+          <Text style={styles.sectionLabel}>ADVANCED INTELLIGENCE</Text>
+          <View style={styles.navGroup}>
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: Colors.primaryLight }]}>
+                <Brain size={16} color={Colors.primary} />
+              </View>,
+              'Emotional Profile',
+              'Your personal emotional model',
+              () => router.push('/emotional-profile' as never),
+              'emotional-profile-btn',
+              !isPremium ? premiumBadge : undefined,
+            )}
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: '#E8F5E9' }]}>
+                <Sparkles size={16} color={Colors.success} />
+              </View>,
+              'Reflection Mirror',
+              'Compassionate reflections on patterns',
+              () => router.push('/reflection-mirror' as never),
+              'reflection-mirror-btn',
+              !isPremium ? premiumBadge : undefined,
+            )}
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: Colors.accentLight }]}>
+                <Activity size={16} color={Colors.accent} />
+              </View>,
+              'Emotional Timeline',
+              'Replay emotional episodes',
+              () => router.push('/emotional-timeline' as never),
+              'emotional-timeline-btn',
+              !isPremium ? premiumBadge : undefined,
+            )}
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: '#F0E6FF' }]}>
+                <Fingerprint size={16} color="#8B5CF6" />
+              </View>,
+              'Identity & Values',
+              'Build self-trust and a stable sense of self',
+              () => router.push('/values-explorer' as never),
+              'identity-values-btn',
+            )}
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: '#E3EDE8' }]}>
+                <FileText size={16} color={Colors.primaryDark} />
+              </View>,
+              'Reflection Report',
+              'AI-powered therapy-style summaries',
+              () => router.push('/profile/reflection-report' as never),
+              'reflection-report-btn',
+              !isPremium ? premiumBadge : undefined,
+            )}
+          </View>
+        </Animated.View>
+
+        <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+          <Text style={styles.sectionLabel}>SUPPORT PROFILE</Text>
+          <View style={styles.navGroup}>
+            <TouchableOpacity
+              style={styles.profileChipRow}
+              onPress={() => { handleHaptic(); router.push('/profile/edit-list?type=triggers' as never); }}
+              activeOpacity={0.7}
+              testID="edit-triggers-btn"
+            >
+              <View style={[styles.chipDot, { backgroundColor: '#E17055' }]} />
+              <Text style={styles.chipLabel}>Common Triggers</Text>
+              <Text style={styles.chipCount}>
+                {profile.commonTriggers.length > 0 ? `${profile.commonTriggers.length}` : '—'}
+              </Text>
+              <ChevronRight size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.profileChipRow}
+              onPress={() => { handleHaptic(); router.push('/profile/edit-list?type=urges' as never); }}
+              activeOpacity={0.7}
+              testID="edit-urges-btn"
+            >
+              <View style={[styles.chipDot, { backgroundColor: '#8B5CF6' }]} />
+              <Text style={styles.chipLabel}>Common Urges</Text>
+              <Text style={styles.chipCount}>
+                {profile.commonUrges.length > 0 ? `${profile.commonUrges.length}` : '—'}
+              </Text>
+              <ChevronRight size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.profileChipRow}
+              onPress={() => { handleHaptic(); router.push('/profile/edit-list?type=coping' as never); }}
+              activeOpacity={0.7}
+              testID="edit-coping-btn"
+            >
+              <View style={[styles.chipDot, { backgroundColor: Colors.primary }]} />
+              <Text style={styles.chipLabel}>What Helps Me</Text>
+              <Text style={styles.chipCount}>
+                {profile.whatHelpsMe.length > 0 ? `${profile.whatHelpsMe.length}` : '—'}
+              </Text>
+              <ChevronRight size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.profileChipRow}
+              onPress={() => { handleHaptic(); router.push('/profile/edit-list?type=grounding' as never); }}
+              activeOpacity={0.7}
+              testID="edit-grounding-btn"
+            >
+              <View style={[styles.chipDot, { backgroundColor: Colors.success }]} />
+              <Text style={styles.chipLabel}>Grounding Tools</Text>
+              <Text style={styles.chipCount}>
+                {profile.preferredGroundingTools.length > 0 ? `${profile.preferredGroundingTools.length}` : '—'}
+              </Text>
+              <ChevronRight size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.profileChipRow}
+              onPress={() => { handleHaptic(); router.push('/profile/edit-list?type=relationship' as never); }}
+              activeOpacity={0.7}
+              testID="edit-relationship-btn"
+            >
+              <View style={[styles.chipDot, { backgroundColor: '#E84393' }]} />
+              <Text style={styles.chipLabel}>Relationship Triggers</Text>
+              <Text style={styles.chipCount}>
+                {profile.relationshipTriggers.length > 0 ? `${profile.relationshipTriggers.length}` : '—'}
+              </Text>
+              <ChevronRight size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.profileChipRow}
+              onPress={() => { handleHaptic(); router.push('/profile/edit-list?type=spirals' as never); }}
+              activeOpacity={0.7}
+              testID="edit-spirals-btn"
+            >
+              <View style={[styles.chipDot, { backgroundColor: '#D4956A' }]} />
+              <Text style={styles.chipLabel}>Emotional Spirals</Text>
+              <Text style={styles.chipCount}>
+                {(profile.emotionalSpirals?.length ?? 0) > 0 ? `${profile.emotionalSpirals.length}` : '—'}
+              </Text>
+              <ChevronRight size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+
+        <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+          <Text style={styles.sectionLabel}>MESSAGE SETTINGS</Text>
           <View style={styles.settingCard}>
-            <View style={[styles.settingCardIcon, { backgroundColor: '#E6F0FF' }]}>
-              <Clock size={18} color="#3B82F6" />
+            <View style={styles.settingCardTop}>
+              <Clock size={16} color="#3B82F6" />
+              <Text style={styles.settingTitle}>Pause Before Sending</Text>
+              <Text style={styles.settingValue}>{profile.messageDelaySeconds < 60 ? `${profile.messageDelaySeconds}s` : `${profile.messageDelaySeconds / 60}m`}</Text>
             </View>
-            <View style={styles.settingCardContent}>
-              <Text style={styles.settingCardTitle}>Pause Before Sending</Text>
-              <Text style={styles.settingCardValue}>{profile.messageDelaySeconds}s default delay</Text>
-            </View>
-            <View style={styles.delayButtons}>
+            <View style={styles.delayRow}>
               {[30, 120, 600].map((seconds) => (
                 <TouchableOpacity
                   key={seconds}
@@ -536,10 +467,7 @@ export default function ProfileScreen() {
                     styles.delayChip,
                     profile.messageDelaySeconds === seconds && styles.delayChipActive,
                   ]}
-                  onPress={() => {
-                    handleHaptic();
-                    updateProfile({ messageDelaySeconds: seconds });
-                  }}
+                  onPress={() => { handleHaptic(); updateProfile({ messageDelaySeconds: seconds }); }}
                 >
                   <Text
                     style={[
@@ -556,161 +484,134 @@ export default function ProfileScreen() {
         </Animated.View>
 
         <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-          <Text style={styles.sectionTitle}>Emergency Support</Text>
-          <TouchableOpacity
-            style={styles.settingCard}
-            onPress={() => {
-              handleHaptic();
-              router.push('/profile/crisis-settings' as never);
-            }}
-            activeOpacity={0.7}
-            testID="crisis-settings-btn"
-          >
-            <View style={[styles.settingCardIcon, { backgroundColor: Colors.dangerLight }]}>
-              <Phone size={18} color={Colors.danger} />
-            </View>
-            <View style={styles.settingCardContent}>
-              <Text style={styles.settingCardTitle}>Crisis Support Preferences</Text>
-              <Text style={styles.settingCardValue}>
-                {profile.crisisSupport.emergencyContact
-                  ? 'Contact set up'
-                  : 'Set up your safety net'}
-              </Text>
-            </View>
-            <ChevronRight size={16} color={Colors.textMuted} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.settingCard}
-            onPress={() => {
-              handleHaptic();
-              router.push('/profile/trusted-contacts' as never);
-            }}
-            activeOpacity={0.7}
-            testID="trusted-contacts-btn"
-          >
-            <View style={[styles.settingCardIcon, { backgroundColor: '#E6F0FF' }]}>
-              <Users size={18} color="#3B82F6" />
-            </View>
-            <View style={styles.settingCardContent}>
-              <Text style={styles.settingCardTitle}>Trusted Support Contacts</Text>
-              <Text style={styles.settingCardValue}>
-                {(profile.trustedContacts?.length ?? 0) > 0
-                  ? `${profile.trustedContacts.length} contact${profile.trustedContacts.length !== 1 ? 's' : ''}`
-                  : 'Add people you trust'}
-              </Text>
-            </View>
-            <ChevronRight size={16} color={Colors.textMuted} />
-          </TouchableOpacity>
-        </Animated.View>
-
-        <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-          <Text style={styles.sectionTitle}>Notifications</Text>
-          <View style={styles.toggleCard}>
-            <View style={styles.toggleCardContent}>
-              <View style={[styles.settingCardIcon, { backgroundColor: Colors.accentLight }]}>
-                <Bell size={18} color={Colors.accent} />
-              </View>
-              <View style={styles.toggleCardText}>
-                <Text style={styles.settingCardTitle}>Daily Check-in Reminder</Text>
-                <Text style={styles.toggleCardDesc}>A gentle nudge to check in with yourself</Text>
-              </View>
-            </View>
-            <Switch
-              value={profile.notifications.dailyCheckInReminder}
-              onValueChange={(val) => updateNotifications({ dailyCheckInReminder: val })}
-              trackColor={{ false: Colors.border, true: Colors.primaryLight }}
-              thumbColor={profile.notifications.dailyCheckInReminder ? Colors.primary : Colors.textMuted}
-            />
-          </View>
-          <View style={styles.toggleCard}>
-            <View style={styles.toggleCardContent}>
-              <View style={[styles.settingCardIcon, { backgroundColor: Colors.primaryLight }]}>
-                <Heart size={18} color={Colors.primary} />
-              </View>
-              <View style={styles.toggleCardText}>
-                <Text style={styles.settingCardTitle}>Gentle Nudges</Text>
-                <Text style={styles.toggleCardDesc}>Supportive reminders throughout the day</Text>
-              </View>
-            </View>
-            <Switch
-              value={profile.notifications.gentleNudges}
-              onValueChange={(val) => updateNotifications({ gentleNudges: val })}
-              trackColor={{ false: Colors.border, true: Colors.primaryLight }}
-              thumbColor={profile.notifications.gentleNudges ? Colors.primary : Colors.textMuted}
-            />
-          </View>
-          <View style={styles.toggleCard}>
-            <View style={styles.toggleCardContent}>
-              <View style={[styles.settingCardIcon, { backgroundColor: Colors.successLight }]}>
-                <TrendingUp size={18} color={Colors.success} />
-              </View>
-              <View style={styles.toggleCardText}>
-                <Text style={styles.settingCardTitle}>Weekly Insights</Text>
-                <Text style={styles.toggleCardDesc}>Summary of your emotional patterns</Text>
-              </View>
-            </View>
-            <Switch
-              value={profile.notifications.weeklyInsights}
-              onValueChange={(val) => updateNotifications({ weeklyInsights: val })}
-              trackColor={{ false: Colors.border, true: Colors.primaryLight }}
-              thumbColor={profile.notifications.weeklyInsights ? Colors.primary : Colors.textMuted}
-            />
+          <Text style={styles.sectionLabel}>EMERGENCY SUPPORT</Text>
+          <View style={styles.navGroup}>
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: Colors.dangerLight }]}>
+                <Phone size={16} color={Colors.danger} />
+              </View>,
+              'Crisis Support Preferences',
+              profile.crisisSupport.emergencyContact ? 'Contact set up' : 'Set up your safety net',
+              () => router.push('/profile/crisis-settings' as never),
+              'crisis-settings-btn',
+            )}
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: '#E6F0FF' }]}>
+                <Users size={16} color="#3B82F6" />
+              </View>,
+              'Trusted Support Contacts',
+              (profile.trustedContacts?.length ?? 0) > 0
+                ? `${profile.trustedContacts.length} contact${profile.trustedContacts.length !== 1 ? 's' : ''}`
+                : 'Add people you trust',
+              () => router.push('/profile/trusted-contacts' as never),
+              'trusted-contacts-btn',
+            )}
           </View>
         </Animated.View>
 
         <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-          <Text style={styles.sectionTitle}>Privacy</Text>
-          <View style={styles.toggleCard}>
-            <View style={styles.toggleCardContent}>
-              <View style={[styles.settingCardIcon, { backgroundColor: '#F0E6FF' }]}>
-                <Lock size={18} color="#8B5CF6" />
+          <Text style={styles.sectionLabel}>NOTIFICATIONS</Text>
+          <View style={styles.toggleGroup}>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <Bell size={15} color={Colors.accent} />
+                <View>
+                  <Text style={styles.toggleTitle}>Daily Check-in Reminder</Text>
+                  <Text style={styles.toggleDesc}>Gentle nudge to check in</Text>
+                </View>
               </View>
-              <View style={styles.toggleCardText}>
-                <Text style={styles.settingCardTitle}>Anonymous Community Posts</Text>
-                <Text style={styles.toggleCardDesc}>Default to anonymous when posting</Text>
-              </View>
+              <Switch
+                value={profile.notifications.dailyCheckInReminder}
+                onValueChange={(val) => updateNotifications({ dailyCheckInReminder: val })}
+                trackColor={{ false: Colors.border, true: Colors.primaryLight }}
+                thumbColor={profile.notifications.dailyCheckInReminder ? Colors.primary : Colors.textMuted}
+              />
             </View>
-            <Switch
-              value={profile.privacy.anonymousCommunityPosts}
-              onValueChange={(val) => updatePrivacy({ anonymousCommunityPosts: val })}
-              trackColor={{ false: Colors.border, true: Colors.primaryLight }}
-              thumbColor={profile.privacy.anonymousCommunityPosts ? Colors.primary : Colors.textMuted}
-            />
+            <View style={styles.toggleDivider} />
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <Heart size={15} color={Colors.primary} />
+                <View>
+                  <Text style={styles.toggleTitle}>Gentle Nudges</Text>
+                  <Text style={styles.toggleDesc}>Supportive reminders</Text>
+                </View>
+              </View>
+              <Switch
+                value={profile.notifications.gentleNudges}
+                onValueChange={(val) => updateNotifications({ gentleNudges: val })}
+                trackColor={{ false: Colors.border, true: Colors.primaryLight }}
+                thumbColor={profile.notifications.gentleNudges ? Colors.primary : Colors.textMuted}
+              />
+            </View>
+            <View style={styles.toggleDivider} />
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <TrendingUp size={15} color={Colors.success} />
+                <View>
+                  <Text style={styles.toggleTitle}>Weekly Insights</Text>
+                  <Text style={styles.toggleDesc}>Pattern summaries</Text>
+                </View>
+              </View>
+              <Switch
+                value={profile.notifications.weeklyInsights}
+                onValueChange={(val) => updateNotifications({ weeklyInsights: val })}
+                trackColor={{ false: Colors.border, true: Colors.primaryLight }}
+                thumbColor={profile.notifications.weeklyInsights ? Colors.primary : Colors.textMuted}
+              />
+            </View>
           </View>
-          <View style={styles.toggleCard}>
-            <View style={styles.toggleCardContent}>
-              <View style={[styles.settingCardIcon, { backgroundColor: Colors.primaryLight }]}>
-                <Sparkles size={18} color={Colors.primary} />
+        </Animated.View>
+
+        <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+          <Text style={styles.sectionLabel}>PRIVACY</Text>
+          <View style={styles.toggleGroup}>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <Lock size={15} color="#8B5CF6" />
+                <View>
+                  <Text style={styles.toggleTitle}>Anonymous Community</Text>
+                  <Text style={styles.toggleDesc}>Default to anonymous when posting</Text>
+                </View>
               </View>
-              <View style={styles.toggleCardText}>
-                <Text style={styles.settingCardTitle}>Share Insights with Companion</Text>
-                <Text style={styles.toggleCardDesc}>Let AI reference your patterns</Text>
-              </View>
+              <Switch
+                value={profile.privacy.anonymousCommunityPosts}
+                onValueChange={(val) => updatePrivacy({ anonymousCommunityPosts: val })}
+                trackColor={{ false: Colors.border, true: Colors.primaryLight }}
+                thumbColor={profile.privacy.anonymousCommunityPosts ? Colors.primary : Colors.textMuted}
+              />
             </View>
-            <Switch
-              value={profile.privacy.shareInsightsWithCompanion}
-              onValueChange={(val) => updatePrivacy({ shareInsightsWithCompanion: val })}
-              trackColor={{ false: Colors.border, true: Colors.primaryLight }}
-              thumbColor={profile.privacy.shareInsightsWithCompanion ? Colors.primary : Colors.textMuted}
-            />
-          </View>
-          <View style={styles.toggleCard}>
-            <View style={styles.toggleCardContent}>
-              <View style={[styles.settingCardIcon, { backgroundColor: '#E6F0FF' }]}>
-                <Shield size={18} color="#3B82F6" />
+            <View style={styles.toggleDivider} />
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <Sparkles size={15} color={Colors.primary} />
+                <View>
+                  <Text style={styles.toggleTitle}>Share with AI Companion</Text>
+                  <Text style={styles.toggleDesc}>Let AI reference your patterns</Text>
+                </View>
               </View>
-              <View style={styles.toggleCardText}>
-                <Text style={styles.settingCardTitle}>Biometric Lock</Text>
-                <Text style={styles.toggleCardDesc}>Require Face ID / fingerprint</Text>
-              </View>
+              <Switch
+                value={profile.privacy.shareInsightsWithCompanion}
+                onValueChange={(val) => updatePrivacy({ shareInsightsWithCompanion: val })}
+                trackColor={{ false: Colors.border, true: Colors.primaryLight }}
+                thumbColor={profile.privacy.shareInsightsWithCompanion ? Colors.primary : Colors.textMuted}
+              />
             </View>
-            <Switch
-              value={profile.privacy.lockAppWithBiometrics}
-              onValueChange={(val) => updatePrivacy({ lockAppWithBiometrics: val })}
-              trackColor={{ false: Colors.border, true: Colors.primaryLight }}
-              thumbColor={profile.privacy.lockAppWithBiometrics ? Colors.primary : Colors.textMuted}
-            />
+            <View style={styles.toggleDivider} />
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <Shield size={15} color="#3B82F6" />
+                <View>
+                  <Text style={styles.toggleTitle}>Biometric Lock</Text>
+                  <Text style={styles.toggleDesc}>Require Face ID / fingerprint</Text>
+                </View>
+              </View>
+              <Switch
+                value={profile.privacy.lockAppWithBiometrics}
+                onValueChange={(val) => updatePrivacy({ lockAppWithBiometrics: val })}
+                trackColor={{ false: Colors.border, true: Colors.primaryLight }}
+                thumbColor={profile.privacy.lockAppWithBiometrics ? Colors.primary : Colors.textMuted}
+              />
+            </View>
           </View>
         </Animated.View>
 
@@ -738,188 +639,331 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   header: {
-    alignItems: 'center' as const,
-    marginBottom: 24,
+    marginBottom: 20,
     paddingTop: 12,
   },
+  headerTop: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+  },
   avatarContainer: {
-    marginBottom: 16,
+    position: 'relative' as const,
+    marginRight: 16,
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: Colors.primaryLight,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    borderWidth: 3,
+    borderWidth: 2.5,
     borderColor: Colors.primary,
   },
+  premiumAvatarBadge: {
+    position: 'absolute' as const,
+    bottom: -2,
+    right: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FFF5EB',
+    borderWidth: 2,
+    borderColor: Colors.white,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  headerInfo: {
+    flex: 1,
+  },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '700' as const,
     color: Colors.text,
-    marginBottom: 6,
     letterSpacing: -0.3,
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.textSecondary,
-    textAlign: 'center' as const,
+    marginTop: 3,
   },
   statsRow: {
     flexDirection: 'row' as const,
-    gap: 10,
-    marginBottom: 24,
+    gap: 8,
+    marginBottom: 20,
   },
   statCard: {
     flex: 1,
     backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 14,
+    padding: 12,
     alignItems: 'center' as const,
     borderWidth: 1,
     borderColor: Colors.borderLight,
   },
   statIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700' as const,
     color: Colors.text,
-    marginBottom: 2,
+    marginBottom: 1,
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: Colors.textMuted,
     fontWeight: '500' as const,
+  },
+  upgradeBanner: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: Colors.primary,
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 20,
+  },
+  upgradeBannerActive: {
+    backgroundColor: '#FFF8F2',
+    borderWidth: 1,
+    borderColor: '#F5E0CC',
+  },
+  upgradeBannerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginRight: 12,
+  },
+  upgradeBannerContent: {
+    flex: 1,
+  },
+  upgradeBannerTitle: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.white,
+    marginBottom: 2,
+  },
+  upgradeBannerTitleActive: {
+    color: Colors.text,
+  },
+  upgradeBannerDesc: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  upgradeBannerDescActive: {
+    color: Colors.textSecondary,
+  },
+  growthSection: {
+    backgroundColor: Colors.successLight,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
+  },
+  growthHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    marginBottom: 10,
+  },
+  growthHeaderText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.success,
+  },
+  growthText: {
+    fontSize: 13,
+    color: Colors.text,
+    lineHeight: 19,
+    marginBottom: 4,
   },
   section: {
     marginBottom: 24,
   },
-  sectionTitle: {
-    fontSize: 17,
+  sectionLabel: {
+    fontSize: 12,
     fontWeight: '600' as const,
-    color: Colors.text,
-    marginBottom: 12,
-    letterSpacing: -0.2,
+    color: Colors.textMuted,
+    letterSpacing: 0.8,
+    marginBottom: 10,
+    marginLeft: 2,
   },
-  patternsBanner: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    backgroundColor: Colors.primary,
-    padding: 18,
-    borderRadius: 18,
-  },
-  patternsBannerLeft: {
-    flex: 1,
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-  },
-  patternsBannerIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    marginRight: 14,
-  },
-  patternsBannerContent: {
-    flex: 1,
-  },
-  patternsBannerTitle: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    color: Colors.white,
-    marginBottom: 3,
-  },
-  patternsBannerDesc: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.8)',
-  },
-  settingCard: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
+  navGroup: {
     backgroundColor: Colors.card,
-    padding: 16,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: Colors.borderLight,
-    marginBottom: 8,
+    overflow: 'hidden' as const,
   },
-  settingCardIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+  navRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  navIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    marginRight: 14,
+    marginRight: 12,
   },
-  settingCardContent: {
+  navRowText: {
     flex: 1,
   },
-  settingCardTitle: {
+  navRowTitleRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+  },
+  navRowTitle: {
     fontSize: 15,
     fontWeight: '600' as const,
     color: Colors.text,
-    marginBottom: 2,
   },
-  settingCardValue: {
-    fontSize: 13,
+  navRowDesc: {
+    fontSize: 12,
     color: Colors.textMuted,
+    marginTop: 1,
   },
-  delayButtons: {
+  premiumBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 6,
+    backgroundColor: '#FFF0E3',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  profileChipRow: {
     flexDirection: 'row' as const,
-    gap: 6,
+    alignItems: 'center' as const,
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  chipDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 12,
+  },
+  chipLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: Colors.text,
+  },
+  chipCount: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.textMuted,
+    marginRight: 8,
+  },
+  settingCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  settingCardTop: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 10,
+    marginBottom: 14,
+  },
+  settingTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.text,
+  },
+  settingValue: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.primary,
+  },
+  delayRow: {
+    flexDirection: 'row' as const,
+    gap: 8,
   },
   delayChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    flex: 1,
+    paddingVertical: 10,
     borderRadius: 10,
     backgroundColor: Colors.surface,
+    alignItems: 'center' as const,
   },
   delayChipActive: {
     backgroundColor: Colors.primary,
   },
   delayChipText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600' as const,
     color: Colors.textSecondary,
   },
   delayChipTextActive: {
     color: Colors.white,
   },
-  toggleCard: {
+  toggleGroup: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    overflow: 'hidden' as const,
+  },
+  toggleRow: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'space-between' as const,
-    backgroundColor: Colors.card,
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    marginBottom: 8,
+    padding: 14,
   },
-  toggleCardContent: {
+  toggleLeft: {
     flex: 1,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
+    gap: 12,
     marginRight: 12,
   },
-  toggleCardText: {
-    flex: 1,
+  toggleTitle: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.text,
   },
-  toggleCardDesc: {
-    fontSize: 12,
+  toggleDesc: {
+    fontSize: 11,
     color: Colors.textMuted,
-    marginTop: 2,
+    marginTop: 1,
+  },
+  toggleDivider: {
+    height: 1,
+    backgroundColor: Colors.borderLight,
+    marginHorizontal: 14,
+  },
+  winCard: {
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
+    gap: 10,
+    backgroundColor: Colors.successLight,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 6,
+  },
+  winText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.text,
+    lineHeight: 18,
+    marginTop: 1,
   },
   footer: {
     alignItems: 'center' as const,
@@ -938,109 +982,5 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 30,
-  },
-  insightsBanner: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    backgroundColor: '#507A66',
-    padding: 18,
-    borderRadius: 18,
-    marginTop: 10,
-  },
-  progressBanner: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    backgroundColor: '#D4956A',
-    padding: 18,
-    borderRadius: 18,
-    marginTop: 10,
-  },
-  therapyBanner: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    backgroundColor: '#8B5CF6',
-    padding: 18,
-    borderRadius: 18,
-    marginTop: 10,
-  },
-  dashboardBanner: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    backgroundColor: '#3B82F6',
-    padding: 18,
-    borderRadius: 18,
-    marginTop: 10,
-  },
-  relationshipBanner: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    backgroundColor: '#E84393',
-    padding: 18,
-    borderRadius: 18,
-    marginTop: 10,
-  },
-  copilotBanner: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    backgroundColor: '#D63384',
-    padding: 18,
-    borderRadius: 18,
-    marginTop: 10,
-  },
-  relationshipProfilesBanner: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    backgroundColor: '#C44D8E',
-    padding: 18,
-    borderRadius: 18,
-    marginTop: 10,
-  },
-  reflectionBanner: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    backgroundColor: '#2D8B7A',
-    padding: 18,
-    borderRadius: 18,
-    marginTop: 10,
-  },
-  identityBanner: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    backgroundColor: '#2D8B7A',
-    padding: 18,
-    borderRadius: 18,
-    marginTop: 10,
-  },
-  upgradeBanner: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    backgroundColor: '#D4956A',
-    padding: 18,
-    borderRadius: 18,
-    marginBottom: 24,
-  },
-  coachingWinCard: {
-    flexDirection: 'row' as const,
-    alignItems: 'flex-start' as const,
-    backgroundColor: Colors.successLight,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 8,
-    gap: 12,
-  },
-  coachingWinIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: Colors.white,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-  coachingWinText: {
-    flex: 1,
-    fontSize: 13,
-    color: Colors.text,
-    lineHeight: 19,
-    marginTop: 6,
   },
 });

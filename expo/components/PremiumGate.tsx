@@ -1,7 +1,14 @@
-import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import React, { useRef, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Animated,
+  Platform,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { Crown, Lock } from 'lucide-react-native';
+import { Crown, Lock, ArrowRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useSubscription } from '@/providers/SubscriptionProvider';
@@ -9,21 +16,23 @@ import { PremiumFeature } from '@/types/subscription';
 
 interface PremiumGateProps {
   feature: PremiumFeature;
+  title?: string;
+  description?: string;
   children: React.ReactNode;
   fallback?: React.ReactNode;
-  inline?: boolean;
+  softPrompt?: boolean;
 }
 
-export default function PremiumGate({ feature, children, fallback, inline }: PremiumGateProps) {
+export default function PremiumGate({
+  feature,
+  title,
+  description,
+  children,
+  fallback,
+  softPrompt = true,
+}: PremiumGateProps) {
   const { canAccessFeature } = useSubscription();
   const router = useRouter();
-
-  const handleUpgrade = useCallback(() => {
-    if (Platform.OS !== 'web') {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    router.push('/upgrade');
-  }, [router]);
 
   if (canAccessFeature(feature)) {
     return <>{children}</>;
@@ -33,101 +42,198 @@ export default function PremiumGate({ feature, children, fallback, inline }: Pre
     return <>{fallback}</>;
   }
 
-  if (inline) {
+  if (!softPrompt) {
+    return null;
+  }
+
+  return (
+    <PremiumPromptCard
+      title={title ?? 'Premium Feature'}
+      description={description ?? 'Upgrade to unlock this feature and deeper support.'}
+      onUpgrade={() => router.push('/upgrade')}
+    />
+  );
+}
+
+interface PremiumPromptCardProps {
+  title: string;
+  description: string;
+  onUpgrade: () => void;
+}
+
+function PremiumPromptCard({ title, description, onUpgrade }: PremiumPromptCardProps) {
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerAnim, { toValue: 1, duration: 3000, useNativeDriver: true }),
+        Animated.timing(shimmerAnim, { toValue: 0, duration: 3000, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [shimmerAnim]);
+
+  const handlePress = useCallback(() => {
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    onUpgrade();
+  }, [onUpgrade]);
+
+  const bgOpacity = shimmerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.92, 1],
+  });
+
+  return (
+    <Animated.View style={[styles.gateCard, { opacity: bgOpacity }]}>
+      <TouchableOpacity
+        style={styles.gateInner}
+        onPress={handlePress}
+        activeOpacity={0.8}
+        testID="premium-gate-card"
+      >
+        <View style={styles.gateIconRow}>
+          <View style={styles.lockBadge}>
+            <Lock size={14} color="#D4956A" />
+          </View>
+          <View style={styles.crownBadge}>
+            <Crown size={16} color="#D4956A" />
+          </View>
+        </View>
+        <Text style={styles.gateTitle}>{title}</Text>
+        <Text style={styles.gateDesc}>{description}</Text>
+        <View style={styles.gateButton}>
+          <Text style={styles.gateButtonText}>Unlock with Premium</Text>
+          <ArrowRight size={14} color={Colors.white} />
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+interface PremiumInlinePromptProps {
+  feature: PremiumFeature;
+  message?: string;
+  compact?: boolean;
+}
+
+export function PremiumInlinePrompt({
+  feature,
+  message,
+  compact = false,
+}: PremiumInlinePromptProps) {
+  const { canAccessFeature } = useSubscription();
+  const router = useRouter();
+
+  if (canAccessFeature(feature)) return null;
+
+  const handlePress = useCallback(() => {
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    router.push('/upgrade');
+  }, [router]);
+
+  if (compact) {
     return (
       <TouchableOpacity
-        style={styles.inlineBanner}
-        onPress={handleUpgrade}
+        style={styles.inlineCompact}
+        onPress={handlePress}
         activeOpacity={0.7}
-        testID={`premium-gate-${feature}`}
       >
-        <View style={styles.inlineIconWrap}>
-          <Lock size={14} color="#D4956A" />
-        </View>
-        <View style={styles.inlineTextWrap}>
-          <Text style={styles.inlineTitle}>Premium Feature</Text>
-          <Text style={styles.inlineDesc}>Upgrade to access this</Text>
-        </View>
-        <View style={styles.inlineUpgradeBtn}>
-          <Crown size={12} color={Colors.white} />
-          <Text style={styles.inlineUpgradeText}>Upgrade</Text>
-        </View>
+        <Crown size={12} color="#D4956A" />
+        <Text style={styles.inlineCompactText}>
+          {message ?? 'Premium'}
+        </Text>
       </TouchableOpacity>
     );
   }
 
   return (
-    <View style={styles.container} testID={`premium-gate-${feature}`}>
-      <View style={styles.lockOverlay}>
-        <View style={styles.lockBadge}>
-          <Crown size={28} color="#D4956A" />
+    <TouchableOpacity
+      style={styles.inlineBanner}
+      onPress={handlePress}
+      activeOpacity={0.7}
+      testID="premium-inline-prompt"
+    >
+      <View style={styles.inlineLeft}>
+        <View style={styles.inlineIcon}>
+          <Crown size={14} color="#D4956A" />
         </View>
-        <Text style={styles.lockTitle}>Premium Feature</Text>
-        <Text style={styles.lockDesc}>
-          Unlock deeper insights and advanced support tools
+        <Text style={styles.inlineText}>
+          {message ?? 'Upgrade for full access to this feature.'}
         </Text>
-        <TouchableOpacity
-          style={styles.upgradeButton}
-          onPress={handleUpgrade}
-          activeOpacity={0.7}
-        >
-          <Crown size={16} color={Colors.white} />
-          <Text style={styles.upgradeButtonText}>Upgrade</Text>
-        </TouchableOpacity>
       </View>
-    </View>
+      <ArrowRight size={14} color="#D4956A" />
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    borderRadius: 18,
-    overflow: 'hidden' as const,
-    marginVertical: 8,
+  gateCard: {
+    marginVertical: 12,
   },
-  lockOverlay: {
+  gateInner: {
     backgroundColor: '#FFF8F2',
-    borderRadius: 18,
-    padding: 28,
+    borderRadius: 20,
+    padding: 24,
     alignItems: 'center' as const,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: '#F5E0CC',
-    borderStyle: 'dashed' as const,
+  },
+  gateIconRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    marginBottom: 14,
   },
   lockBadge: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     backgroundColor: '#FFF0E3',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    marginBottom: 14,
   },
-  lockTitle: {
-    fontSize: 17,
+  crownBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: '#FFF0E3',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    borderWidth: 1.5,
+    borderColor: '#F5E0CC',
+  },
+  gateTitle: {
+    fontSize: 18,
     fontWeight: '700' as const,
     color: Colors.text,
     marginBottom: 6,
+    textAlign: 'center' as const,
   },
-  lockDesc: {
-    fontSize: 13,
+  gateDesc: {
+    fontSize: 14,
     color: Colors.textSecondary,
     textAlign: 'center' as const,
-    lineHeight: 19,
+    lineHeight: 20,
     marginBottom: 18,
-    maxWidth: 240,
+    maxWidth: 280,
   },
-  upgradeButton: {
+  gateButton: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
+    gap: 8,
     backgroundColor: '#D4956A',
-    borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 24,
-    gap: 8,
+    borderRadius: 14,
   },
-  upgradeButtonText: {
-    fontSize: 15,
+  gateButtonText: {
+    fontSize: 14,
     fontWeight: '700' as const,
     color: Colors.white,
   },
@@ -141,40 +247,38 @@ const styles = StyleSheet.create({
     borderColor: '#F5E0CC',
     marginVertical: 8,
   },
-  inlineIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+  inlineLeft: {
+    flex: 1,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 10,
+  },
+  inlineIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     backgroundColor: '#FFF0E3',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    marginRight: 10,
   },
-  inlineTextWrap: {
+  inlineText: {
     flex: 1,
-  },
-  inlineTitle: {
     fontSize: 13,
-    fontWeight: '600' as const,
-    color: Colors.text,
-  },
-  inlineDesc: {
-    fontSize: 11,
     color: Colors.textSecondary,
-    marginTop: 1,
+    lineHeight: 18,
   },
-  inlineUpgradeBtn: {
+  inlineCompact: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    backgroundColor: '#D4956A',
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
     gap: 4,
+    backgroundColor: '#FFF0E3',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 8,
   },
-  inlineUpgradeText: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-    color: Colors.white,
+  inlineCompactText: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: '#D4956A',
   },
 });

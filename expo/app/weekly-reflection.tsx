@@ -33,6 +33,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useApp } from '@/providers/AppProvider';
+import { PremiumInlinePrompt } from '@/components/PremiumGate';
 import { generateWeeklyReflection, setReflectionFeedback } from '@/services/reflection/weeklyReflectionService';
 import { WeeklyReflection, ReflectionFeedback } from '@/types/weeklyReflection';
 
@@ -163,6 +164,10 @@ export default function WeeklyReflectionScreen() {
           </View>
           <Text style={styles.headerTitle}>Weekly Reflection</Text>
           <Text style={styles.openingNarrative}>{reflection.openingNarrative}</Text>
+          <PremiumInlinePrompt
+            feature="weekly_reflection"
+            message="Upgrade for full weekly reflections and personalized growth insights."
+          />
         </Animated.View>
 
         {/* Emotional Landscape */}

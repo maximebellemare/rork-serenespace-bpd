@@ -60,6 +60,7 @@ import { buildEpisodeReplayState } from '@/services/timeline/emotionalEpisodeSer
 import RelationshipGuardBanner from '@/components/RelationshipGuardBanner';
 import { useRelationshipGuard } from '@/hooks/useRelationshipGuard';
 import RelationshipHubCard from '@/components/RelationshipHubCard';
+import PersonalizedSuggestionsCard from '@/components/PersonalizedSuggestionsCard';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -360,6 +361,10 @@ export default function HomeScreen() {
             <BehavioralCoachingCard coaching={dailyCoaching} />
           </Animated.View>
         )}
+
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <PersonalizedSuggestionsCard />
+        </Animated.View>
 
         <Animated.View style={{ opacity: fadeAnim }}>
           <AICompanionHomeCard />

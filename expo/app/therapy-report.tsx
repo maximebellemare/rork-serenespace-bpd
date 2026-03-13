@@ -35,6 +35,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useApp } from '@/providers/AppProvider';
+import { PremiumInlinePrompt } from '@/components/PremiumGate';
 import { generateTherapyReport, formatReportAsText } from '@/services/therapy/therapyReportService';
 import { TherapyReport, TherapyReportPeriod, TherapyDiscussionPrompt } from '@/types/therapyReport';
 
@@ -212,6 +213,10 @@ export default function TherapyReportScreen() {
           </View>
           <Text style={styles.headerTitle}>Session Summary</Text>
           <Text style={styles.dateRange}>{report.dateRange}</Text>
+          <PremiumInlinePrompt
+            feature="therapist_report"
+            message="Upgrade for full therapy reports with discussion prompts and sharing."
+          />
 
           <View style={styles.periodSelector}>
             {PERIOD_OPTIONS.map((opt) => (

@@ -28,6 +28,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useApp } from '@/providers/AppProvider';
+import { PremiumInlinePrompt } from '@/components/PremiumGate';
 import { buildFullEmotionalModelState } from '@/services/emotionalModel/emotionalModelService';
 import {
   EmotionalTriggerProfile,
@@ -411,6 +412,10 @@ export default function EmotionalProfileScreen() {
           <Text style={styles.heroSubtitle}>
             Your personal emotional model, built from your patterns
           </Text>
+          <PremiumInlinePrompt
+            feature="emotional_profile"
+            message="Upgrade for deep emotional pattern intelligence and personalized insights."
+          />
         </Animated.View>
 
         {!hasData ? (

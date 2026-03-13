@@ -24,11 +24,14 @@ import {
   Crown,
   Shield,
   Zap,
+  Brain,
+  Clipboard,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useSubscription } from '@/providers/SubscriptionProvider';
 import { SUBSCRIPTION_PLANS, PREMIUM_FEATURES } from '@/types/subscription';
+import { usePersonalization } from '@/hooks/usePersonalization';
 
 const ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string }>> = {
   sparkles: Sparkles,
@@ -38,17 +41,37 @@ const ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string
   'file-text': FileText,
   'trending-up': TrendingUp,
   'git-branch': GitBranch,
+  brain: Brain,
+  clipboard: Clipboard,
 };
+
+const TESTIMONIALS = [
+  {
+    text: "The weekly reflections helped me see patterns I couldn't see on my own.",
+    label: 'Pattern awareness',
+  },
+  {
+    text: "Having the AI remember my triggers made it feel like real support.",
+    label: 'Personalized support',
+  },
+  {
+    text: "The relationship copilot helped me pause before I did something I'd regret.",
+    label: 'Relationship support',
+  },
+];
 
 export default function UpgradeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { isPremium, subscribe, startTrial, restore, isSubscribing, state } = useSubscription();
+  const personalization = usePersonalization();
   const [selectedPlanId, setSelectedPlanId] = useState<string>('yearly');
+  const [testimonialIndex, setTestimonialIndex] = useState<number>(0);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const shimmerAnim = useRef(new Animated.Value(0)).current;
+  const testimonialFade = useRef(new Animated.Value(1)).current;
   const featureAnims = useRef(PREMIUM_FEATURES.map(() => new Animated.Value(0))).current;
 
   useEffect(() => {
@@ -67,8 +90,8 @@ export default function UpgradeScreen() {
 
     const shimmerLoop = Animated.loop(
       Animated.sequence([
-        Animated.timing(shimmerAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
-        Animated.timing(shimmerAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
+        Animated.timing(shimmerAnim, { toValue: 1, duration: 2500, useNativeDriver: true }),
+        Animated.timing(shimmerAnim, { toValue: 0, duration: 2500, useNativeDriver: true }),
       ])
     );
     shimmerLoop.start();
@@ -77,7 +100,7 @@ export default function UpgradeScreen() {
       Animated.timing(anim, {
         toValue: 1,
         duration: 400,
-        delay: 300 + index * 80,
+        delay: 300 + index * 60,
         useNativeDriver: true,
       }).start();
     });
@@ -86,6 +109,24 @@ export default function UpgradeScreen() {
       shimmerLoop.stop();
     };
   }, [fadeAnim, slideAnim, shimmerAnim, featureAnims]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      Animated.timing(testimonialFade, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => {
+        setTestimonialIndex(prev => (prev + 1) % TESTIMONIALS.length);
+        Animated.timing(testimonialFade, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      });
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [testimonialFade]);
 
   const handleHaptic = useCallback(() => {
     if (Platform.OS !== 'web') {
@@ -128,7 +169,7 @@ export default function UpgradeScreen() {
 
   const shimmerOpacity = shimmerAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.6, 1],
+    outputRange: [0.7, 1],
   });
 
   if (isPremium) {
@@ -144,31 +185,49 @@ export default function UpgradeScreen() {
           <View style={styles.activeBadge}>
             <Crown size={32} color="#D4956A" />
           </View>
-          <Text style={styles.activeTitle}>You're on Premium</Text>
+          <Text style={styles.activeTitle}>Premium Active</Text>
           <Text style={styles.activeSubtitle}>
             {state.isTrialActive ? 'Free trial active' : 'Full access enabled'}
           </Text>
           <View style={styles.activeInfoCard}>
             <View style={styles.activeInfoRow}>
               <Text style={styles.activeInfoLabel}>Status</Text>
-              <Text style={styles.activeInfoValue}>
-                {state.isTrialActive ? 'Trial' : 'Active'}
-              </Text>
-            </View>
-            {state.expiresAt && (
-              <View style={styles.activeInfoRow}>
-                <Text style={styles.activeInfoLabel}>Renews</Text>
+              <View style={styles.activeStatusBadge}>
+                <View style={styles.activeStatusDot} />
                 <Text style={styles.activeInfoValue}>
-                  {new Date(state.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {state.isTrialActive ? 'Trial' : 'Active'}
                 </Text>
               </View>
+            </View>
+            {state.expiresAt && (
+              <>
+                <View style={styles.activeInfoDivider} />
+                <View style={styles.activeInfoRow}>
+                  <Text style={styles.activeInfoLabel}>Renews</Text>
+                  <Text style={styles.activeInfoValue}>
+                    {new Date(state.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </Text>
+                </View>
+              </>
             )}
             {state.plan && (
-              <View style={styles.activeInfoRow}>
-                <Text style={styles.activeInfoLabel}>Plan</Text>
-                <Text style={styles.activeInfoValue}>{state.plan.priceLabel}</Text>
-              </View>
+              <>
+                <View style={styles.activeInfoDivider} />
+                <View style={styles.activeInfoRow}>
+                  <Text style={styles.activeInfoLabel}>Plan</Text>
+                  <Text style={styles.activeInfoValue}>{state.plan.priceLabel}</Text>
+                </View>
+              </>
             )}
+          </View>
+          <View style={styles.activeFeaturesList}>
+            <Text style={styles.activeFeatureHeader}>What's included</Text>
+            {PREMIUM_FEATURES.slice(0, 5).map((f) => (
+              <View key={f.id} style={styles.activeFeatureRow}>
+                <Check size={14} color={Colors.success} />
+                <Text style={styles.activeFeatureText}>{f.title}</Text>
+              </View>
+            ))}
           </View>
           <TouchableOpacity style={styles.doneBtn} onPress={() => router.back()}>
             <Text style={styles.doneBtnText}>Done</Text>
@@ -194,15 +253,58 @@ export default function UpgradeScreen() {
       >
         <Animated.View style={[styles.heroSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <Animated.View style={[styles.heroIconWrap, { opacity: shimmerOpacity }]}>
-            <Crown size={36} color="#D4956A" />
+            <Crown size={32} color="#D4956A" />
           </Animated.View>
           <Text style={styles.heroTitle}>Deeper Support{'\n'}When You Need It</Text>
           <Text style={styles.heroSubtitle}>
-            Unlock advanced AI guidance, personalized therapy plans, and insights that grow with you.
+            Unlock personalized insights, unlimited AI guidance, and advanced tools that grow with you.
           </Text>
         </Animated.View>
 
+        {personalization.recentDistressAvg > 0 && (
+          <Animated.View style={[styles.personalizationCard, { opacity: fadeAnim }]}>
+            <Sparkles size={14} color={Colors.primary} />
+            <Text style={styles.personalizationText}>
+              {personalization.isRelationshipActivated
+                ? 'Relationship stress seems active lately — premium unlocks deeper relationship support tools.'
+                : personalization.recentDistressAvg >= 6
+                  ? 'It seems like an intense week — premium gives you unlimited AI support and deeper insights.'
+                  : 'Premium can help you understand your patterns and build on your progress.'}
+            </Text>
+          </Animated.View>
+        )}
+
+        <Animated.View style={[styles.testimonialCard, { opacity: fadeAnim }]}>
+          <Animated.View style={{ opacity: testimonialFade }}>
+            <Text style={styles.testimonialText}>
+              "{TESTIMONIALS[testimonialIndex].text}"
+            </Text>
+            <Text style={styles.testimonialLabel}>
+              {TESTIMONIALS[testimonialIndex].label}
+            </Text>
+          </Animated.View>
+        </Animated.View>
+
+        <Animated.View style={[styles.freeVsPremiumSection, { opacity: fadeAnim }]}>
+          <Text style={styles.comparisonTitle}>What stays free</Text>
+          <View style={styles.freeList}>
+            {[
+              'Check-ins & journaling',
+              'Basic coping tools',
+              'Safety mode & crisis support',
+              'Limited AI conversations',
+              'Basic message rewriting',
+            ].map((item, i) => (
+              <View key={i} style={styles.freeRow}>
+                <Check size={13} color={Colors.success} />
+                <Text style={styles.freeRowText}>{item}</Text>
+              </View>
+            ))}
+          </View>
+        </Animated.View>
+
         <Animated.View style={[styles.featuresSection, { opacity: fadeAnim }]}>
+          <Text style={styles.comparisonTitle}>What Premium unlocks</Text>
           {PREMIUM_FEATURES.map((feature, index) => {
             const IconComponent = ICON_MAP[feature.icon] ?? Sparkles;
             return (
@@ -215,21 +317,21 @@ export default function UpgradeScreen() {
                     transform: [{
                       translateX: featureAnims[index].interpolate({
                         inputRange: [0, 1],
-                        outputRange: [-20, 0],
+                        outputRange: [-16, 0],
                       }),
                     }],
                   },
                 ]}
               >
                 <View style={styles.featureIconWrap}>
-                  <IconComponent size={18} color={Colors.primary} />
+                  <IconComponent size={16} color={Colors.primary} />
                 </View>
                 <View style={styles.featureTextWrap}>
                   <Text style={styles.featureTitle}>{feature.title}</Text>
                   <Text style={styles.featureDesc}>{feature.description}</Text>
                 </View>
                 <View style={styles.featureCheck}>
-                  <Check size={14} color={Colors.success} />
+                  <Crown size={11} color="#D4956A" />
                 </View>
               </Animated.View>
             );
@@ -288,7 +390,7 @@ export default function UpgradeScreen() {
             disabled={isSubscribing}
             testID="subscribe-btn"
           >
-            <Crown size={20} color={Colors.white} />
+            <Crown size={18} color={Colors.white} />
             <Text style={styles.ctaButtonText}>
               {isSubscribing ? 'Processing...' : `Subscribe ${selectedPlan?.priceLabel ?? ''}`}
             </Text>
@@ -300,15 +402,15 @@ export default function UpgradeScreen() {
             activeOpacity={0.7}
             testID="trial-btn"
           >
-            <Zap size={16} color={Colors.primary} />
+            <Zap size={15} color={Colors.primary} />
             <Text style={styles.trialButtonText}>Start 7-day free trial</Text>
           </TouchableOpacity>
         </Animated.View>
 
         <View style={styles.trustSection}>
           <View style={styles.trustRow}>
-            <Shield size={14} color={Colors.textMuted} />
-            <Text style={styles.trustText}>Cancel anytime</Text>
+            <Shield size={13} color={Colors.textMuted} />
+            <Text style={styles.trustText}>Cancel anytime · No commitment</Text>
           </View>
           <TouchableOpacity onPress={handleRestore}>
             <Text style={styles.restoreText}>Restore purchase</Text>
@@ -317,7 +419,7 @@ export default function UpgradeScreen() {
 
         <View style={styles.disclaimerSection}>
           <Text style={styles.disclaimerText}>
-            This is a companion app, not a replacement for therapy or medical advice. Subscription auto-renews unless cancelled at least 24 hours before the end of the current period.
+            This is a companion app, not a replacement for therapy or medical advice. Crisis support and basic care are always free. Subscription auto-renews unless cancelled at least 24 hours before the end of the current period.
           </Text>
         </View>
 
@@ -352,17 +454,17 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     alignItems: 'center' as const,
-    paddingTop: 8,
-    paddingBottom: 28,
+    paddingTop: 4,
+    paddingBottom: 24,
   },
   heroIconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
+    width: 68,
+    height: 68,
+    borderRadius: 22,
     backgroundColor: '#FFF5EB',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    marginBottom: 20,
+    marginBottom: 18,
     borderWidth: 2,
     borderColor: '#F5E0CC',
   },
@@ -373,7 +475,7 @@ const styles = StyleSheet.create({
     textAlign: 'center' as const,
     letterSpacing: -0.5,
     lineHeight: 36,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   heroSubtitle: {
     fontSize: 15,
@@ -381,6 +483,71 @@ const styles = StyleSheet.create({
     textAlign: 'center' as const,
     lineHeight: 22,
     maxWidth: 300,
+  },
+  personalizationCard: {
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
+    gap: 10,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+  },
+  personalizationText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.primaryDark,
+    lineHeight: 19,
+  },
+  testimonialCard: {
+    backgroundColor: Colors.warmGlow,
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: Colors.accentLight,
+    minHeight: 80,
+  },
+  testimonialText: {
+    fontSize: 14,
+    color: Colors.text,
+    fontStyle: 'italic' as const,
+    lineHeight: 21,
+    marginBottom: 8,
+  },
+  testimonialLabel: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    fontWeight: '600' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  freeVsPremiumSection: {
+    marginBottom: 20,
+  },
+  comparisonTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    marginBottom: 12,
+    letterSpacing: -0.2,
+  },
+  freeList: {
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    gap: 10,
+  },
+  freeRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 10,
+  },
+  freeRowText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
   },
   featuresSection: {
     marginBottom: 28,
@@ -390,15 +557,15 @@ const styles = StyleSheet.create({
     alignItems: 'center' as const,
     backgroundColor: Colors.card,
     borderRadius: 14,
-    padding: 14,
-    marginBottom: 8,
+    padding: 13,
+    marginBottom: 6,
     borderWidth: 1,
     borderColor: Colors.borderLight,
   },
   featureIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     backgroundColor: Colors.primaryLight,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
@@ -411,18 +578,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600' as const,
     color: Colors.text,
-    marginBottom: 2,
+    marginBottom: 1,
   },
   featureDesc: {
     fontSize: 12,
     color: Colors.textSecondary,
-    lineHeight: 17,
+    lineHeight: 16,
   },
   featureCheck: {
     width: 24,
     height: 24,
-    borderRadius: 12,
-    backgroundColor: Colors.successLight,
+    borderRadius: 8,
+    backgroundColor: '#FFF0E3',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     marginLeft: 8,
@@ -594,13 +761,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   activeBadge: {
-    width: 80,
-    height: 80,
-    borderRadius: 26,
+    width: 76,
+    height: 76,
+    borderRadius: 24,
     backgroundColor: '#FFF5EB',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    marginBottom: 24,
+    marginBottom: 20,
     borderWidth: 2,
     borderColor: '#F5E0CC',
   },
@@ -608,28 +775,31 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '800' as const,
     color: Colors.text,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   activeSubtitle: {
     fontSize: 15,
     color: Colors.textSecondary,
-    marginBottom: 28,
+    marginBottom: 24,
   },
   activeInfoCard: {
     backgroundColor: Colors.card,
     borderRadius: 18,
-    padding: 20,
+    padding: 18,
     width: '100%' as const,
     borderWidth: 1,
     borderColor: Colors.borderLight,
-    marginBottom: 28,
+    marginBottom: 20,
   },
   activeInfoRow: {
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
     paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+  },
+  activeInfoDivider: {
+    height: 1,
+    backgroundColor: Colors.borderLight,
   },
   activeInfoLabel: {
     fontSize: 14,
@@ -638,6 +808,44 @@ const styles = StyleSheet.create({
   activeInfoValue: {
     fontSize: 14,
     fontWeight: '600' as const,
+    color: Colors.text,
+  },
+  activeStatusBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+  },
+  activeStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.success,
+  },
+  activeFeaturesList: {
+    width: '100%' as const,
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    marginBottom: 24,
+  },
+  activeFeatureHeader: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.textMuted,
+    marginBottom: 12,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  activeFeatureRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 10,
+    marginBottom: 8,
+  },
+  activeFeatureText: {
+    fontSize: 14,
     color: Colors.text,
   },
   doneBtn: {
