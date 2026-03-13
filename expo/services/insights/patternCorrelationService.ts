@@ -1,6 +1,7 @@
 import { JournalEntry, MessageDraft } from '@/types';
 import { MedicationLog } from '@/types/medication';
 import { Appointment } from '@/types/appointment';
+import { MovementEntry } from '@/types/movement';
 
 const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
 
@@ -375,6 +376,66 @@ export interface ManagedOutcomeCorrelation {
   managedWithoutCoping: number;
   totalManaged: number;
   totalEntries: number;
+}
+
+export interface MovementMoodCorrelation {
+  totalEntries: number;
+  avgMoodShift: number;
+  improvedCount: number;
+  improvedRate: number;
+  avgDistressOnMovementDays: number;
+  avgDistressOnNonMovementDays: number;
+  distressDifference: number;
+}
+
+export function analyzeMovementMoodCorrelation(
+  entries: JournalEntry[],
+  movementEntries: MovementEntry[],
+  days: number = 30,
+): MovementMoodCorrelation | null {
+  console.log('[PatternCorrelation] Analyzing movement-mood correlation');
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const recentJournal = entries.filter(e => e.timestamp >= cutoff);
+  const recentMovement = movementEntries.filter(e => e.timestamp >= cutoff);
+
+  if (recentMovement.length < 2 || recentJournal.length < 3) return null;
+
+  const improved = recentMovement.filter(m => m.moodAfter > m.moodBefore);
+  const totalShift = recentMovement.reduce((s, m) => s + (m.moodAfter - m.moodBefore), 0);
+  const avgShift = Math.round((totalShift / recentMovement.length) * 10) / 10;
+
+  const movementDays = new Set<string>();
+  recentMovement.forEach(m => movementDays.add(getDateKey(m.timestamp)));
+
+  const dayEntries = getDayEntries(recentJournal);
+  let totalMovDay = 0;
+  let countMovDay = 0;
+  let totalNonMovDay = 0;
+  let countNonMovDay = 0;
+
+  dayEntries.forEach((dayE, key) => {
+    const avg = averageIntensity(dayE);
+    if (movementDays.has(key)) {
+      totalMovDay += avg;
+      countMovDay++;
+    } else {
+      totalNonMovDay += avg;
+      countNonMovDay++;
+    }
+  });
+
+  const avgMovDay = countMovDay > 0 ? Math.round((totalMovDay / countMovDay) * 10) / 10 : 0;
+  const avgNonMovDay = countNonMovDay > 0 ? Math.round((totalNonMovDay / countNonMovDay) * 10) / 10 : 0;
+
+  return {
+    totalEntries: recentMovement.length,
+    avgMoodShift: avgShift,
+    improvedCount: improved.length,
+    improvedRate: Math.round((improved.length / recentMovement.length) * 100),
+    avgDistressOnMovementDays: avgMovDay,
+    avgDistressOnNonMovementDays: avgNonMovDay,
+    distressDifference: Math.round((avgNonMovDay - avgMovDay) * 10) / 10,
+  };
 }
 
 export function analyzeManagedOutcomes(

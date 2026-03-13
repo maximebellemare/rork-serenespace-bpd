@@ -15,6 +15,7 @@ import { OnboardingProvider } from "@/providers/OnboardingProvider";
 import { MedicationProvider } from "@/providers/MedicationProvider";
 import { AppointmentProvider } from "@/providers/AppointmentProvider";
 import { RewardsProvider } from "@/providers/RewardsProvider";
+import { MovementProvider } from "@/providers/MovementProvider";
 import Colors from "@/constants/colors";
 import DeferredProviders from "@/components/DeferredProviders";
 import OnboardingGate from "@/components/OnboardingGate";
@@ -408,6 +409,27 @@ function RootLayoutNav() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="movement-log"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="movement-add"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="movement-history"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }
@@ -431,6 +453,7 @@ export default function RootLayout() {
                         <MedicationProvider>
                         <AppointmentProvider>
                         <RewardsProvider>
+                        <MovementProvider>
                         <NotificationEntryProvider>
                           {NotificationManagerLazy && (
                             <Suspense fallback={null}>
@@ -440,6 +463,7 @@ export default function RootLayout() {
                           <OnboardingGate />
                           <RootLayoutNav />
                         </NotificationEntryProvider>
+                        </MovementProvider>
                         </RewardsProvider>
                         </AppointmentProvider>
                         </MedicationProvider>

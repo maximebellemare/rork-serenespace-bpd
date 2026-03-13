@@ -16,7 +16,9 @@ import {
   analyzeMedicationMoodAfter,
   analyzeTimeOfDayCorrelation,
   analyzeManagedOutcomes,
+  analyzeMovementMoodCorrelation,
 } from './patternCorrelationService';
+import { MovementEntry } from '@/types/movement';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CORRELATION_INSIGHTS_KEY = 'correlation_insights';
@@ -39,6 +41,7 @@ export function generateCorrelationInsights(
   messageDrafts: MessageDraft[],
   medicationLogs: MedicationLog[],
   appointments: Appointment[],
+  movementEntries: MovementEntry[] = [],
 ): CorrelationInsight[] {
   console.log('[CorrelationInsight] Generating from', entries.length, 'entries,', medicationLogs.length, 'med logs,', appointments.length, 'appointments');
 
@@ -225,6 +228,45 @@ export function generateCorrelationInsights(
       generatedAt: now,
       viewed: false,
     });
+  }
+
+  const movementMood = analyzeMovementMoodCorrelation(entries, movementEntries);
+  if (movementMood && movementMood.totalEntries >= 2) {
+    if (movementMood.avgMoodShift > 0.2) {
+      insights.push({
+        id: `corr_movement_mood_${now}`,
+        category: 'movement_mood',
+        title: 'Movement seems to lift your mood',
+        narrative: `After moving, your mood improved ${movementMood.improvedRate}% of the time (${movementMood.improvedCount} out of ${movementMood.totalEntries} sessions), with an average shift of +${movementMood.avgMoodShift}.`,
+        supportiveNote: 'Even gentle movement can shift your nervous system. This is a real regulation tool.',
+        strength: strengthFromDifference(movementMood.avgMoodShift),
+        direction: 'positive',
+        confidence: Math.min(0.5 + movementMood.totalEntries * 0.05, 0.9),
+        dataPoints: movementMood.totalEntries,
+        sourceA: 'Movement logs',
+        sourceB: 'Before/after mood',
+        generatedAt: now,
+        viewed: false,
+      });
+    }
+
+    if (movementMood.distressDifference > 0.3) {
+      insights.push({
+        id: `corr_movement_distress_${now}`,
+        category: 'movement_mood',
+        title: 'Movement days tend to be calmer',
+        narrative: `On days with movement, distress averaged ${movementMood.avgDistressOnMovementDays}/10 compared to ${movementMood.avgDistressOnNonMovementDays}/10 on other days.`,
+        supportiveNote: 'Movement may be creating a protective effect on harder days. That is worth noticing.',
+        strength: strengthFromDifference(movementMood.distressDifference),
+        direction: 'positive',
+        confidence: Math.min(0.4 + movementMood.totalEntries * 0.04, 0.85),
+        dataPoints: movementMood.totalEntries,
+        sourceA: 'Movement logs',
+        sourceB: 'Daily distress',
+        generatedAt: now,
+        viewed: false,
+      });
+    }
   }
 
   const sorted = insights.sort((a, b) => b.confidence - a.confidence);

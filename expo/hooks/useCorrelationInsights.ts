@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from '@/providers/AppProvider';
 import { useMedications } from '@/providers/MedicationProvider';
 import { useAppointments } from '@/providers/AppointmentProvider';
+import { useMovement } from '@/providers/MovementProvider';
 import {
   generateCorrelationInsights,
   buildCorrelationSummary,
@@ -17,6 +18,7 @@ export function useCorrelationInsights() {
   const { journalEntries, messageDrafts } = useApp();
   const { logs: medicationLogs } = useMedications();
   const { appointments } = useAppointments();
+  const { entries: movementEntries } = useMovement();
   const queryClient = useQueryClient();
 
   const storedQuery = useQuery({
@@ -31,8 +33,9 @@ export function useCorrelationInsights() {
       messageDrafts,
       medicationLogs,
       appointments,
+      movementEntries,
     );
-  }, [journalEntries, messageDrafts, medicationLogs, appointments]);
+  }, [journalEntries, messageDrafts, medicationLogs, appointments, movementEntries]);
 
   const summary = useMemo(
     () => buildCorrelationSummary(currentInsights),
@@ -51,6 +54,7 @@ export function useCorrelationInsights() {
         messageDrafts,
         medicationLogs,
         appointments,
+        movementEntries,
       );
       await saveCorrelationInsights(insights);
       void trackEvent('correlation_insight_generated', { count: insights.length });
