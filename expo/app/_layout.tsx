@@ -11,8 +11,10 @@ import { SubscriptionProvider } from "@/providers/SubscriptionProvider";
 import { EmotionalContextProvider } from "@/providers/EmotionalContextProvider";
 import { AnalyticsProvider } from "@/providers/AnalyticsProvider";
 import { NotificationEntryProvider } from "@/providers/NotificationEntryProvider";
+import { OnboardingProvider } from "@/providers/OnboardingProvider";
 import Colors from "@/constants/colors";
 import DeferredProviders from "@/components/DeferredProviders";
+import OnboardingGate from "@/components/OnboardingGate";
 const NotificationManagerLazy = Platform.OS !== 'web' 
   ? lazy(() => import("@/components/NotificationManager"))
   : null;
@@ -32,6 +34,13 @@ function RootLayoutNav() {
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="onboarding"
+        options={{
+          headerShown: false,
+          gestureEnabled: false,
+        }}
+      />
       <Stack.Screen
         name="check-in"
         options={{
@@ -347,24 +356,27 @@ export default function RootLayout() {
       <GestureHandlerRootView>
         <AppProvider>
           <AnalyticsProvider>
-            <SubscriptionProvider>
-              <ProfileProvider>
-                <DeferredProviders>
-                  <AICompanionProvider>
-                    <EmotionalContextProvider>
-                      <NotificationEntryProvider>
-                        {NotificationManagerLazy && (
-                          <Suspense fallback={null}>
-                            <NotificationManagerLazy />
-                          </Suspense>
-                        )}
-                        <RootLayoutNav />
-                      </NotificationEntryProvider>
-                    </EmotionalContextProvider>
-                  </AICompanionProvider>
-                </DeferredProviders>
-              </ProfileProvider>
-            </SubscriptionProvider>
+            <OnboardingProvider>
+              <SubscriptionProvider>
+                <ProfileProvider>
+                  <DeferredProviders>
+                    <AICompanionProvider>
+                      <EmotionalContextProvider>
+                        <NotificationEntryProvider>
+                          {NotificationManagerLazy && (
+                            <Suspense fallback={null}>
+                              <NotificationManagerLazy />
+                            </Suspense>
+                          )}
+                          <OnboardingGate />
+                          <RootLayoutNav />
+                        </NotificationEntryProvider>
+                      </EmotionalContextProvider>
+                    </AICompanionProvider>
+                  </DeferredProviders>
+                </ProfileProvider>
+              </SubscriptionProvider>
+            </OnboardingProvider>
           </AnalyticsProvider>
         </AppProvider>
       </GestureHandlerRootView>

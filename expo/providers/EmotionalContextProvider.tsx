@@ -3,7 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '@/providers/AppProvider';
+import { useOnboarding } from '@/providers/OnboardingProvider';
+import { getPersonalizedCardBoosts } from '@/services/onboarding/personalizationService';
 import { JournalEntry, MessageDraft } from '@/types';
+import { HomeCardBoost } from '@/services/onboarding/personalizationService';
 import { SafetyState } from '@/types/safetyPredictor';
 import { predictEmotionalSafety } from '@/services/prediction/emotionalPredictor';
 
@@ -263,6 +266,7 @@ function computeHomePriorities(
   context: ActiveContext,
   phase: JourneyPhase,
   safetyState: SafetyState = 'calm',
+  onboardingBoosts: HomeCardBoost[] = [],
 ): HomePriority[] {
   const priorities: HomePriority[] = [];
 
@@ -337,12 +341,23 @@ function computeHomePriorities(
 
   add('upgrade_prompt', isCalm || isRecovering ? 35 : 99, isCalm || isRecovering);
 
+  onboardingBoosts.forEach(boost => {
+    const existing = priorities.find(p => p.key === boost.key);
+    if (existing) {
+      existing.priority = Math.max(1, existing.priority + boost.priorityBoost);
+      if (boost.forceVisible) {
+        existing.visible = true;
+      }
+    }
+  });
+
   return priorities.sort((a, b) => a.priority - b.priority);
 };
 
 export const [EmotionalContextProvider, useEmotionalContext] = createContextHook(() => {
   const queryClient = useQueryClient();
   const { journalEntries, messageDrafts } = useApp();
+  const { onboardingProfile } = useOnboarding();
   const [journeyOverride, setJourneyOverride] = useState<JourneyPhase | null>(null);
   const [outcomes, setOutcomes] = useState<OutcomeRecord[]>([]);
 
@@ -390,9 +405,14 @@ export const [EmotionalContextProvider, useEmotionalContext] = createContextHook
     [journalEntries, messageDrafts],
   );
 
+  const onboardingBoosts = useMemo(
+    () => getPersonalizedCardBoosts(onboardingProfile),
+    [onboardingProfile],
+  );
+
   const homePriorities = useMemo(
-    () => computeHomePriorities(zone, activeContext, journeyPhase, safetyPrediction.state),
-    [zone, activeContext, journeyPhase, safetyPrediction.state],
+    () => computeHomePriorities(zone, activeContext, journeyPhase, safetyPrediction.state, onboardingBoosts),
+    [zone, activeContext, journeyPhase, safetyPrediction.state, onboardingBoosts],
   );
 
   const bestNextIntervention = useMemo<Intervention>(
