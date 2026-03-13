@@ -122,7 +122,7 @@ export function refineResponse(
       .replace(/immediately/gi, 'soon')
       .replace(/ASAP/gi, 'when it works for you')
       .replace(/losing my mind/gi, 'feeling uncertain')
-      .replace(/I need an answer/gi, 'I'd value hearing your thoughts');
+      .replace(/I need an answer/gi, "I'd value hearing your thoughts");
   }
 
   if (tools.includes('add_clarity')) {
