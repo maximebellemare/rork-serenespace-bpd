@@ -32,6 +32,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { RegulationStep, BreathingDuration, UrgeSurfingState, HelpNotTextState } from '@/types/crisis';
+import { useAnalytics } from '@/providers/AnalyticsProvider';
 import {
   REGULATION_URGES,
   ENTRY_CHOICES,
@@ -67,6 +68,12 @@ const BREATHE_OUT = 6000;
 export default function CrisisRegulationScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { trackEvent, trackFlowStart } = useAnalytics();
+
+  useEffect(() => {
+    trackFlowStart('crisis_regulation');
+    trackEvent('crisis_regulation_started');
+  }, [trackFlowStart, trackEvent]);
 
   const [currentStep, setCurrentStep] = useState<RegulationStep>('entry');
   const [entryMessage] = useState<string>(() => getEntryMessage());

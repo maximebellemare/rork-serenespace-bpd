@@ -26,6 +26,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useRelationshipCopilot } from '@/hooks/useRelationshipCopilot';
+import { useAnalytics } from '@/providers/AnalyticsProvider';
 import PostActionReflection from '@/components/PostActionReflection';
 import {
   CopilotSituation,
@@ -79,6 +80,13 @@ export default function RelationshipCopilotScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { startSession, profiles } = useRelationshipCopilot();
+
+  const { trackEvent, trackFlowStart, trackFlowComplete } = useAnalytics();
+
+  useEffect(() => {
+    trackFlowStart('relationship_copilot');
+    trackEvent('relationship_copilot_opened');
+  }, [trackFlowStart, trackEvent]);
 
   const [step, setStep] = useState<Step>('profile');
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
@@ -185,6 +193,13 @@ export default function RelationshipCopilotScreen() {
     try {
       const session = await startSession(intake);
       setResult(session.result);
+      trackFlowComplete('relationship_copilot', {
+        situation: situation ?? '',
+        intensity,
+        urge: urge ?? '',
+        need: n,
+      });
+      trackEvent('relationship_copilot_completed', { intensity });
       animateTransition('result');
       setTimeout(() => {
         Animated.timing(resultFade, { toValue: 1, duration: 600, useNativeDriver: true }).start();
@@ -192,7 +207,7 @@ export default function RelationshipCopilotScreen() {
     } catch (err) {
       console.log('[CopilotScreen] Error starting session:', err);
     }
-  }, [situation, emotions, urge, intensity, selectedProfileId, handleHaptic, startSession, animateTransition, resultFade]);
+  }, [situation, emotions, urge, intensity, selectedProfileId, handleHaptic, startSession, animateTransition, resultFade, trackFlowComplete, trackEvent]);
 
   const handleNextStep = useCallback((route?: string) => {
     handleHaptic();

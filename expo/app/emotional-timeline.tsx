@@ -30,6 +30,7 @@ import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useApp } from '@/providers/AppProvider';
 import { PremiumInlinePrompt } from '@/components/PremiumGate';
+import { useAnalytics } from '@/providers/AnalyticsProvider';
 import {
   buildEpisodeReplayState,
 } from '@/services/timeline/emotionalEpisodeService';
@@ -407,7 +408,13 @@ export default function EmotionalTimelineReplayScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { journalEntries, messageDrafts } = useApp();
+  const { trackEvent } = useAnalytics();
   const [selectedEpisode, setSelectedEpisode] = useState<EmotionalEpisode | null>(null);
+
+  useEffect(() => {
+    trackEvent('emotional_timeline_viewed');
+    trackEvent('screen_view', { screen: 'emotional_timeline' });
+  }, [trackEvent]);
 
   const replayState = useMemo(
     () => buildEpisodeReplayState(journalEntries, messageDrafts),

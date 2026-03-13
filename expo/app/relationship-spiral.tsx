@@ -33,6 +33,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useRelationshipSpiral } from '@/hooks/useRelationshipSpiral';
+import { useAnalytics } from '@/providers/AnalyticsProvider';
 import { useRelationshipGuard } from '@/hooks/useRelationshipGuard';
 import { SpiralRiskLevel, SpiralIntervention, SpiralChain, SpiralSignal } from '@/types/relationshipPrediction';
 import { RiskInterpretation } from '@/services/prediction/relationshipRiskInterpreter';
@@ -73,7 +74,13 @@ export default function RelationshipSpiralScreen() {
   const insets = useSafeAreaInsets();
   const spiral = useRelationshipSpiral();
   const guard = useRelationshipGuard();
+  const { trackEvent } = useAnalytics();
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    trackEvent('relationship_spiral_detected');
+    trackEvent('screen_view', { screen: 'relationship_spiral' });
+  }, [trackEvent]);
   const slideAnim = useRef(new Animated.Value(20)).current;
   const [expandedSim, setExpandedSim] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'guard' | 'signals'>('guard');

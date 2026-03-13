@@ -19,6 +19,7 @@ import { useApp } from '@/providers/AppProvider';
 import { Emotion, Trigger, BodySensation, Urge, CheckInEntry, JournalEntry } from '@/types';
 import { generateCheckInRecommendations } from '@/services/recommendation/copingRecommendationService';
 import { CopingRecommendation } from '@/types/recommendation';
+import { useAnalytics } from '@/providers/AnalyticsProvider';
 
 const STEPS = ['triggers', 'emotions', 'body', 'urges', 'intensity', 'notes', 'suggestions'] as const;
 
@@ -51,6 +52,12 @@ export default function CheckInScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { addJournalEntry, setDistressLevel } = useApp();
+  const { trackEvent, trackFlowStart, trackFlowComplete } = useAnalytics();
+
+  useEffect(() => {
+    trackFlowStart('check_in');
+    trackEvent('screen_view', { screen: 'check_in' });
+  }, [trackFlowStart, trackEvent]);
 
   const [stepIndex, setStepIndex] = useState<number>(0);
   const [selectedTriggers, setSelectedTriggers] = useState<Trigger[]>([]);
@@ -146,6 +153,17 @@ export default function CheckInScreen() {
 
     addJournalEntry(entry);
 
+    trackFlowComplete('check_in', {
+      intensity,
+      trigger_count: selectedTriggers.length,
+      emotion_count: selectedEmotions.length,
+      urge_count: selectedUrges.length,
+    });
+    trackEvent('check_in_completed', {
+      intensity,
+      trigger_count: selectedTriggers.length,
+    });
+
     if (intensity >= 8) {
       setDistressLevel('crisis');
     } else if (intensity >= 6) {
@@ -173,7 +191,7 @@ export default function CheckInScreen() {
         setTimeout(() => router.push('/safety-mode'), 300);
       }
     }
-  }, [selectedTriggers, selectedEmotions, selectedUrges, selectedSensations, intensity, notes, addJournalEntry, setDistressLevel, router, animateTransition]);
+  }, [selectedTriggers, selectedEmotions, selectedUrges, selectedSensations, intensity, notes, addJournalEntry, setDistressLevel, router, animateTransition, trackFlowComplete, trackEvent]);
 
   const handleComplete = useCallback(() => {
     router.back();

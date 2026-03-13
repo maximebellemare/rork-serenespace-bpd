@@ -24,6 +24,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useApp } from '@/providers/AppProvider';
+import { useAnalytics } from '@/providers/AnalyticsProvider';
 import { generateReflectionMirror } from '@/services/reflection/reflectionMirrorService';
 import { ReflectionTheme, RelationshipPattern, CopingInsight, GrowthSignal } from '@/types/reflectionMirror';
 
@@ -164,6 +165,12 @@ export default function ReflectionMirrorScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { journalEntries, messageDrafts } = useApp();
+  const { trackEvent } = useAnalytics();
+
+  useEffect(() => {
+    trackEvent('reflection_mirror_viewed');
+    trackEvent('screen_view', { screen: 'reflection_mirror' });
+  }, [trackEvent]);
 
   const headerFade = useRef(new Animated.Value(0)).current;
   const shimmerAnim = useRef(new Animated.Value(0)).current;

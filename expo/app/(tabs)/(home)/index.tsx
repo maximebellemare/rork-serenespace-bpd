@@ -63,6 +63,7 @@ import RelationshipHubCard from '@/components/RelationshipHubCard';
 import PersonalizedSuggestionsCard from '@/components/PersonalizedSuggestionsCard';
 import JourneyFlowBanner from '@/components/JourneyFlowBanner';
 import { useEmotionalContext } from '@/providers/EmotionalContextProvider';
+import { useAnalytics } from '@/providers/AnalyticsProvider';
 
 interface CardSlot {
   key: string;
@@ -86,6 +87,11 @@ export default function HomeScreen() {
   const { recentRelationshipDistress, lastSession } = useRelationshipCopilot();
   const stormWarning = useStormEarlyWarning();
   const relationshipGuard = useRelationshipGuard();
+  const { trackEvent } = useAnalytics();
+
+  useEffect(() => {
+    trackEvent('screen_view', { screen: 'home' });
+  }, [trackEvent]);
 
   const weeklyReflection = useMemo(
     () => generateWeeklyReflection(journalEntries, messageDrafts),

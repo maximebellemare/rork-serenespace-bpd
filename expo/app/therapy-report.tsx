@@ -36,6 +36,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useApp } from '@/providers/AppProvider';
+import { useAnalytics } from '@/providers/AnalyticsProvider';
 import { PremiumInlinePrompt } from '@/components/PremiumGate';
 import { generateTherapyReport, formatReportAsText } from '@/services/therapy/therapyReportService';
 import { TherapyReport, TherapyReportPeriod, TherapyDiscussionPrompt } from '@/types/therapyReport';
@@ -50,7 +51,13 @@ export default function TherapyReportScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { journalEntries, messageDrafts } = useApp();
+  const { trackEvent } = useAnalytics();
   const [selectedPeriod, setSelectedPeriod] = useState<TherapyReportPeriod>('7');
+
+  useEffect(() => {
+    trackEvent('therapy_report_viewed');
+    trackEvent('screen_view', { screen: 'therapy_report' });
+  }, [trackEvent]);
   const [isExporting, setIsExporting] = useState<boolean>(false);
 
   const report = useMemo<TherapyReport>(

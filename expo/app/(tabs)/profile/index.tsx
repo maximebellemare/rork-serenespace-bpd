@@ -35,6 +35,7 @@ import {
   Fingerprint,
   Brain,
   BookOpen,
+  Bug,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
@@ -612,6 +613,21 @@ export default function ProfileScreen() {
                 thumbColor={profile.privacy.lockAppWithBiometrics ? Colors.primary : Colors.textMuted}
               />
             </View>
+          </View>
+        </Animated.View>
+
+        <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+          <Text style={styles.sectionLabel}>DEVELOPER</Text>
+          <View style={styles.navGroup}>
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: '#E6F0FF' }]}>
+                <Bug size={16} color="#3B82F6" />
+              </View>,
+              'Analytics Debug',
+              'View tracked events and flow metrics',
+              () => router.push('/profile/analytics-debug' as never),
+              'analytics-debug-btn',
+            )}
           </View>
         </Animated.View>
 

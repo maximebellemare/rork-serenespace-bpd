@@ -1,30 +1,25 @@
 import { AnalyticsEvent, AnalyticsUserProperties } from '@/types/analytics';
 import { IAnalyticsRepository } from './types';
+import { analyticsEngine } from '@/services/analytics/analyticsEngine';
+import { localEventStore } from '@/services/analytics/localEventStore';
 
 export class LocalAnalyticsRepository implements IAnalyticsRepository {
-  private events: AnalyticsEvent[] = [];
   private userProperties: AnalyticsUserProperties = {};
 
   async trackEvent(name: string, properties?: Record<string, string | number | boolean>): Promise<void> {
-    const event: AnalyticsEvent = {
-      name,
-      properties,
-      timestamp: Date.now(),
-    };
-    this.events.push(event);
-    console.log('[Analytics] Event tracked:', name, properties ?? '');
+    return analyticsEngine.trackEvent(name, properties);
   }
 
   async setUserProperties(properties: AnalyticsUserProperties): Promise<void> {
     this.userProperties = { ...this.userProperties, ...properties };
-    console.log('[Analytics] User properties updated:', properties);
+    return analyticsEngine.setUserProperties(properties);
   }
 
   async getEvents(): Promise<AnalyticsEvent[]> {
-    return [...this.events];
+    return localEventStore.getEvents();
   }
 
   async flush(): Promise<void> {
-    console.log('[Analytics] Flushing', this.events.length, 'events (no-op in local mode)');
+    return analyticsEngine.flush();
   }
 }

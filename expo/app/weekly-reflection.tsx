@@ -8,8 +8,7 @@ import {
   Animated,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Stack } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   X,
@@ -34,6 +33,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useApp } from '@/providers/AppProvider';
+import { useAnalytics } from '@/providers/AnalyticsProvider';
 import { PremiumInlinePrompt } from '@/components/PremiumGate';
 import { generateWeeklyReflection, setReflectionFeedback } from '@/services/reflection/weeklyReflectionService';
 import { WeeklyReflection, ReflectionFeedback } from '@/types/weeklyReflection';
@@ -42,7 +42,13 @@ export default function WeeklyReflectionScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { journalEntries, messageDrafts } = useApp();
+  const { trackEvent } = useAnalytics();
   const [selectedFeedback, setSelectedFeedback] = useState<ReflectionFeedback | null>(null);
+
+  useEffect(() => {
+    trackEvent('weekly_reflection_viewed');
+    trackEvent('screen_view', { screen: 'weekly_reflection' });
+  }, [trackEvent]);
 
   const reflection = useMemo<WeeklyReflection>(
     () => generateWeeklyReflection(journalEntries, messageDrafts),

@@ -31,6 +31,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { CrisisModePhase } from '@/types/crisis';
+import { useAnalytics } from '@/providers/AnalyticsProvider';
 import {
   GROUNDING_PROMPTS,
   MESSAGE_DELAY_OPTIONS,
@@ -54,6 +55,12 @@ const TOTAL_BREATHE_CYCLE = BREATHE_DURATION_IN + BREATHE_DURATION_HOLD + BREATH
 export default function CrisisModeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { trackEvent, trackFlowStart } = useAnalytics();
+
+  useEffect(() => {
+    trackFlowStart('crisis_mode');
+    trackEvent('crisis_mode_triggered');
+  }, [trackFlowStart, trackEvent]);
 
   const [currentPhase, setCurrentPhase] = useState<CrisisModePhase>('breathing');
   const [breatheLabel, setBreatheLabel] = useState<string>('Breathe in...');

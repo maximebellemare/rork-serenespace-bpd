@@ -29,6 +29,7 @@ import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useApp } from '@/providers/AppProvider';
 import { PremiumInlinePrompt } from '@/components/PremiumGate';
+import { useAnalytics } from '@/providers/AnalyticsProvider';
 import { buildFullEmotionalModelState } from '@/services/emotionalModel/emotionalModelService';
 import {
   EmotionalTriggerProfile,
@@ -324,6 +325,12 @@ export default function EmotionalProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { journalEntries, messageDrafts } = useApp();
+  const { trackEvent } = useAnalytics();
+
+  useEffect(() => {
+    trackEvent('emotional_profile_viewed');
+    trackEvent('screen_view', { screen: 'emotional_profile' });
+  }, [trackEvent]);
 
   const headerFade = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(0)).current;

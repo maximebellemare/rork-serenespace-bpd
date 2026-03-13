@@ -16,6 +16,7 @@ import AICompanionOnboarding from '@/components/AICompanionOnboarding';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useAICompanion, SUGGESTED_PROMPTS } from '@/providers/AICompanionProvider';
+import { useAnalytics } from '@/providers/AnalyticsProvider';
 import { useCoaching } from '@/hooks/useCoaching';
 import { useRelationshipSpiral } from '@/hooks/useRelationshipSpiral';
 import { useEmotionalLoops } from '@/hooks/useEmotionalLoops';
@@ -37,6 +38,12 @@ export default function CompanionScreen() {
   const { dailyCoaching } = useCoaching();
   const relationshipSpiral = useRelationshipSpiral();
   const emotionalLoops = useEmotionalLoops();
+  const { trackEvent } = useAnalytics();
+
+  useEffect(() => {
+    trackEvent('ai_companion_opened');
+    trackEvent('screen_view', { screen: 'companion' });
+  }, [trackEvent]);
 
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
   const [onboardingChecked, setOnboardingChecked] = useState<boolean>(false);

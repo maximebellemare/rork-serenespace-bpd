@@ -28,6 +28,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useRelationshipInsights } from '@/hooks/useRelationshipInsights';
+import { useAnalytics } from '@/providers/AnalyticsProvider';
 import { REWRITE_STYLE_META } from '@/services/messages/messageRewriteService';
 import {
   RELATIONSHIP_OPTIONS,
@@ -259,7 +260,12 @@ function TriggerChip({ label, emoji, percentage }: { label: string; emoji: strin
 export default function RelationshipInsightsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { trackEvent } = useAnalytics();
   const headerFade = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    trackEvent('screen_view', { screen: 'relationship_insights' });
+  }, [trackEvent]);
 
   const {
     hasData,

@@ -30,6 +30,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useSubscription } from '@/providers/SubscriptionProvider';
+import { useAnalytics } from '@/providers/AnalyticsProvider';
 import { SUBSCRIPTION_PLANS, PREMIUM_FEATURES } from '@/types/subscription';
 import { usePersonalization } from '@/hooks/usePersonalization';
 
@@ -65,7 +66,13 @@ export default function UpgradeScreen() {
   const insets = useSafeAreaInsets();
   const { isPremium, subscribe, startTrial, restore, isSubscribing, state } = useSubscription();
   const personalization = usePersonalization();
+  const { trackEvent } = useAnalytics();
   const [selectedPlanId, setSelectedPlanId] = useState<string>('yearly');
+
+  useEffect(() => {
+    trackEvent('upgrade_screen_viewed');
+    trackEvent('screen_view', { screen: 'upgrade' });
+  }, [trackEvent]);
   const [testimonialIndex, setTestimonialIndex] = useState<number>(0);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -140,6 +147,7 @@ export default function UpgradeScreen() {
     }
     const plan = SUBSCRIPTION_PLANS.find(p => p.id === selectedPlanId);
     if (plan) {
+      trackEvent('upgrade_clicked', { plan_id: selectedPlanId });
       subscribe(plan);
       Alert.alert(
         'Welcome to Premium',
@@ -147,7 +155,7 @@ export default function UpgradeScreen() {
         [{ text: 'Continue', onPress: () => router.back() }]
       );
     }
-  }, [selectedPlanId, subscribe, router]);
+  }, [selectedPlanId, subscribe, router, trackEvent]);
 
   const handleStartTrial = useCallback(() => {
     handleHaptic();

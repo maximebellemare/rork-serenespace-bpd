@@ -13,6 +13,7 @@ import {
   generateResponseStyles,
   saveGuardSession,
 } from '@/services/messages/messageGuardService';
+import { analyticsEngine } from '@/services/analytics/analyticsEngine';
 
 export function useMessageGuard() {
   const [messageText, setMessageText] = useState<string>('');
@@ -49,6 +50,7 @@ export function useMessageGuard() {
     const analysis = analyzeTone(messageText);
     setToneAnalysis(analysis);
     setStep('analysis');
+    void analyticsEngine.trackEvent('message_guard_opened', { urgency: analysis.urgencyLevel });
 
     const styles = generateResponseStyles(messageText, analysis);
     setResponseStyles(styles);
@@ -89,6 +91,7 @@ export function useMessageGuard() {
     setDelayRemaining(minutes * 60);
     setIsDelaying(true);
     setStep('pause');
+    void analyticsEngine.trackEvent('message_pause_used', { delay_minutes: minutes });
 
     if (delayTimerRef.current) {
       clearInterval(delayTimerRef.current);
@@ -133,6 +136,10 @@ export function useMessageGuard() {
 
     await saveGuardSession(session);
     setDraftSaved(true);
+    void analyticsEngine.trackEvent('message_rewrite_completed', {
+      tone: selectedTone ?? 'unknown',
+      had_delay: delayMinutes !== null,
+    });
     console.log('[useMessageGuard] Draft saved:', session.id);
   }, [messageText, toneAnalysis, responseStyles, selectedTone, secureRewrite, delayMinutes]);
 

@@ -8,6 +8,7 @@ import { AICompanionProvider } from "@/providers/AICompanionProvider";
 import { ProfileProvider } from "@/providers/ProfileProvider";
 import { SubscriptionProvider } from "@/providers/SubscriptionProvider";
 import { EmotionalContextProvider } from "@/providers/EmotionalContextProvider";
+import { AnalyticsProvider } from "@/providers/AnalyticsProvider";
 import Colors from "@/constants/colors";
 
 void SplashScreen.preventAutoHideAsync();
@@ -239,15 +240,17 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView>
         <AppProvider>
-          <SubscriptionProvider>
-            <ProfileProvider>
-              <AICompanionProvider>
-                <EmotionalContextProvider>
-                  <RootLayoutNav />
-                </EmotionalContextProvider>
-              </AICompanionProvider>
-            </ProfileProvider>
-          </SubscriptionProvider>
+          <AnalyticsProvider>
+            <SubscriptionProvider>
+              <ProfileProvider>
+                <AICompanionProvider>
+                  <EmotionalContextProvider>
+                    <RootLayoutNav />
+                  </EmotionalContextProvider>
+                </AICompanionProvider>
+              </ProfileProvider>
+            </SubscriptionProvider>
+          </AnalyticsProvider>
         </AppProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>

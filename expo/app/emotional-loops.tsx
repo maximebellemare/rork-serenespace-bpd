@@ -29,6 +29,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useEmotionalLoops } from '@/hooks/useEmotionalLoops';
+import { useAnalytics } from '@/providers/AnalyticsProvider';
 import { useLoopInterruptPlans } from '@/hooks/useLoopInterruptPlans';
 import { EmotionalLoop, InterruptPoint, LoopNodeType } from '@/types/emotionalLoop';
 
@@ -63,8 +64,14 @@ export default function EmotionalLoopsScreen() {
   const insets = useSafeAreaInsets();
   const report = useEmotionalLoops();
   const { plans } = useLoopInterruptPlans();
+  const { trackEvent } = useAnalytics();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(24)).current;
+
+  useEffect(() => {
+    trackEvent('emotional_loop_viewed');
+    trackEvent('screen_view', { screen: 'emotional_loops' });
+  }, [trackEvent]);
 
   useEffect(() => {
     Animated.parallel([
