@@ -12,6 +12,7 @@ import { EmotionalContextProvider } from "@/providers/EmotionalContextProvider";
 import { AnalyticsProvider } from "@/providers/AnalyticsProvider";
 import { NotificationEntryProvider } from "@/providers/NotificationEntryProvider";
 import { OnboardingProvider } from "@/providers/OnboardingProvider";
+import { MedicationProvider } from "@/providers/MedicationProvider";
 import Colors from "@/constants/colors";
 import DeferredProviders from "@/components/DeferredProviders";
 import OnboardingGate from "@/components/OnboardingGate";
@@ -342,6 +343,34 @@ function RootLayoutNav() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="medications"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="medication-add"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="medication-detail"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="medication-history"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }
@@ -362,6 +391,7 @@ export default function RootLayout() {
                   <DeferredProviders>
                     <AICompanionProvider>
                       <EmotionalContextProvider>
+                        <MedicationProvider>
                         <NotificationEntryProvider>
                           {NotificationManagerLazy && (
                             <Suspense fallback={null}>
@@ -371,6 +401,7 @@ export default function RootLayout() {
                           <OnboardingGate />
                           <RootLayoutNav />
                         </NotificationEntryProvider>
+                        </MedicationProvider>
                       </EmotionalContextProvider>
                     </AICompanionProvider>
                   </DeferredProviders>

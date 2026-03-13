@@ -10,7 +10,8 @@ export type NotificationCategory =
   | 'reengagement'
   | 'streak_support'
   | 'regulation_followup'
-  | 'gentle_nudge';
+  | 'gentle_nudge'
+  | 'medication_reminder';
 
 export type ReminderFrequency = 'minimal' | 'balanced' | 'supportive';
 
