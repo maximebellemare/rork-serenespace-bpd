@@ -66,6 +66,7 @@ import { useEmotionalContext } from '@/providers/EmotionalContextProvider';
 import { useAnalytics } from '@/providers/AnalyticsProvider';
 import ConflictReplayCard from '@/components/ConflictReplayCard';
 import { useConflictReplay } from '@/hooks/useConflictReplay';
+import EmotionalInsightsCard from '@/components/EmotionalInsightsCard';
 
 interface CardSlot {
   key: string;
@@ -373,6 +374,10 @@ export default function HomeScreen() {
         latestTrigger={conflictReplay.events[0]?.triggerDetail}
         latestOutcome={conflictReplay.events[0]?.outcome}
       />
+    ));
+
+    addSlot('emotional_insights', () => (
+      <EmotionalInsightsCard key="emotional_insights" />
     ));
 
     addSlot('emotional_profile', () => (
