@@ -261,6 +261,13 @@ export async function trackPremiumReminderConverted(
   });
 }
 
+export async function trackLifeInsight(
+  action: 'generated' | 'viewed',
+  properties?: Record<string, string | number | boolean>,
+): Promise<void> {
+  return analyticsEngine.trackEvent(`insight_${action}`, properties);
+}
+
 export async function trackPremiumReminderSuppressed(
   reminderType: string,
   reason: string,
