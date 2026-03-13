@@ -137,7 +137,7 @@ export const HARDEST_MOMENT_OPTIONS: { value: HardestMoment; label: string }[] =
 ];
 
 export const PREFERRED_TOOL_OPTIONS: { value: PreferredTool; label: string; icon: string }[] = [
-  { value: 'ai_companion', label: 'AI Companion', icon: 'Sparkles' },
+  { value: 'ai_companion', label: 'Guided emotional support chat', icon: 'Sparkles' },
   { value: 'journaling', label: 'Journaling', icon: 'BookOpen' },
   { value: 'grounding', label: 'Grounding exercises', icon: 'Wind' },
   { value: 'pause_before_messaging', label: 'Pause before messaging', icon: 'Timer' },
