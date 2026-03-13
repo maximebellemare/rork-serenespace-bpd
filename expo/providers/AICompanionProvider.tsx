@@ -23,12 +23,10 @@ import {
   deleteMemoryById,
   editEpisodicMemoryLesson,
 } from '@/services/companion/memoryService';
-import { retrieveRelevantMemories } from '@/services/companion/memoryRetrieval';
 import {
   loadPsychProfile,
   savePsychProfile,
   rebuildPsychProfile,
-  buildProfileContext,
 } from '@/services/companion/userPsychProfile';
 import {
   generateSessionSummary,
@@ -48,6 +46,19 @@ import {
   buildSkillSuggestionForAI,
 } from '@/services/companion/skillExerciseService';
 import { trackEvent } from '@/services/analytics/analyticsService';
+import { assembleCompanionContext } from '@/services/companion/contextAssembler';
+import { selectCompanionMode } from '@/services/companion/companionPromptBuilder';
+import { CompanionMode, FollowUpPrompt } from '@/types/companionModes';
+import {
+  loadFollowUps,
+  dismissFollowUp as dismissFollowUpService,
+  createFollowUp,
+  shouldCreateFollowUp,
+} from '@/services/companion/followUpService';
+import {
+  createOutcomeRecord,
+  saveOutcome,
+} from '@/services/companion/outcomeLearningService';
 
 export const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   { id: 'sp1', label: 'I feel abandoned right now', icon: '💔', prompt: 'I feel abandoned right now and I need support' },
@@ -72,6 +83,9 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
   const [psychProfile, setPsychProfile] = useState<UserPsychProfile | null>(null);
   const [companionPatternInsights, setCompanionPatternInsights] = useState<CompanionPatternInsight[]>([]);
   const [weeklyInsights, setWeeklyInsights] = useState<WeeklyCompanionInsight[]>([]);
+  const [followUps, setFollowUps] = useState<FollowUpPrompt[]>([]);
+  const [companionMode, setCompanionMode] = useState<CompanionMode | null>(null);
+  const [sessionCount, setSessionCount] = useState<number>(0);
   const processedConversationsRef = useRef<Set<string>>(new Set());
 
   const memorySnapshotQuery = useQuery({
@@ -130,6 +144,17 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
       }
     }
   }, [weeklyInsightsQuery.data, companionMemoryStore]);
+
+  const followUpsQuery = useQuery({
+    queryKey: ['companion-follow-ups'],
+    queryFn: loadFollowUps,
+  });
+
+  useEffect(() => {
+    if (followUpsQuery.data) {
+      setFollowUps(followUpsQuery.data);
+    }
+  }, [followUpsQuery.data]);
 
   const conversationsQuery = useQuery({
     queryKey: ['ai-conversations'],
@@ -254,38 +279,40 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
       void trackEvent('companion_session_started', { conversation_id: activeConversationId });
     }
 
-    let companionContext = '';
-    if (companionMemoryStore) {
-      const emotionalState = detectEmotionalState(content);
-      const retrievalContext = {
-        currentTrigger: memoryProfile.topTriggers[0]?.label,
-        currentEmotion: memoryProfile.topEmotions[0]?.label,
-        currentState: emotionalState,
-        conversationTags: buildConversationTags(content),
-        recentMessageContent: content,
-      };
-      const retrieved = retrieveRelevantMemories(companionMemoryStore, retrievalContext);
-      companionContext = retrieved.contextNarrative;
+    const assembled = assembleCompanionContext({
+      userMessage: content,
+      memoryStore: companionMemoryStore,
+      psychProfile,
+      memoryProfile,
+      patternInsights: companionPatternInsights,
+      weeklyInsights,
+      conversationHistory,
+    });
 
-      if (retrieved.relevantEpisodes.length > 0) {
-        void trackEvent('memory_recalled', {
-          episodes: retrieved.relevantEpisodes.length,
-          traits: retrieved.relevantTraits.length,
-        });
-      }
+    const detectedMode = selectCompanionMode(
+      content,
+      assembled.emotionalState,
+      manualMode as CompanionMode | null,
+      conversationHistory.length,
+    );
+    setCompanionMode(detectedMode);
 
-      const skillSuggestion = buildSkillSuggestionForAI(emotionalState);
-      if (skillSuggestion) {
-        companionContext += skillSuggestion;
-      }
+    if (assembled.retrievedMemories && assembled.retrievedMemories.relevantEpisodes.length > 0) {
+      void trackEvent('memory_recalled', {
+        episodes: assembled.retrievedMemories.relevantEpisodes.length,
+        traits: assembled.retrievedMemories.relevantTraits.length,
+        mode: detectedMode,
+      });
     }
 
-    let profileContext = '';
-    if (psychProfile) {
-      profileContext = buildProfileContext(psychProfile);
-    }
+    const skillSuggestion = companionMemoryStore
+      ? buildSkillSuggestionForAI(detectEmotionalState(content))
+      : null;
+    const companionContext = skillSuggestion
+      ? assembled.fullContext + skillSuggestion
+      : assembled.fullContext;
 
-    const enrichedContextSummary = [contextSummary, companionContext, profileContext]
+    const enrichedContextSummary = [contextSummary, companionContext]
       .filter(Boolean)
       .join('\n');
 
@@ -308,7 +335,8 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
       });
 
       setCurrentActiveMode(response.activeMode);
-      console.log('[AICompanion] Response mode:', response.activeMode, 'manual:', !!manualMode, 'hasCompanionContext:', !!companionContext);
+      setSessionCount(prev => prev + 1);
+      console.log('[AICompanion] Response mode:', response.activeMode, 'companion mode:', detectedMode, 'manual:', !!manualMode);
 
       const assistantMessage: AIMessage = {
         id: `msg_${Date.now()}_ai`,
@@ -363,12 +391,33 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
           }
         }
       }
+
+      const signals = companionMemoryStore
+        ? { isHighDistress: assembled.emotionalState === 'high_distress', isRelationship: assembled.emotionalState === 'relationship_trigger' || assembled.emotionalState === 'abandonment_fear' }
+        : { isHighDistress: false, isRelationship: false };
+
+      const followUpType = shouldCreateFollowUp(
+        detectEmotionalState(content),
+        conversationHistory.length + 2,
+        signals.isHighDistress,
+        signals.isRelationship,
+        false,
+      );
+
+      if (followUpType) {
+        void createFollowUp(followUpType, content.substring(0, 100)).then(fu => {
+          if (fu) {
+            setFollowUps(prev => [fu, ...prev].slice(0, 5));
+            void trackEvent('companion_followup_created', { type: followUpType });
+          }
+        });
+      }
     } catch (error) {
       console.log('Error generating AI response:', error);
     } finally {
       setIsGenerating(false);
     }
-  }, [activeConversationId, isGenerating, conversations, contextSummary, saveConversationsMutation, memoryProfile, manualMode, memorySnapshot, companionMemoryStore, psychProfile]);
+  }, [activeConversationId, isGenerating, conversations, contextSummary, saveConversationsMutation, memoryProfile, manualMode, memorySnapshot, companionMemoryStore, psychProfile, companionPatternInsights, weeklyInsights]);
 
   const toggleSaveConversation = useCallback((conversationId: string) => {
     const updated = conversations.map(c =>
@@ -397,6 +446,40 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
     if (mode) {
       setCurrentActiveMode(mode);
     }
+  }, []);
+
+  const dismissFollowUp = useCallback(async (followUpId: string) => {
+    await dismissFollowUpService(followUpId);
+    setFollowUps(prev => prev.filter(f => f.id !== followUpId));
+    void trackEvent('companion_followup_dismissed', { follow_up_id: followUpId });
+  }, []);
+
+  const openFollowUp = useCallback((followUp: FollowUpPrompt) => {
+    const id = startNewConversation();
+    setActiveConversationId(id);
+    void dismissFollowUpService(followUp.id);
+    setFollowUps(prev => prev.filter(f => f.id !== followUp.id));
+    setTimeout(() => {
+      void sendMessage(followUp.suggestedPrompt);
+    }, 300);
+    void trackEvent('companion_followup_opened', {
+      type: followUp.type,
+      trigger_context: followUp.triggerContext.substring(0, 50),
+    });
+  }, [startNewConversation, setActiveConversationId, sendMessage]);
+
+  const recordOutcome = useCallback(async (params: {
+    sourceFlow: string;
+    toolSuggested: string;
+    distressBefore?: number;
+    distressAfter?: number;
+    markedHelpful?: boolean;
+    emotionalContext: string;
+    tags?: string[];
+  }) => {
+    const outcome = createOutcomeRecord(params);
+    await saveOutcome(outcome);
+    console.log('[AICompanion] Outcome recorded:', params.sourceFlow, params.toolSuggested);
   }, []);
 
   const deleteMemory = useCallback(async (memoryId: string) => {
@@ -441,6 +524,9 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
     weeklyInsights,
     psychProfile,
     companionMemoryStore,
+    followUps,
+    companionMode,
+    sessionCount,
     deleteMemory,
     editMemoryLesson,
     setActiveConversationId,
@@ -450,6 +536,9 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
     toggleSaveConversation,
     deleteConversation,
     setMode,
+    dismissFollowUp,
+    openFollowUp,
+    recordOutcome,
   }), [
     conversations,
     activeConversation,
@@ -468,6 +557,9 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
     weeklyInsights,
     psychProfile,
     companionMemoryStore,
+    followUps,
+    companionMode,
+    sessionCount,
     deleteMemory,
     editMemoryLesson,
     setActiveConversationId,
@@ -477,5 +569,8 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
     toggleSaveConversation,
     deleteConversation,
     setMode,
+    dismissFollowUp,
+    openFollowUp,
+    recordOutcome,
   ]);
 });

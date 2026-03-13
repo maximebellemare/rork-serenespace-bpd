@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Stack } from 'expo-router';
-import { MessageCircle, Sparkles, BookmarkCheck, BarChart3, ChevronRight, Plus, Zap, Brain, TrendingDown, TrendingUp, Minus, Eye, Compass, HeartCrack, Repeat } from 'lucide-react-native';
+import { MessageCircle, Sparkles, BookmarkCheck, BarChart3, ChevronRight, Plus, Zap, Brain, TrendingDown, TrendingUp, Minus, Eye, Compass, HeartCrack, Repeat, Calendar, ArrowRight, X, Lightbulb } from 'lucide-react-native';
 import { settingsRepository } from '@/services/repositories';
 import AICompanionOnboarding from '@/components/AICompanionOnboarding';
 import * as Haptics from 'expo-haptics';
@@ -33,6 +33,12 @@ export default function CompanionScreen() {
     continueLastConversation,
     setActiveConversationId,
     sendMessage,
+    followUps,
+    dismissFollowUp,
+    openFollowUp,
+    weeklyInsights,
+    companionPatternInsights,
+    companionMemoryStore,
   } = useAICompanion();
 
   const { dailyCoaching } = useCoaching();
@@ -167,6 +173,46 @@ export default function CompanionScreen() {
 
         {onboardingChecked && showOnboarding && (
           <AICompanionOnboarding onDismiss={handleDismissOnboarding} />
+        )}
+
+        {followUps.length > 0 && (
+          <Animated.View style={{ opacity: fadeAnim }}>
+            {followUps.slice(0, 2).map((fu) => (
+              <TouchableOpacity
+                key={fu.id}
+                style={styles.followUpCard}
+                onPress={() => {
+                  if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  openFollowUp(fu);
+                  router.push('/companion/chat' as never);
+                }}
+                activeOpacity={0.7}
+                testID={`follow-up-${fu.id}`}
+              >
+                <View style={styles.followUpHeader}>
+                  <View style={styles.followUpIconWrap}>
+                    <Lightbulb size={14} color="#D4956A" />
+                  </View>
+                  <Text style={styles.followUpTitle}>{fu.title}</Text>
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      void dismissFollowUp(fu.id);
+                    }}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    style={styles.followUpDismiss}
+                  >
+                    <X size={14} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.followUpMessage}>{fu.message}</Text>
+                <View style={styles.followUpAction}>
+                  <Text style={styles.followUpActionText}>Open conversation</Text>
+                  <ArrowRight size={12} color={Colors.primary} />
+                </View>
+              </TouchableOpacity>
+            ))}
+          </Animated.View>
         )}
 
         {lastConvo && lastConvo.messages.length > 0 && (
@@ -334,6 +380,69 @@ export default function CompanionScreen() {
           </Animated.View>
         )}
 
+        {weeklyInsights.length > 0 && (
+          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+            <TouchableOpacity
+              style={styles.weeklyInsightCard}
+              onPress={() => router.push('/companion/weekly-insights' as never)}
+              activeOpacity={0.7}
+              testID="weekly-insight-card"
+            >
+              <View style={styles.weeklyInsightHeader}>
+                <View style={styles.weeklyInsightIconWrap}>
+                  <Calendar size={16} color="#5B8FB9" />
+                </View>
+                <Text style={styles.weeklyInsightLabel}>This Week</Text>
+                <ChevronRight size={16} color={Colors.textMuted} />
+              </View>
+              <Text style={styles.weeklyInsightSummary} numberOfLines={3}>
+                {weeklyInsights[0].summary}
+              </Text>
+              {weeklyInsights[0].growthSignals.length > 0 && (
+                <View style={styles.weeklyGrowthRow}>
+                  <TrendingUp size={12} color={Colors.success} />
+                  <Text style={styles.weeklyGrowthText} numberOfLines={1}>
+                    {weeklyInsights[0].growthSignals[0]}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {companionPatternInsights.length > 0 && (
+          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Pattern Signals</Text>
+              <TouchableOpacity
+                onPress={() => router.push('/companion/emotional-patterns' as never)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.seeAllText}>See all</Text>
+              </TouchableOpacity>
+            </View>
+            {companionPatternInsights.slice(0, 2).map((insight) => (
+              <View
+                key={insight.id}
+                style={[
+                  styles.patternCard,
+                  insight.importance === 'high' && styles.patternCardHigh,
+                ]}
+              >
+                <View style={[
+                  styles.patternAccent,
+                  insight.category === 'growth' && { backgroundColor: Colors.success },
+                  insight.category === 'relationship' && { backgroundColor: '#D4956A' },
+                  insight.category === 'trigger' && { backgroundColor: Colors.danger },
+                  insight.category === 'coping' && { backgroundColor: Colors.primary },
+                ]} />
+                <Text style={styles.patternTitle}>{insight.title}</Text>
+                <Text style={styles.patternNarrative} numberOfLines={3}>{insight.narrative}</Text>
+              </View>
+            ))}
+          </Animated.View>
+        )}
+
         <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Explore</Text>
@@ -370,6 +479,21 @@ export default function CompanionScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.exploreCard}
+            onPress={() => router.push('/companion/weekly-insights' as never)}
+            activeOpacity={0.7}
+            testID="weekly-insights-btn"
+          >
+            <View style={[styles.exploreCardIcon, { backgroundColor: '#E3EFF7' }]}>
+              <Calendar size={20} color="#5B8FB9" />
+            </View>
+            <View style={styles.exploreCardContent}>
+              <Text style={styles.exploreCardTitle}>Weekly Insights</Text>
+              <Text style={styles.exploreCardDesc}>Your emotional week at a glance</Text>
+            </View>
+            <ChevronRight size={18} color={Colors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.exploreCard}
             onPress={() => router.push('/companion/memory' as never)}
             activeOpacity={0.7}
             testID="memory-btn"
@@ -379,7 +503,11 @@ export default function CompanionScreen() {
             </View>
             <View style={styles.exploreCardContent}>
               <Text style={styles.exploreCardTitle}>Emotional Memory</Text>
-              <Text style={styles.exploreCardDesc}>What your companion remembers about you</Text>
+              <Text style={styles.exploreCardDesc}>
+                {companionMemoryStore
+                  ? `${companionMemoryStore.episodicMemories.length} memories stored`
+                  : 'What your companion remembers about you'}
+              </Text>
             </View>
             <ChevronRight size={18} color={Colors.textMuted} />
           </TouchableOpacity>
@@ -850,5 +978,132 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 30,
+  },
+  followUpCard: {
+    backgroundColor: Colors.warmGlow,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 149, 106, 0.2)',
+  },
+  followUpHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    marginBottom: 8,
+  },
+  followUpIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: Colors.accentLight,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginRight: 8,
+  },
+  followUpTitle: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.accent,
+  },
+  followUpDismiss: {
+    padding: 4,
+  },
+  followUpMessage: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 10,
+  },
+  followUpAction: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+  },
+  followUpActionText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.primary,
+  },
+  weeklyInsightCard: {
+    backgroundColor: '#F0F6FA',
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(91, 143, 185, 0.15)',
+  },
+  weeklyInsightHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    marginBottom: 10,
+  },
+  weeklyInsightIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: '#E3EFF7',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginRight: 8,
+  },
+  weeklyInsightLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#4A7A9B',
+  },
+  weeklyInsightSummary: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 21,
+    marginBottom: 8,
+  },
+  weeklyGrowthRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 5,
+    marginTop: 4,
+  },
+  weeklyGrowthText: {
+    fontSize: 12,
+    fontWeight: '500' as const,
+    color: Colors.success,
+    flex: 1,
+  },
+  patternCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    padding: 14,
+    paddingLeft: 18,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    position: 'relative' as const,
+    overflow: 'hidden' as const,
+  },
+  patternCardHigh: {
+    borderColor: 'rgba(212, 149, 106, 0.3)',
+  },
+  patternAccent: {
+    position: 'absolute' as const,
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: Colors.primary,
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
+  },
+  patternTitle: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  patternNarrative: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 19,
   },
 });
