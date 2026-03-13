@@ -4,6 +4,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import { AIConversation, AIMessage, SuggestedPrompt, SupportiveInterpretation } from '@/types/ai';
 import { AIMode } from '@/types/aiModes';
 import { MemoryProfile, InsightCard } from '@/types/memory';
+import { MemorySnapshot } from '@/types/userMemory';
 import { useApp } from '@/providers/AppProvider';
 import { generateMockResponse, generateConversationTitle } from '@/services/ai/mockAIService';
 import { buildMemoryProfile, buildInsightCards, buildContextSummary } from '@/services/memory/memoryProfileService';
@@ -11,6 +12,7 @@ import { buildConversationTags } from '@/services/ai/aiPromptBuilder';
 import { generateSupportiveInterpretations } from '@/services/insights/aiInsightsService';
 import { conversationRepository } from '@/services/repositories';
 import { getModeConfig } from '@/services/ai/aiModeService';
+import { loadMemorySnapshot } from '@/services/memory/userMemoryService';
 
 export const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   { id: 'sp1', label: 'I feel abandoned right now', icon: '💔', prompt: 'I feel abandoned right now and I need support' },
@@ -30,6 +32,18 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [manualMode, setManualMode] = useState<AIMode | null>(null);
   const [currentActiveMode, setCurrentActiveMode] = useState<AIMode | null>(null);
+  const [memorySnapshot, setMemorySnapshot] = useState<MemorySnapshot | null>(null);
+
+  const memorySnapshotQuery = useQuery({
+    queryKey: ['user-memory-snapshot'],
+    queryFn: loadMemorySnapshot,
+  });
+
+  useEffect(() => {
+    if (memorySnapshotQuery.data) {
+      setMemorySnapshot(memorySnapshotQuery.data);
+    }
+  }, [memorySnapshotQuery.data]);
 
   const conversationsQuery = useQuery({
     queryKey: ['ai-conversations'],
@@ -158,6 +172,7 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
         },
         activeMode: manualMode ?? undefined,
         memoryProfile,
+        memorySnapshot: memorySnapshot ?? undefined,
       });
 
       setCurrentActiveMode(response.activeMode);
@@ -190,7 +205,7 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
     } finally {
       setIsGenerating(false);
     }
-  }, [activeConversationId, isGenerating, conversations, contextSummary, saveConversationsMutation, memoryProfile, manualMode]);
+  }, [activeConversationId, isGenerating, conversations, contextSummary, saveConversationsMutation, memoryProfile, manualMode, memorySnapshot]);
 
   const toggleSaveConversation = useCallback((conversationId: string) => {
     const updated = conversations.map(c =>

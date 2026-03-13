@@ -370,6 +370,21 @@ export default function CompanionScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.exploreCard}
+            onPress={() => router.push('/companion/memory' as never)}
+            activeOpacity={0.7}
+            testID="memory-btn"
+          >
+            <View style={[styles.exploreCardIcon, { backgroundColor: '#E8F0FE' }]}>
+              <Brain size={20} color="#4A6FA5" />
+            </View>
+            <View style={styles.exploreCardContent}>
+              <Text style={styles.exploreCardTitle}>Emotional Memory</Text>
+              <Text style={styles.exploreCardDesc}>What your companion remembers about you</Text>
+            </View>
+            <ChevronRight size={18} color={Colors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.exploreCard}
             onPress={() => router.push('/companion/emotional-patterns' as never)}
             activeOpacity={0.7}
             testID="patterns-btn"

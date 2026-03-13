@@ -9,6 +9,8 @@ import {
 import { detectAIMode } from './aiModeService';
 import { getModeResponse, personalizeForMode } from './aiResponseStrategy';
 import { MemoryProfile } from '@/types/memory';
+import { MemorySnapshot } from '@/types/userMemory';
+import { getMemoryBasedSuggestion } from '@/services/memory/userMemoryService';
 
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -104,6 +106,7 @@ export interface MockResponseOptions {
   personalization?: MemoryPersonalization;
   activeMode?: AIMode;
   memoryProfile?: MemoryProfile;
+  memorySnapshot?: MemorySnapshot;
 }
 
 function personalizeResponse(
@@ -207,7 +210,18 @@ export async function generateMockResponse(
     }
   }
 
-  console.log('[MockAI] Detected intent:', intent, 'mode:', activeMode, 'context:', contextType, 'personalized:', !!options?.personalization);
+  if (options?.memorySnapshot) {
+    const memorySuggestion = getMemoryBasedSuggestion(
+      options.memorySnapshot,
+      options.personalization?.topTrigger,
+      options.personalization?.topEmotion,
+    );
+    if (memorySuggestion && !content.includes('remember') && !content.includes('noticed')) {
+      content = content + '\n\n' + memorySuggestion;
+    }
+  }
+
+  console.log('[MockAI] Detected intent:', intent, 'mode:', activeMode, 'context:', contextType, 'personalized:', !!options?.personalization, 'hasMemory:', !!options?.memorySnapshot);
 
   return {
     content,

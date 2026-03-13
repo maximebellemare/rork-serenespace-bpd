@@ -1,4 +1,6 @@
 import { MemoryProfile } from '@/types/memory';
+import { MemorySnapshot } from '@/types/userMemory';
+import { buildAIMemoryContext } from '@/services/memory/userMemoryService';
 
 export type ResponseMode =
   | 'reflection'
@@ -11,6 +13,7 @@ export type ResponseMode =
 export interface PromptContext {
   userMessage: string;
   memoryProfile?: MemoryProfile;
+  memorySnapshot?: MemorySnapshot;
   conversationHistory?: Array<{ role: string; content: string }>;
   responseMode?: ResponseMode;
 }
@@ -122,12 +125,24 @@ export function buildPrompt(context: PromptContext): BuiltPrompt {
 
   const modeInstruction = MODE_INSTRUCTIONS[responseMode];
   const memoryContext = context.memoryProfile ? buildMemoryContext(context.memoryProfile) : '';
+  const persistentMemoryContext = context.memorySnapshot ? buildAIMemoryContext(context.memorySnapshot) : '';
 
-  const systemPrompt = `${SYSTEM_PROMPT_BASE}\n\nCurrent mode: ${responseMode}\n${modeInstruction}`;
+  let memoryInstruction = '';
+  if (persistentMemoryContext) {
+    memoryInstruction = '\n\nYou have access to persistent memory about this user. Reference specific memories when relevant to make responses feel personalized. Use phrases like "I remember..." or "This seems similar to..." when referencing past patterns.';
+  }
 
-  const contextBlock = memoryContext
-    ? `\n[User context: ${memoryContext}]\n`
-    : '';
+  const systemPrompt = `${SYSTEM_PROMPT_BASE}\n\nCurrent mode: ${responseMode}\n${modeInstruction}${memoryInstruction}`;
+
+  const contextParts: string[] = [];
+  if (memoryContext) {
+    contextParts.push(`[User context: ${memoryContext}]`);
+  }
+  if (persistentMemoryContext) {
+    contextParts.push(persistentMemoryContext);
+  }
+
+  const contextBlock = contextParts.length > 0 ? `\n${contextParts.join('\n')}\n` : '';
 
   return {
     systemPrompt,
