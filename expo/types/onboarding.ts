@@ -16,7 +16,15 @@ export type HardestMoment =
   | 'not_knowing_how_to_respond'
   | 'late_night_spirals'
   | 'intense_mood_shifts'
-  | 'difficulty_staying_consistent';
+  | 'difficulty_staying_consistent'
+  | 'fear_of_being_too_much'
+  | 'splitting'
+  | 'emotional_numbness'
+  | 'self_destructive_urges'
+  | 'feeling_empty'
+  | 'trust_issues'
+  | 'people_pleasing'
+  | 'dissociation';
 
 export type PreferredTool =
   | 'ai_companion'
@@ -118,6 +126,14 @@ export const HARDEST_MOMENT_OPTIONS: { value: HardestMoment; label: string }[] =
   { value: 'late_night_spirals', label: 'Late-night spirals' },
   { value: 'intense_mood_shifts', label: 'Intense mood shifts' },
   { value: 'difficulty_staying_consistent', label: 'Difficulty staying consistent' },
+  { value: 'fear_of_being_too_much', label: 'Fear of being too much' },
+  { value: 'splitting', label: 'Splitting (black & white thinking)' },
+  { value: 'emotional_numbness', label: 'Emotional numbness' },
+  { value: 'self_destructive_urges', label: 'Self-destructive urges' },
+  { value: 'feeling_empty', label: 'Feeling empty' },
+  { value: 'trust_issues', label: 'Difficulty trusting others' },
+  { value: 'people_pleasing', label: 'People-pleasing' },
+  { value: 'dissociation', label: 'Dissociation or zoning out' },
 ];
 
 export const PREFERRED_TOOL_OPTIONS: { value: PreferredTool; label: string; icon: string }[] = [
