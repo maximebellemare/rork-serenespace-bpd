@@ -22,6 +22,7 @@ import {
   BookOpen,
   Shield,
   Check,
+  Plus,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
@@ -231,28 +232,54 @@ export default function RelationshipCopilotScreen() {
     outputRange: ['0%', '100%'],
   });
 
+  const handleCreateProfile = useCallback(() => {
+    handleHaptic();
+    router.push('/relationship-profiles' as never);
+  }, [handleHaptic, router]);
+
   const renderProfilePicker = () => (
     <>
-      <View style={styles.optionsGrid}>
-        {profiles.map(p => {
-          const meta = RELATIONSHIP_TYPE_META[p.relationshipType];
-          const selected = selectedProfileId === p.id;
-          return (
-            <TouchableOpacity
-              key={p.id}
-              style={[styles.optionCard, selected && styles.optionCardSelected]}
-              onPress={() => handleProfileSelect(p.id)}
-              activeOpacity={0.7}
-              testID={`profile-${p.id}`}
-            >
-              <Text style={styles.optionEmoji}>{meta.emoji}</Text>
-              <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
-                {p.name}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      {profiles.length > 0 ? (
+        <View style={styles.optionsGrid}>
+          {profiles.map(p => {
+            const meta = RELATIONSHIP_TYPE_META[p.relationshipType];
+            const selected = selectedProfileId === p.id;
+            return (
+              <TouchableOpacity
+                key={p.id}
+                style={[styles.optionCard, selected && styles.optionCardSelected]}
+                onPress={() => handleProfileSelect(p.id)}
+                activeOpacity={0.7}
+                testID={`profile-${p.id}`}
+              >
+                <Text style={styles.optionEmoji}>{meta.emoji}</Text>
+                <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
+                  {p.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ) : (
+        <View style={styles.noProfilesContainer}>
+          <View style={styles.noProfilesIconWrap}>
+            <Users size={28} color="#E84393" />
+          </View>
+          <Text style={styles.noProfilesTitle}>No relationship profiles yet</Text>
+          <Text style={styles.noProfilesDesc}>
+            Adding a profile helps personalize support for specific relationships. You can still continue without one.
+          </Text>
+          <TouchableOpacity
+            style={styles.createProfileButton}
+            onPress={handleCreateProfile}
+            activeOpacity={0.8}
+            testID="create-profile-link"
+          >
+            <Plus size={16} color={Colors.white} />
+            <Text style={styles.createProfileButtonText}>Create a profile</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       <TouchableOpacity
         style={styles.skipButton}
         onPress={handleSkipProfile}
@@ -929,5 +956,51 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     fontWeight: '500' as const,
+  },
+  noProfilesContainer: {
+    alignItems: 'center' as const,
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    padding: 28,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  noProfilesIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 20,
+    backgroundColor: '#FFF5F9',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginBottom: 14,
+  },
+  noProfilesTitle: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    marginBottom: 6,
+    letterSpacing: -0.2,
+  },
+  noProfilesDesc: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    textAlign: 'center' as const,
+    lineHeight: 19,
+    marginBottom: 18,
+    paddingHorizontal: 8,
+  },
+  createProfileButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    backgroundColor: '#E84393',
+    borderRadius: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  createProfileButtonText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.white,
   },
 });
