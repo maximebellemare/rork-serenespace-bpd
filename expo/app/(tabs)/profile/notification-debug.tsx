@@ -38,6 +38,8 @@ import { NOTIFICATION_CATEGORIES } from '@/services/notifications/notificationCa
 import { NotificationDebugEntry, ScheduledReminder, NotificationCategory } from '@/types/notifications';
 import { NotificationConversionEvent } from '@/types/notificationRouting';
 import { useNotificationEntry } from '@/providers/NotificationEntryProvider';
+import { notificationExperimentService, EXPERIMENT_DEFINITIONS } from '@/services/notifications/notificationExperimentService';
+import { ExperimentSummary, ExperimentAssignment, ExperimentEvent } from '@/types/notificationExperiment';
 
 export default function NotificationDebugScreen() {
   const router = useRouter();
@@ -55,10 +57,14 @@ export default function NotificationDebugScreen() {
   } | null>(null);
   const [_loading, setLoading] = useState(true);
   const { setNotificationEntry } = useNotificationEntry();
+  const [experimentSummaries, setExperimentSummaries] = useState<ExperimentSummary[]>([]);
+  const [experimentAssignments, setExperimentAssignments] = useState<ExperimentAssignment[]>([]);
+  const [experimentEvents, setExperimentEvents] = useState<ExperimentEvent[]>([]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
+      await notificationExperimentService.initialize();
       const [status, reminders, log, convHistory, stats] = await Promise.all([
         notificationService.getPermissionStatus(),
         notificationService.getScheduledReminders(),
@@ -71,6 +77,9 @@ export default function NotificationDebugScreen() {
       setDebugLog(log);
       setConversions(convHistory);
       setConversionStats(stats);
+      setExperimentSummaries(notificationExperimentService.getAllSummaries());
+      setExperimentAssignments(notificationExperimentService.getAllAssignments());
+      setExperimentEvents(notificationExperimentService.getRecentEvents(20));
     } catch (error) {
       console.error('[NotificationDebug] Load failed:', error);
     } finally {
@@ -121,6 +130,50 @@ export default function NotificationDebugScreen() {
     await notificationService.clearDebugLog();
     setDebugLog([]);
   }, [handleHaptic]);
+
+  const handleResetExperiments = useCallback(async () => {
+    handleHaptic();
+    Alert.alert(
+      'Reset Experiments',
+      'This will clear all experiment assignments and data. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            await notificationExperimentService.resetAll();
+            setExperimentSummaries([]);
+            setExperimentAssignments([]);
+            setExperimentEvents([]);
+          },
+        },
+      ],
+    );
+  }, [handleHaptic]);
+
+  const handleResetSingleExperiment = useCallback(async (experimentId: string) => {
+    handleHaptic();
+    await notificationExperimentService.resetExperiment(experimentId as ExperimentSummary['experimentId']);
+    setExperimentSummaries(notificationExperimentService.getAllSummaries());
+    setExperimentAssignments(notificationExperimentService.getAllAssignments());
+    setExperimentEvents(notificationExperimentService.getRecentEvents(20));
+  }, [handleHaptic]);
+
+  const getConfidenceColor = (confidence: string): string => {
+    switch (confidence) {
+      case 'high': return Colors.success;
+      case 'medium': return Colors.accent;
+      default: return Colors.textMuted;
+    }
+  };
+
+  const getWinnerLabel = (summary: ExperimentSummary): string => {
+    if (!summary.winningVariant) return 'No winner yet';
+    const def = EXPERIMENT_DEFINITIONS.find(d => d.id === summary.experimentId);
+    const variant = def?.variants.find(v => v.id === summary.winningVariant);
+    return `${summary.winningVariant}: ${variant?.label ?? 'Unknown'}`;
+  };
 
   const handleCancelAll = useCallback(async () => {
     handleHaptic();
@@ -441,6 +494,128 @@ export default function NotificationDebugScreen() {
               })}
             </View>
           </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionLabel}>EXPERIMENTS ({experimentSummaries.length})</Text>
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={handleResetExperiments}
+              >
+                <Trash2 size={12} color={Colors.danger} />
+                <Text style={styles.actionBtnText}>Reset All</Text>
+              </TouchableOpacity>
+            </View>
+            {experimentSummaries.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <BarChart3 size={20} color={Colors.textMuted} />
+                <Text style={styles.emptyText}>No experiment data yet</Text>
+              </View>
+            ) : (
+              <View style={styles.card}>
+                {experimentSummaries.map((summary, i) => {
+                  const [perfA, perfB] = summary.variants;
+                  return (
+                    <View key={summary.experimentId} style={[styles.experimentRow, i > 0 && styles.experimentRowBorder]}>
+                      <View style={styles.experimentHeader}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.experimentLabel}>{summary.label}</Text>
+                          <Text style={styles.experimentCategory}>{summary.category}</Text>
+                        </View>
+                        <View style={[styles.confidenceBadge, { backgroundColor: getConfidenceColor(summary.confidence) + '18' }]}>
+                          <Text style={[styles.confidenceText, { color: getConfidenceColor(summary.confidence) }]}>
+                            {summary.confidence.toUpperCase()}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.experimentResetBtn}
+                          onPress={() => handleResetSingleExperiment(summary.experimentId)}
+                        >
+                          <RefreshCw size={11} color={Colors.textMuted} />
+                        </TouchableOpacity>
+                      </View>
+                      <View style={styles.variantCompare}>
+                        <View style={styles.variantCol}>
+                          <Text style={styles.variantLabel}>A</Text>
+                          <Text style={styles.variantStat}>{perfA.sentCount} sent</Text>
+                          <Text style={styles.variantStat}>{Math.round(perfA.openRate * 100)}% open</Text>
+                          <Text style={styles.variantStat}>{Math.round(perfA.completionRate * 100)}% complete</Text>
+                        </View>
+                        <View style={styles.variantDivider} />
+                        <View style={styles.variantCol}>
+                          <Text style={styles.variantLabel}>B</Text>
+                          <Text style={styles.variantStat}>{perfB.sentCount} sent</Text>
+                          <Text style={styles.variantStat}>{Math.round(perfB.openRate * 100)}% open</Text>
+                          <Text style={styles.variantStat}>{Math.round(perfB.completionRate * 100)}% complete</Text>
+                        </View>
+                      </View>
+                      {summary.winningVariant && (
+                        <View style={styles.winnerRow}>
+                          <CheckCircle size={12} color={Colors.success} />
+                          <Text style={styles.winnerText}>{getWinnerLabel(summary)}</Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>EXPERIMENT ASSIGNMENTS ({experimentAssignments.length})</Text>
+            {experimentAssignments.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Zap size={20} color={Colors.textMuted} />
+                <Text style={styles.emptyText}>No assignments yet</Text>
+              </View>
+            ) : (
+              <View style={styles.card}>
+                {experimentAssignments.map((a, i) => {
+                  const def = EXPERIMENT_DEFINITIONS.find(d => d.id === a.experimentId);
+                  const variant = def?.variants.find(v => v.id === a.variantId);
+                  return (
+                    <View key={a.experimentId} style={[styles.assignmentRow, i > 0 && styles.assignmentRowBorder]}>
+                      <View style={styles.assignmentLeft}>
+                        <Text style={styles.assignmentId}>{a.experimentId}</Text>
+                        <Text style={styles.assignmentMeta}>
+                          Assigned {formatTimestamp(a.assignedAt)}
+                        </Text>
+                      </View>
+                      <View style={styles.assignmentBadge}>
+                        <Text style={styles.assignmentVariant}>{a.variantId}</Text>
+                      </View>
+                      <Text style={styles.assignmentVariantLabel} numberOfLines={1}>
+                        {variant?.label ?? 'Unknown'}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+
+          {experimentEvents.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>RECENT EXPERIMENT EVENTS ({experimentEvents.length})</Text>
+              <View style={styles.card}>
+                {experimentEvents.slice(0, 15).map((ev, i) => (
+                  <View key={`${ev.timestamp}_${i}`} style={[styles.expEventRow, i > 0 && styles.expEventRowBorder]}>
+                    <View style={styles.expEventHeader}>
+                      <View style={[styles.expEventTypeBadge, { backgroundColor: ev.eventType === 'flow_completed' ? Colors.success + '18' : ev.eventType === 'bounced' ? Colors.danger + '18' : '#3B82F618' }]}>
+                        <Text style={[styles.expEventTypeText, { color: ev.eventType === 'flow_completed' ? Colors.success : ev.eventType === 'bounced' ? Colors.danger : '#3B82F6' }]}>
+                          {ev.eventType.toUpperCase()}
+                        </Text>
+                      </View>
+                      <Text style={styles.expEventVariant}>{ev.variantId}</Text>
+                    </View>
+                    <Text style={styles.expEventId}>{ev.experimentId}</Text>
+                    <Text style={styles.expEventTime}>{formatTimestamp(ev.timestamp)}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
 
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>SAFETY RULES</Text>
@@ -882,5 +1057,166 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 30,
+  },
+  experimentRow: {
+    padding: 12,
+  },
+  experimentRowBorder: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  experimentHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    marginBottom: 8,
+  },
+  experimentLabel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.text,
+  },
+  experimentCategory: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 1,
+  },
+  confidenceBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  confidenceText: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    letterSpacing: 0.5,
+  },
+  experimentResetBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: Colors.surface,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  variantCompare: {
+    flexDirection: 'row' as const,
+    gap: 0,
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    overflow: 'hidden' as const,
+  },
+  variantCol: {
+    flex: 1,
+    padding: 10,
+    alignItems: 'center' as const,
+    gap: 3,
+  },
+  variantLabel: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: Colors.primary,
+    marginBottom: 2,
+  },
+  variantStat: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+  },
+  variantDivider: {
+    width: 1,
+    backgroundColor: Colors.borderLight,
+  },
+  winnerRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  winnerText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.success,
+  },
+  assignmentRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    padding: 10,
+    gap: 8,
+  },
+  assignmentRowBorder: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  assignmentLeft: {
+    flex: 1,
+  },
+  assignmentId: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+  },
+  assignmentMeta: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    marginTop: 1,
+  },
+  assignmentBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  assignmentVariant: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: Colors.primary,
+  },
+  assignmentVariantLabel: {
+    fontSize: 11,
+    color: Colors.text,
+    fontWeight: '500' as const,
+    maxWidth: 100,
+  },
+  expEventRow: {
+    padding: 10,
+  },
+  expEventRowBorder: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  expEventHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    marginBottom: 3,
+  },
+  expEventTypeBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
+  expEventTypeText: {
+    fontSize: 9,
+    fontWeight: '700' as const,
+    letterSpacing: 0.4,
+  },
+  expEventVariant: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: Colors.primary,
+  },
+  expEventId: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginBottom: 1,
+  },
+  expEventTime: {
+    fontSize: 10,
+    color: Colors.textMuted,
   },
 });

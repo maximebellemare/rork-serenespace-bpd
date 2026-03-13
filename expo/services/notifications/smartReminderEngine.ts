@@ -13,6 +13,8 @@ import { localEventStore } from '@/services/analytics/localEventStore';
 import { premiumReminderEngine } from './premiumReminderEngine';
 import { premiumIntentService } from '@/services/subscription/premiumIntentService';
 import { PremiumReminderDecision } from '@/types/premiumReminder';
+import { notificationExperimentService } from './notificationExperimentService';
+import { notificationVariantResolver } from './notificationVariantResolver';
 
 
 const STATE_KEY = 'bpd_smart_reminder_state';
@@ -72,6 +74,7 @@ class SmartReminderEngine {
         }
       }
       await premiumReminderEngine.initialize();
+      await notificationExperimentService.initialize();
       console.log('[SmartReminderEngine] Initialized, today fired:', this.state.todayFiredCount);
     } catch (error) {
       console.error('[SmartReminderEngine] Init error:', error);
@@ -310,13 +313,15 @@ class SmartReminderEngine {
     settings: FullNotificationSettings,
     currentDistress: number,
   ): Promise<string | null> {
-    const copy = decision.personalizedCopy ?? { title: 'BPD Companion', body: 'Support is here for you.' };
+    const resolved = notificationVariantResolver.resolve(decision.category, decision.personalizedCopy);
+    const copy = { title: resolved.title, body: resolved.body };
+    const delaySeconds = resolved.timingDelayOverride ?? decision.delaySeconds;
 
     const notifId = await notificationService.scheduleReminder(
       decision.category,
       copy.title,
       copy.body,
-      Math.max(1, decision.delaySeconds),
+      Math.max(1, delaySeconds),
       false,
       { target_screen: decision.deepLink, rule_id: decision.ruleId },
       settings.quietHours,
@@ -342,7 +347,8 @@ class SmartReminderEngine {
         timestamp: Date.now(),
       });
 
-      console.log('[SmartReminderEngine] Fired:', decision.ruleId, '→', notifId);
+      await notificationVariantResolver.trackSent(decision.category);
+      console.log('[SmartReminderEngine] Fired:', decision.ruleId, '→', notifId, 'experiment:', resolved.experimentId, resolved.variantId);
     }
 
     return notifId;

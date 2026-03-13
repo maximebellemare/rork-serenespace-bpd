@@ -8,6 +8,7 @@ import {
 } from '@/types/notificationRouting';
 import { notificationRoutingService } from './notificationRoutingService';
 import { trackEvent } from '@/services/analytics/analyticsService';
+import { notificationVariantResolver } from './notificationVariantResolver';
 
 const CONVERSION_KEY = 'bpd_notification_conversions';
 const ENTRY_STATE_KEY = 'bpd_notification_entry_state';
@@ -76,6 +77,8 @@ class NotificationActionHandler {
       rule_id: data?.rule_id ?? 'unknown',
     });
 
+    void notificationVariantResolver.trackOpened(cat);
+
     console.log('[NotificationActionHandler] Session started:', sessionId);
     return { route, entryState };
   }
@@ -89,6 +92,8 @@ class NotificationActionHandler {
       category: this.currentSession.category,
       target_route: this.currentSession.targetRoute,
     });
+
+    void notificationVariantResolver.trackFlowStarted(this.currentSession.category);
 
     console.log('[NotificationActionHandler] Flow started:', this.currentSession.sessionId);
   }
@@ -114,6 +119,8 @@ class NotificationActionHandler {
         : 'unknown',
     });
 
+    void notificationVariantResolver.trackFlowCompleted(this.currentSession.category);
+
     await this.persistConversion(this.currentSession);
     console.log('[NotificationActionHandler] Flow completed:', this.currentSession.sessionId);
     this.currentSession = null;
@@ -133,6 +140,8 @@ class NotificationActionHandler {
       target_route: this.currentSession.targetRoute,
       dwell_time_ms: dwellTime,
     });
+
+    void notificationVariantResolver.trackBounced(this.currentSession.category);
 
     await this.persistConversion(this.currentSession);
     console.log('[NotificationActionHandler] Bounced:', this.currentSession.sessionId, 'dwell:', dwellTime, 'ms');
