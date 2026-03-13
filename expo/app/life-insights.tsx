@@ -30,6 +30,7 @@ import {
   AlertTriangle,
   Repeat,
   Calendar,
+  Link2,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
@@ -382,6 +383,23 @@ export default function LifeInsightsScreen() {
           <Text style={[styles.tabText, activeTab === 'weekly' && styles.tabTextActive]}>Weekly</Text>
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity
+        style={styles.correlationBanner}
+        onPress={() => {
+          if (Platform.OS !== 'web') {
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }
+          router.push('/correlation-insights');
+        }}
+        activeOpacity={0.7}
+      >
+        <View style={styles.correlationBannerIcon}>
+          <Link2 size={16} color="#8B5CF6" />
+        </View>
+        <Text style={styles.correlationBannerText}>Correlation Insights</Text>
+        <ChevronRight size={14} color={Colors.textMuted} />
+      </TouchableOpacity>
 
       <ScrollView
         style={styles.scrollView}
@@ -966,5 +984,32 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: 16,
     fontWeight: '600' as const,
+  },
+  correlationBanner: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 10,
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 4,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  correlationBannerIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: '#EDE7F6',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  correlationBannerText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.text,
   },
 });

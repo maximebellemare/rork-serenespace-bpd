@@ -81,6 +81,7 @@ import OutcomePromptBanner from '@/components/OutcomePromptBanner';
 import LearningRecommendationCard from '@/components/LearningRecommendationCard';
 import MedicationHomeCard from '@/components/MedicationHomeCard';
 import AppointmentHomeCard from '@/components/AppointmentHomeCard';
+import CorrelationInsightsCard from '@/components/CorrelationInsightsCard';
 
 interface CardSlot {
   key: string;
@@ -501,6 +502,10 @@ export default function HomeScreen() {
 
     addSlot('appointments', () => (
       <AppointmentHomeCard key="appointments" />
+    ));
+
+    addSlot('correlation_insights', () => (
+      <CorrelationInsightsCard key="correlation_insights" />
     ));
 
     addSlot('learning_recommendations', () => (

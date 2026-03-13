@@ -22,6 +22,8 @@ import {
   Flame,
   Shield,
   BarChart3,
+  Link2,
+  ChevronRight,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
@@ -483,6 +485,26 @@ export default function InsightsScreen() {
             <ExerciseChart data={insights.exerciseEffectiveness} />
             <CopingChart data={insights.copingTools} />
 
+            <TouchableOpacity
+              style={styles.correlationLink}
+              onPress={() => {
+                if (Platform.OS !== 'web') {
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }
+                router.push('/correlation-insights');
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.correlationLinkIcon}>
+                <Link2 size={18} color="#8B5CF6" />
+              </View>
+              <View style={styles.correlationLinkText}>
+                <Text style={styles.correlationLinkTitle}>Correlation Insights</Text>
+                <Text style={styles.correlationLinkDesc}>See how habits connect to emotional patterns</Text>
+              </View>
+              <ChevronRight size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+
             <View style={styles.footerMessage}>
               <Text style={styles.footerText}>
                 Every check-in builds a clearer picture.{'\n'}You're doing something meaningful.
@@ -937,5 +959,37 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: 16,
     fontWeight: '600' as const,
+  },
+  correlationLink: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 14,
+    backgroundColor: Colors.card,
+    borderRadius: 18,
+    padding: 16,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  correlationLinkIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#EDE7F6',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  correlationLinkText: {
+    flex: 1,
+  },
+  correlationLinkTitle: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  correlationLinkDesc: {
+    fontSize: 12,
+    color: Colors.textMuted,
   },
 });
