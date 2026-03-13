@@ -80,6 +80,7 @@ import NextInterventionCard from '@/components/NextInterventionCard';
 import OutcomePromptBanner from '@/components/OutcomePromptBanner';
 import LearningRecommendationCard from '@/components/LearningRecommendationCard';
 import MedicationHomeCard from '@/components/MedicationHomeCard';
+import AppointmentHomeCard from '@/components/AppointmentHomeCard';
 
 interface CardSlot {
   key: string;
@@ -496,6 +497,10 @@ export default function HomeScreen() {
 
     addSlot('medications', () => (
       <MedicationHomeCard key="medications" />
+    ));
+
+    addSlot('appointments', () => (
+      <AppointmentHomeCard key="appointments" />
     ));
 
     addSlot('learning_recommendations', () => (

@@ -16,6 +16,7 @@ import { LocalDBTRepository } from './dbtRepository';
 import { LocalSettingsRepository } from './settingsRepository';
 import { LocalDailyRitualsRepository } from './dailyRitualsRepository';
 import { LocalMedicationRepository } from './medicationRepository';
+import { LocalAppointmentRepository } from './appointmentRepository';
 import {
   IJournalRepository,
   IMessageRepository,
@@ -51,6 +52,7 @@ export const dbtRepository: IDBTRepository = new LocalDBTRepository(storageServi
 export const settingsRepository: ISettingsRepository = new LocalSettingsRepository(storageService);
 export const dailyRitualsRepository = new LocalDailyRitualsRepository(storageService);
 export const medicationRepository = new LocalMedicationRepository(storageService);
+export const appointmentRepository = new LocalAppointmentRepository(storageService);
 
 export type {
   IJournalRepository,
@@ -71,3 +73,4 @@ export type {
 export type { IRitualRepository } from './ritualRepository';
 export type { IDailyRitualsRepository } from './dailyRitualsRepository';
 export type { IMedicationRepository } from './medicationRepository';
+export type { IAppointmentRepository } from './appointmentRepository';
