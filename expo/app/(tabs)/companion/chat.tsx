@@ -53,7 +53,7 @@ interface QuickActionConfig {
 const QUICK_ACTION_CONFIG: Record<string, QuickActionConfig> = {
   'Ground me': { icon: <Wind size={13} color={Colors.primary} />, route: '/exercise?id=c1' },
   'Show coping tools': { icon: <Compass size={13} color={Colors.primary} />, route: '/(tabs)/tools' },
-  'Journal this': { icon: <PenLine size={13} color={Colors.primary} />, route: '/(tabs)/journal' },
+  'Journal this': { icon: <PenLine size={13} color={Colors.primary} />, route: '/check-in' },
   'Help me rewrite a message': { icon: <MessageSquareText size={13} color={Colors.primary} />, route: '/(tabs)/messages' },
   'Slow this down': { icon: <Wind size={13} color={Colors.primary} />, message: 'I need to slow this down. Can we take it one small step at a time?' },
   'Safety mode': { icon: <Shield size={13} color={Colors.danger} />, route: '/safety-mode' },
@@ -458,6 +458,27 @@ export default function ChatScreen() {
     await sendMessage(prompt);
   }, [sendMessage]);
 
+  const getConversationContext = useCallback((): string => {
+    if (!activeConversation?.messages.length) return '';
+    const recent = activeConversation.messages.slice(-6);
+    const userMessages = recent.filter(m => m.role === 'user').map(m => m.content);
+    const lastAssistant = recent.filter(m => m.role === 'assistant').pop();
+
+    const parts: string[] = [];
+    if (activeConversation.title && activeConversation.title !== 'New Chat') {
+      parts.push(`Topic: ${activeConversation.title}`);
+    }
+    if (userMessages.length > 0) {
+      const summary = userMessages.slice(-2).join(' ').slice(0, 300);
+      parts.push(`What I was sharing: ${summary}`);
+    }
+    if (lastAssistant) {
+      const snippet = lastAssistant.content.slice(0, 200);
+      parts.push(`Companion noted: ${snippet}`);
+    }
+    return parts.join('\n');
+  }, [activeConversation]);
+
   const handleQuickAction = useCallback((action: string) => {
     if (Platform.OS !== 'web') {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -470,13 +491,25 @@ export default function ChatScreen() {
       return;
     }
 
+    if (action === 'Journal this') {
+      const context = getConversationContext();
+      const prefillNotes = context
+        ? `From companion conversation:\n${context}`
+        : '';
+      router.push({
+        pathname: '/check-in',
+        params: { prefillNotes, source: 'companion' },
+      } as never);
+      return;
+    }
+
     if (config?.route) {
       router.push(config.route as never);
       return;
     }
 
     void sendMessage(action);
-  }, [sendMessage, router]);
+  }, [sendMessage, router, getConversationContext]);
 
   useEffect(() => {
     if (activeConversation?.messages.length) {

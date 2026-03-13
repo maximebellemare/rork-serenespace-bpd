@@ -9,7 +9,7 @@ import {
   Animated,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, ChevronRight, ChevronLeft, Check, Wind, Anchor, BookOpen, Heart, RefreshCw, Search, MessageCircle, Timer, Sparkles } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -53,14 +53,15 @@ const STEP_SUBTITLES: Record<Step, string> = {
 export default function CheckInScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ prefillNotes?: string; source?: string }>();
   const { addJournalEntry, setDistressLevel } = useApp();
   const { trackEvent, trackFlowStart, trackFlowComplete } = useAnalytics();
   const { isFromNotification, markFlowCompleted } = useNotificationEntry();
 
   useEffect(() => {
     trackFlowStart('check_in');
-    trackEvent('screen_view', { screen: 'check_in' });
-  }, [trackFlowStart, trackEvent]);
+    trackEvent('screen_view', { screen: 'check_in', source: params.source ?? 'direct' });
+  }, [trackFlowStart, trackEvent, params.source]);
 
   const [stepIndex, setStepIndex] = useState<number>(0);
   const [selectedTriggers, setSelectedTriggers] = useState<Trigger[]>([]);
@@ -68,7 +69,7 @@ export default function CheckInScreen() {
   const [selectedSensations, setSelectedSensations] = useState<BodySensation[]>([]);
   const [selectedUrges, setSelectedUrges] = useState<Urge[]>([]);
   const [intensity, setIntensity] = useState<number>(5);
-  const [notes, setNotes] = useState<string>('');
+  const [notes, setNotes] = useState<string>(params.prefillNotes ?? '');
 
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
