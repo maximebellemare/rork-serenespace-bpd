@@ -54,6 +54,8 @@ import { useStormEarlyWarning } from '@/hooks/useStormEarlyWarning';
 import ReflectionMirrorCard from '@/components/ReflectionMirrorCard';
 import { generateReflectionMirror } from '@/services/reflection/reflectionMirrorService';
 import EmotionalProfileCard from '@/components/EmotionalProfileCard';
+import EmotionalTimelineCard from '@/components/EmotionalTimelineCard';
+import { buildEpisodeReplayState } from '@/services/timeline/emotionalEpisodeService';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -72,6 +74,11 @@ export default function HomeScreen() {
 
   const weeklyReflection = useMemo(
     () => generateWeeklyReflection(journalEntries, messageDrafts),
+    [journalEntries, messageDrafts],
+  );
+
+  const episodeReplayState = useMemo(
+    () => buildEpisodeReplayState(journalEntries, messageDrafts),
     [journalEntries, messageDrafts],
   );
 
@@ -402,6 +409,10 @@ export default function HomeScreen() {
             topTheme={reflectionMirror.emotionalThemes[0]?.label ?? null}
             growthCount={reflectionMirror.growthSignals.length}
           />
+        </Animated.View>
+
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <EmotionalTimelineCard replayState={episodeReplayState} />
         </Animated.View>
 
         <Animated.View style={{ opacity: fadeAnim }}>
