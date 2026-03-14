@@ -3,7 +3,18 @@ export type ResponsePath =
   | 'avoidant'
   | 'soft'
   | 'boundary'
-  | 'secure';
+  | 'secure'
+  | 'do_not_send';
+
+export type RiskTier = 'low' | 'moderate' | 'high';
+
+export interface PathImpactScore {
+  regretRisk: RiskTier;
+  dignityProtection: RiskTier;
+  clarityLevel: RiskTier;
+  escalationRisk: RiskTier;
+  selfRespect: RiskTier;
+}
 
 export interface ResponsePathSimulation {
   path: ResponsePath;
@@ -13,16 +24,109 @@ export interface ResponsePathSimulation {
   exampleMessage: string;
   shortTermEffect: string;
   relationshipEffect: string;
-  regretRisk: 'low' | 'moderate' | 'high';
-  dignityProtection: 'low' | 'moderate' | 'high';
-  clarityLevel: 'low' | 'moderate' | 'high';
+  selfEffect: string;
+  impact: PathImpactScore;
   isRecommended: boolean;
+  recommendationNote: string;
+  actionLabel: string;
+  actionType: 'use_rewrite' | 'save_draft' | 'pause' | 'journal' | 'secure_rewrite' | 'grounding';
 }
 
-export const RESPONSE_PATH_META: Record<ResponsePath, { label: string; emoji: string; color: string }> = {
-  urgent: { label: 'Urgent', emoji: '⚡', color: '#E17055' },
-  avoidant: { label: 'Avoidant', emoji: '🧊', color: '#7FB3D3' },
-  soft: { label: 'Soft', emoji: '🪶', color: '#E8A87C' },
-  boundary: { label: 'Boundary', emoji: '🛡️', color: '#5B8FB9' },
-  secure: { label: 'Secure', emoji: '🌿', color: '#6B9080' },
+export interface SimulationContext {
+  draft: string;
+  situation: string;
+  emotionalState: string | null;
+  interpretation: string | null;
+  urge: string | null;
+  desiredOutcome: string | null;
+  riskLevel: string | null;
+}
+
+export interface SimulationResult {
+  id: string;
+  timestamp: number;
+  context: SimulationContext;
+  paths: ResponsePathSimulation[];
+  recommendedPathType: ResponsePath;
+  recommendationReason: string;
+}
+
+export type SimulationOutcomeResult =
+  | 'sent_helped'
+  | 'sent_neutral'
+  | 'sent_regretted'
+  | 'not_sent_relieved'
+  | 'not_sent_unsure'
+  | 'paused_first'
+  | 'journaled_instead'
+  | 'used_grounding';
+
+export interface SimulationOutcomeRecord {
+  id: string;
+  simulationId: string;
+  timestamp: number;
+  selectedPath: ResponsePath;
+  outcome: SimulationOutcomeResult | null;
+  didSend: boolean;
+  didRegret: boolean;
+  conflictEscalated: boolean;
+  waitingHelped: boolean;
+  emotionalState: string | null;
+  desiredOutcome: string | null;
+  draftRiskLevel: string | null;
+}
+
+export const SIMULATION_OUTCOME_OPTIONS: {
+  value: SimulationOutcomeResult;
+  label: string;
+  emoji: string;
+  color: string;
+}[] = [
+  { value: 'sent_helped', label: 'Sent — it helped', emoji: '💚', color: '#6B9080' },
+  { value: 'sent_neutral', label: 'Sent — neutral', emoji: '😐', color: '#8E9BAA' },
+  { value: 'sent_regretted', label: 'Sent — regretted it', emoji: '💔', color: '#E17055' },
+  { value: 'not_sent_relieved', label: "Didn't send — relieved", emoji: '😌', color: '#7FA68E' },
+  { value: 'not_sent_unsure', label: "Didn't send — still unsure", emoji: '🤔', color: '#C4956A' },
+  { value: 'paused_first', label: 'Paused first', emoji: '⏳', color: '#9B8EC4' },
+  { value: 'journaled_instead', label: 'Journaled instead', emoji: '📝', color: '#5B8FB9' },
+  { value: 'used_grounding', label: 'Used grounding', emoji: '🧘', color: '#4A8B8D' },
+];
+
+export const RESPONSE_PATH_META: Record<ResponsePath, { label: string; emoji: string; color: string; description: string }> = {
+  urgent: {
+    label: 'Urgent',
+    emoji: '⚡',
+    color: '#E17055',
+    description: 'The emotionally driven, pressuring response',
+  },
+  avoidant: {
+    label: 'Avoidant',
+    emoji: '🧊',
+    color: '#7FB3D3',
+    description: 'The shutdown, cold distance response',
+  },
+  soft: {
+    label: 'Soft',
+    emoji: '🪶',
+    color: '#E8A87C',
+    description: 'The gentle, emotionally open response',
+  },
+  boundary: {
+    label: 'Boundary',
+    emoji: '🛡️',
+    color: '#5B8FB9',
+    description: 'The clear, dignity-protecting response',
+  },
+  secure: {
+    label: 'Secure',
+    emoji: '🌿',
+    color: '#6B9080',
+    description: 'The calm, self-respecting response',
+  },
+  do_not_send: {
+    label: 'Do Not Send',
+    emoji: '🛑',
+    color: '#C47878',
+    description: 'The strategic pause — regulate first',
+  },
 };

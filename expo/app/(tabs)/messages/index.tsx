@@ -321,9 +321,10 @@ export default function MessagesScreen() {
         interpretation: enhancedContext.interpretation ?? '',
         urge: enhancedContext.urge ?? '',
         desiredOutcome: enhancedContext.desiredOutcome ?? '',
+        riskLevel: safetyClassification?.riskLevel ?? '',
       },
     } as never);
-  }, [enhancedContext, router]);
+  }, [enhancedContext, router, safetyClassification]);
 
   const proceedToLegacyRewrites = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
