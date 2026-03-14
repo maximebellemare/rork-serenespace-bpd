@@ -25,6 +25,9 @@ import {
   Award,
   Sparkles,
   TrendingUp,
+  Target,
+  Settings,
+  Trophy,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { CATEGORIES, SUPPORT_REACTION_LABELS, SITUATION_TAGS } from '@/constants/community';
@@ -492,9 +495,68 @@ export default function CommunityFeedScreen() {
               </Text>
             </View>
 
-            {circles.map((circle) => (
-              <CircleCard key={circle.id} circle={circle} onPress={() => handleCirclePress(circle.id)} />
-            ))}
+            <View style={styles.circleQuickLinks}>
+              <TouchableOpacity
+                style={styles.quickLinkCard}
+                onPress={() => router.push('/community/support-preferences' as never)}
+                activeOpacity={0.7}
+                testID="support-preferences-btn"
+              >
+                <View style={[styles.quickLinkIcon, { backgroundColor: Colors.primaryLight }]}>
+                  <Settings size={18} color={Colors.primary} />
+                </View>
+                <Text style={styles.quickLinkLabel}>My Preferences</Text>
+                <ChevronRight size={14} color={Colors.textMuted} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.quickLinkCard}
+                onPress={() => router.push('/community/challenges' as never)}
+                activeOpacity={0.7}
+                testID="challenges-btn"
+              >
+                <View style={[styles.quickLinkIcon, { backgroundColor: Colors.warmGlow }]}>
+                  <Target size={18} color={Colors.brandAmber} />
+                </View>
+                <Text style={styles.quickLinkLabel}>Challenges</Text>
+                <ChevronRight size={14} color={Colors.textMuted} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.quickLinkCard}
+                onPress={() => router.push('/community/trusted-helpers' as never)}
+                activeOpacity={0.7}
+                testID="trusted-helpers-btn"
+              >
+                <View style={[styles.quickLinkIcon, { backgroundColor: Colors.brandLilacSoft }]}>
+                  <Trophy size={18} color={Colors.brandLilac} />
+                </View>
+                <Text style={styles.quickLinkLabel}>Trusted Helpers</Text>
+                <ChevronRight size={14} color={Colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            {circles.filter(c => c.isJoined).length > 0 && (
+              <View style={styles.circlesSectionBlock}>
+                <View style={styles.sectionHeader}>
+                  <Heart size={16} color={Colors.primary} />
+                  <Text style={styles.sectionTitle}>My circles</Text>
+                </View>
+                {circles.filter(c => c.isJoined).map((circle) => (
+                  <CircleCard key={circle.id} circle={circle} onPress={() => handleCirclePress(circle.id)} />
+                ))}
+              </View>
+            )}
+
+            {circles.filter(c => !c.isJoined).length > 0 && (
+              <View style={styles.circlesSectionBlock}>
+                <View style={styles.sectionHeader}>
+                  <Sparkles size={16} color={Colors.brandAmber} />
+                  <Text style={styles.sectionTitle}>Discover circles</Text>
+                </View>
+                {circles.filter(c => !c.isJoined).map((circle) => (
+                  <CircleCard key={circle.id} circle={circle} onPress={() => handleCirclePress(circle.id)} />
+                ))}
+              </View>
+            )}
           </>
         )}
 
@@ -1001,6 +1063,36 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 30,
+  },
+  circleQuickLinks: {
+    gap: 8,
+    marginBottom: 20,
+  },
+  quickLinkCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    gap: 12,
+  },
+  quickLinkIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quickLinkLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.text,
+  },
+  circlesSectionBlock: {
+    marginBottom: 16,
   },
   ecRow: {
     flexDirection: 'row',

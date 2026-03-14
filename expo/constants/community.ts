@@ -469,3 +469,151 @@ export const GUIDED_POST_PROMPTS = [
   { id: 'emotions', label: 'What emotions are you feeling?', placeholder: 'Select or describe your emotions...' },
   { id: 'support-type', label: 'What kind of support would help?', placeholder: 'Just listening, advice, shared experiences...' },
 ];
+
+import { SupportTopic, CommunityChallenge, ChallengeProgress, CirclePost, CirclePostType } from '@/types/community';
+
+export const SUPPORT_TOPICS: { id: SupportTopic; label: string; emoji: string; description: string }[] = [
+  { id: 'relationship-triggers', label: 'Relationship triggers', emoji: '💛', description: 'Understanding and managing relationship patterns' },
+  { id: 'fear-of-rejection', label: 'Fear of rejection', emoji: '🚪', description: 'Coping with rejection sensitivity' },
+  { id: 'shame-recovery', label: 'Shame recovery', emoji: '🌿', description: 'Healing from shame spirals' },
+  { id: 'emotional-regulation', label: 'Emotional regulation', emoji: '🧘', description: 'Building regulation skills' },
+  { id: 'communication-skills', label: 'Communication skills', emoji: '💬', description: 'Healthier conversations and boundaries' },
+  { id: 'daily-stability', label: 'Daily stability', emoji: '🌅', description: 'Building consistent routines' },
+];
+
+export const CIRCLE_POST_TYPES: { id: CirclePostType; label: string; emoji: string; color: string }[] = [
+  { id: 'update', label: 'Update', emoji: '📝', color: '#4A8B8D' },
+  { id: 'question', label: 'Question', emoji: '❓', color: '#9B8EC4' },
+  { id: 'progress', label: 'Progress', emoji: '🌱', color: '#6BA38E' },
+  { id: 'encouragement', label: 'Encouragement', emoji: '💛', color: '#E8A87C' },
+];
+
+const challengeNow = Date.now();
+const challengeDay = 86400000;
+
+export const MOCK_CHALLENGES: CommunityChallenge[] = [
+  {
+    id: 'challenge-pause',
+    title: 'Pause Before Reacting',
+    description: 'Practice taking a breath before responding to emotional triggers. Each day, commit to pausing at least once before reacting impulsively.',
+    emoji: '⏸️',
+    color: '#4A8B8D',
+    durationDays: 5,
+    dailyPrompt: 'Did you pause before reacting today? What happened?',
+    participantCount: 87,
+    isJoined: false,
+    startDate: challengeNow - 2 * challengeDay,
+    tags: ['regulation', 'coping', 'mindfulness'],
+  },
+  {
+    id: 'challenge-checkin',
+    title: 'Daily Emotional Check-In',
+    description: 'Start each day by naming your emotions. Build awareness by checking in with yourself every morning for 7 days.',
+    emoji: '🌤',
+    color: '#E8A87C',
+    durationDays: 7,
+    dailyPrompt: 'How are you feeling right now? Name 2-3 emotions.',
+    participantCount: 134,
+    isJoined: true,
+    startDate: challengeNow - 3 * challengeDay,
+    tags: ['daily', 'check-in', 'awareness'],
+  },
+  {
+    id: 'challenge-dbt',
+    title: 'One DBT Skill Per Day',
+    description: 'Practice a different DBT skill each day. Start small — even 2 minutes of practice counts.',
+    emoji: '🧘',
+    color: '#9B8EC4',
+    durationDays: 7,
+    dailyPrompt: 'Which DBT skill did you practice today? How did it go?',
+    participantCount: 62,
+    isJoined: false,
+    startDate: challengeNow - 1 * challengeDay,
+    tags: ['dbt', 'coping', 'regulation'],
+  },
+  {
+    id: 'challenge-compassion',
+    title: 'Self-Compassion Week',
+    description: 'Replace one self-critical thought with a compassionate one each day. You deserve the kindness you give others.',
+    emoji: '💛',
+    color: '#6BA38E',
+    durationDays: 7,
+    dailyPrompt: 'What self-critical thought did you catch today? How did you respond with compassion?',
+    participantCount: 95,
+    isJoined: false,
+    startDate: challengeNow,
+    tags: ['self-compassion', 'shame', 'recovery'],
+  },
+  {
+    id: 'challenge-boundary',
+    title: 'Boundary Practice',
+    description: 'Set or maintain one small boundary each day. It can be as simple as saying "I need a moment" before responding.',
+    emoji: '🛡️',
+    color: '#D4956A',
+    durationDays: 5,
+    dailyPrompt: 'What boundary did you practice today?',
+    participantCount: 48,
+    isJoined: false,
+    startDate: challengeNow + 1 * challengeDay,
+    tags: ['communication', 'relationships', 'boundaries'],
+  },
+];
+
+export const MOCK_CHALLENGE_PROGRESS: Record<string, ChallengeProgress[]> = {
+  'challenge-checkin': [
+    { challengeId: 'challenge-checkin', userId: 'current_user', displayName: 'You', completedDays: 3, totalDays: 7, lastCheckedIn: challengeNow - 4 * 3600000, isCurrentUser: true },
+    { challengeId: 'challenge-checkin', userId: 'u1', displayName: 'healing_slowly', completedDays: 5, totalDays: 7, lastCheckedIn: challengeNow - 2 * 3600000, isCurrentUser: false },
+    { challengeId: 'challenge-checkin', userId: 'u3', displayName: 'brave_steps', completedDays: 4, totalDays: 7, lastCheckedIn: challengeNow - 6 * 3600000, isCurrentUser: false },
+    { challengeId: 'challenge-checkin', userId: 'u8', displayName: 'gentle_mind', completedDays: 2, totalDays: 7, lastCheckedIn: challengeNow - 12 * 3600000, isCurrentUser: false },
+  ],
+};
+
+export const MOCK_CIRCLE_POSTS: Record<string, CirclePost[]> = {
+  'circle-shame': [
+    {
+      id: 'cp1',
+      circleId: 'circle-shame',
+      title: 'Had a shame spiral today but caught it early',
+      body: 'I made a mistake at work and immediately felt like the worst person alive. But this time I recognized the spiral starting and used self-compassion instead of spiraling for hours. Small win.',
+      author: { id: 'u3', displayName: 'brave_steps', isAnonymous: false, isTrustedHelper: false, helpfulReplyCount: 12 },
+      createdAt: challengeNow - 3 * 3600000,
+      replyCount: 5,
+      reactions: [{ type: 'heart', count: 14, userReacted: false }, { type: 'strength', count: 8, userReacted: false }],
+      supportReactions: [{ type: 'understand', count: 11, userReacted: false }, { type: 'experienced', count: 9, userReacted: false }, { type: 'sending-support', count: 6, userReacted: false }, { type: 'helped-me', count: 4, userReacted: false }],
+      type: 'progress',
+    },
+    {
+      id: 'cp2',
+      circleId: 'circle-shame',
+      title: 'How do you separate shame from guilt?',
+      body: 'My therapist keeps saying shame is about who you are and guilt is about what you did. But in the moment they feel exactly the same to me. Anyone have tips for telling them apart?',
+      author: { id: 'u5', displayName: 'Anonymous', isAnonymous: true },
+      createdAt: challengeNow - 8 * 3600000,
+      replyCount: 8,
+      reactions: [{ type: 'relate', count: 22, userReacted: false }],
+      supportReactions: [{ type: 'understand', count: 18, userReacted: false }, { type: 'experienced', count: 15, userReacted: false }, { type: 'sending-support', count: 3, userReacted: false }, { type: 'helped-me', count: 2, userReacted: false }],
+      type: 'question',
+    },
+  ],
+  'circle-regulation': [
+    {
+      id: 'cp3',
+      circleId: 'circle-regulation',
+      title: 'TIPP skill actually works in a crisis',
+      body: 'I was completely overwhelmed yesterday and remembered the TIPP skill. Held ice cubes, did intense exercise for 5 minutes, and my distress dropped from a 9 to a 5. Sharing because I was skeptical before.',
+      author: { id: 'u1', displayName: 'healing_slowly', isAnonymous: false, isTrustedHelper: true, helpfulReplyCount: 47 },
+      createdAt: challengeNow - 5 * 3600000,
+      replyCount: 12,
+      reactions: [{ type: 'heart', count: 28, userReacted: false }, { type: 'strength', count: 15, userReacted: true }],
+      supportReactions: [{ type: 'understand', count: 8, userReacted: false }, { type: 'experienced', count: 12, userReacted: false }, { type: 'sending-support', count: 5, userReacted: false }, { type: 'helped-me', count: 20, userReacted: false }],
+      type: 'progress',
+    },
+  ],
+};
+
+export const MOCK_TRUSTED_CONTRIBUTORS = [
+  { userId: 'u1', displayName: 'healing_slowly', helpfulCount: 47, positiveFeedback: 38, activityStreak: 14 },
+  { userId: 'u10', displayName: 'recovery_road', helpfulCount: 51, positiveFeedback: 42, activityStreak: 21 },
+  { userId: 'u6', displayName: 'open_heart', helpfulCount: 63, positiveFeedback: 55, activityStreak: 30 },
+  { userId: 'u8', displayName: 'gentle_mind', helpfulCount: 34, positiveFeedback: 28, activityStreak: 10 },
+];

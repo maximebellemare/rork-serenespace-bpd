@@ -206,3 +206,73 @@ export interface CommunityMatchPreferences {
   emotionalPatterns: string[];
   preferredCircles: string[];
 }
+
+export type SupportTopic =
+  | 'relationship-triggers'
+  | 'fear-of-rejection'
+  | 'shame-recovery'
+  | 'emotional-regulation'
+  | 'communication-skills'
+  | 'daily-stability';
+
+export interface SupportPreferences {
+  topics: SupportTopic[];
+  updatedAt: number;
+}
+
+export interface CirclePost {
+  id: string;
+  circleId: string;
+  title: string;
+  body: string;
+  author: PostAuthor;
+  createdAt: number;
+  replyCount: number;
+  reactions: SupportiveReaction[];
+  supportReactions: SupportReaction[];
+  type: CirclePostType;
+}
+
+export type CirclePostType = 'update' | 'question' | 'progress' | 'encouragement';
+
+export interface CircleReply {
+  id: string;
+  circlePostId: string;
+  body: string;
+  author: PostAuthor;
+  createdAt: number;
+  reactions: SupportiveReaction[];
+}
+
+export interface CommunityChallenge {
+  id: string;
+  title: string;
+  description: string;
+  emoji: string;
+  color: string;
+  durationDays: number;
+  dailyPrompt: string;
+  participantCount: number;
+  isJoined: boolean;
+  startDate: number;
+  tags: string[];
+}
+
+export interface ChallengeProgress {
+  challengeId: string;
+  userId: string;
+  displayName: string;
+  completedDays: number;
+  totalDays: number;
+  lastCheckedIn: number;
+  isCurrentUser: boolean;
+}
+
+export interface TrustedContributor {
+  userId: string;
+  displayName: string;
+  helpfulCount: number;
+  positiveFeedback: number;
+  activityStreak: number;
+  badge: 'trusted-helper';
+}
