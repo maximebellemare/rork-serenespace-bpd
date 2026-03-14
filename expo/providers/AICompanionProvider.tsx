@@ -47,6 +47,10 @@ import {
 import { trackEvent } from '@/services/analytics/analyticsService';
 import { assembleCompanionContext } from '@/services/companion/contextAssembler';
 import { buildLiveEmotionalContext } from '@/services/companion/emotionalContextService';
+import { getEnhancedOutcomes } from '@/services/messages/enhancedOutcomeService';
+import { EnhancedMessageOutcome } from '@/types/messageOutcome';
+import { SmartJournalEntry } from '@/types/journalEntry';
+import { journalEntryRepository } from '@/services/journal/journalEntryRepository';
 import { selectCompanionMode } from '@/services/companion/companionPromptBuilder';
 import { CompanionMode, FollowUpPrompt } from '@/types/companionModes';
 import {
@@ -94,6 +98,32 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
   const [companionMode, setCompanionMode] = useState<CompanionMode | null>(null);
   const [sessionCount, setSessionCount] = useState<number>(0);
   const processedConversationsRef = useRef<Set<string>>(new Set());
+  const [smartJournalEntries, setSmartJournalEntries] = useState<SmartJournalEntry[]>([]);
+  const [messageOutcomes, setMessageOutcomes] = useState<EnhancedMessageOutcome[]>([]);
+
+  const smartJournalQuery = useQuery({
+    queryKey: ['companion-smart-journal'],
+    queryFn: () => journalEntryRepository.getAll(),
+    staleTime: 60000,
+  });
+
+  useEffect(() => {
+    if (smartJournalQuery.data) {
+      setSmartJournalEntries(smartJournalQuery.data);
+    }
+  }, [smartJournalQuery.data]);
+
+  const messageOutcomesQuery = useQuery({
+    queryKey: ['companion-message-outcomes'],
+    queryFn: getEnhancedOutcomes,
+    staleTime: 60000,
+  });
+
+  useEffect(() => {
+    if (messageOutcomesQuery.data) {
+      setMessageOutcomes(messageOutcomesQuery.data);
+    }
+  }, [messageOutcomesQuery.data]);
 
   const memorySnapshotQuery = useQuery({
     queryKey: ['user-memory-snapshot'],
@@ -319,6 +349,8 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
       memoryStore: companionMemoryStore,
       weeklyInsights,
       patternInsights: companionPatternInsights,
+      smartJournalEntries,
+      messageOutcomes,
     });
     assembled.liveContextNarrative = liveContext.contextNarrative;
 
@@ -439,7 +471,7 @@ export const [AICompanionProvider, useAICompanion] = createContextHook(() => {
     } finally {
       setIsGenerating(false);
     }
-  }, [activeConversationId, isGenerating, conversations, saveConversationsMutation, memoryProfile, manualMode, memorySnapshot, companionMemoryStore, psychProfile, companionPatternInsights, weeklyInsights, journalEntries, messageDrafts]);
+  }, [activeConversationId, isGenerating, conversations, saveConversationsMutation, memoryProfile, manualMode, memorySnapshot, companionMemoryStore, psychProfile, companionPatternInsights, weeklyInsights, journalEntries, messageDrafts, smartJournalEntries, messageOutcomes]);
 
   const toggleSaveConversation = useCallback((conversationId: string) => {
     const updated = conversations.map(c =>

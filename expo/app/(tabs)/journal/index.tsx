@@ -34,6 +34,10 @@ import { JournalEntry } from '@/types';
 import { SmartJournalEntry, FORMAT_CONFIG, JournalEntryFormat } from '@/types/journalEntry';
 import { AIJournalMode } from '@/types/journalDaily';
 import { GUIDED_REFLECTION_FLOWS } from '@/data/guidedReflectionFlows';
+import { MessageSquare } from 'lucide-react-native';
+import { buildCrossLoopContext } from '@/services/crossLoop/crossLoopBridgeService';
+import { useQuery } from '@tanstack/react-query';
+import { getEnhancedOutcomes } from '@/services/messages/enhancedOutcomeService';
 
 function formatDate(ts: number): string {
   const d = new Date(ts);
@@ -197,6 +201,21 @@ export default function JournalScreen() {
   const [showWriteOptions, setShowWriteOptions] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'all' | 'journal' | 'checkins'>('all');
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const messageOutcomesQuery = useQuery({
+    queryKey: ['journal-message-outcomes'],
+    queryFn: getEnhancedOutcomes,
+    staleTime: 120000,
+  });
+
+  const crossLoopContext = useMemo(() => {
+    return buildCrossLoopContext(
+      smartEntries,
+      journalEntries,
+      messageOutcomesQuery.data ?? [],
+      [],
+    );
+  }, [smartEntries, journalEntries, messageOutcomesQuery.data]);
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
@@ -377,6 +396,46 @@ export default function JournalScreen() {
               </View>
             </ScrollView>
           </TouchableOpacity>
+
+          {crossLoopContext.journalToMessageSuggestion && (
+            <TouchableOpacity
+              style={styles.crossLoopBanner}
+              onPress={() => {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/(tabs)/messages' as never);
+              }}
+              activeOpacity={0.8}
+              testID="cross-loop-message-banner"
+            >
+              <View style={styles.crossLoopIconWrap}>
+                <MessageSquare size={16} color="#5B8FB9" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.crossLoopText}>{crossLoopContext.journalToMessageSuggestion}</Text>
+              </View>
+              <ChevronRight size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+          )}
+
+          {crossLoopContext.messageToJournalPrompt && (
+            <TouchableOpacity
+              style={styles.crossLoopBanner}
+              onPress={() => {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                handleWriteFormat('emotional_event');
+              }}
+              activeOpacity={0.8}
+              testID="cross-loop-journal-banner"
+            >
+              <View style={[styles.crossLoopIconWrap, { backgroundColor: Colors.brandLilacSoft }]}>
+                <PenLine size={16} color={Colors.brandLilac} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.crossLoopText}>{crossLoopContext.messageToJournalPrompt}</Text>
+              </View>
+              <ChevronRight size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+          )}
 
           {predictions.length > 0 && (
             <View style={styles.predictionsSection}>
@@ -1164,5 +1223,29 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 8,
     elevation: 6,
+  },
+  crossLoopBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#F0F6FA',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(91, 143, 185, 0.15)',
+  },
+  crossLoopIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#E3EFF7',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  crossLoopText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 19,
   },
 });

@@ -11,7 +11,7 @@ import {
   Animated,
   ActivityIndicator,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import {
   Send,
   Bookmark,
@@ -412,6 +412,7 @@ const ModeSelector = React.memo(({ activeMode, manualMode, onSelectMode, visible
 
 export default function ChatScreen() {
   const router = useRouter();
+  const searchParams = useLocalSearchParams<{ prefill?: string }>();
   const {
     activeConversation,
     isGenerating,
@@ -428,8 +429,20 @@ export default function ChatScreen() {
 
   const [inputText, setInputText] = useState<string>('');
   const [menuVisible, setMenuVisible] = useState<boolean>(false);
+  const [prefillHandled, setPrefillHandled] = useState<boolean>(false);
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    if (searchParams.prefill && !prefillHandled && !isGenerating) {
+      setPrefillHandled(true);
+      const prefillText = searchParams.prefill;
+      console.log('[CompanionChat] Prefill from cross-loop:', prefillText.substring(0, 50));
+      setTimeout(() => {
+        void sendMessage(prefillText);
+      }, 400);
+    }
+  }, [searchParams.prefill, prefillHandled, isGenerating, sendMessage]);
 
   const handleSend = useCallback(async () => {
     const text = inputText.trim();

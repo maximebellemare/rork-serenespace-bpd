@@ -54,7 +54,7 @@ import { saveToDraftVault } from '@/services/messages/messageOutcomeService';
 import { classifyMessageSafety } from '@/services/messages/messageSafetyClassifier';
 import { generateSafeRewrites, buildDoNotSendRecommendation } from '@/services/messages/messageRiskScoringService';
 import { MessageSafetyClassification, SafeRewrite, DoNotSendRecommendation } from '@/types/messageRisk';
-import { ShieldAlert, ShieldOff, BookOpen, Heart, Timer, AlertOctagon, Leaf, Lightbulb } from 'lucide-react-native';
+import { ShieldAlert, ShieldOff, BookOpen, Heart, Timer, AlertOctagon, Leaf, Lightbulb, MessageCircle } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { getEnhancedOutcomes } from '@/services/messages/enhancedOutcomeService';
 import { createOutcomeRecord, saveEnhancedOutcome } from '@/services/messages/enhancedOutcomeService';
@@ -1023,6 +1023,20 @@ export default function MessagesScreen() {
                       <Text style={styles.analysisSmallBtnText}>Journal first</Text>
                     </TouchableOpacity>
                   </View>
+
+                  <TouchableOpacity
+                    style={styles.companionLinkBtn}
+                    onPress={() => {
+                      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      const prompt = `I'm about to send a message and I'm feeling ${enhancedContext.emotionalState ?? 'activated'}. The situation: ${enhancedContext.situation?.substring(0, 100) ?? 'communication difficulty'}. Can you help me process this before I decide?`;
+                      router.push({ pathname: '/(tabs)/companion/chat', params: { prefill: prompt } } as never);
+                    }}
+                    activeOpacity={0.7}
+                    testID="companion-link-btn"
+                  >
+                    <MessageCircle size={13} color={Colors.primary} />
+                    <Text style={styles.companionLinkText}>Talk to Companion first</Text>
+                  </TouchableOpacity>
                 </>
               ) : (
                 <>
@@ -1095,6 +1109,20 @@ export default function MessagesScreen() {
                       <Text style={styles.analysisSmallBtnText}>Ground first</Text>
                     </TouchableOpacity>
                   </View>
+
+                  <TouchableOpacity
+                    style={styles.companionLinkBtn}
+                    onPress={() => {
+                      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      const prompt = `I just drafted a message while feeling ${enhancedContext.emotionalState ?? 'unsure'}. Can you help me think through whether to send it?`;
+                      router.push({ pathname: '/(tabs)/companion/chat', params: { prefill: prompt } } as never);
+                    }}
+                    activeOpacity={0.7}
+                    testID="companion-link-normal-btn"
+                  >
+                    <MessageCircle size={13} color={Colors.primary} />
+                    <Text style={styles.companionLinkText}>Talk to Companion</Text>
+                  </TouchableOpacity>
                 </>
               )}
             </View>
@@ -2030,5 +2058,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(27,40,56,0.4)',
     justifyContent: 'center' as const,
     zIndex: 100,
+  },
+  companionLinkBtn: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: 6,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 12,
+    paddingVertical: 12,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: Colors.primary + '20',
+  },
+  companionLinkText: {
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: Colors.primary,
   },
 });

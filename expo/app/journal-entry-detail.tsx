@@ -23,6 +23,8 @@ import Colors from '@/constants/colors';
 import { useJournal } from '@/providers/JournalProvider';
 import { useAnalytics } from '@/providers/AnalyticsProvider';
 import { FORMAT_CONFIG } from '@/types/journalEntry';
+import CrossLoopSuggestions from '@/components/CrossLoopSuggestions';
+import { getJournalConnectionSuggestions } from '@/services/crossLoop/crossLoopBridgeService';
 
 function formatFullDate(ts: number): string {
   return new Date(ts).toLocaleDateString('en-US', {
@@ -267,6 +269,11 @@ export default function JournalEntryDetailScreen() {
               </View>
             )}
           </View>
+
+          <CrossLoopSuggestions
+            suggestions={getJournalConnectionSuggestions(entry)}
+            context="journal"
+          />
         </Animated.View>
       </ScrollView>
     </View>

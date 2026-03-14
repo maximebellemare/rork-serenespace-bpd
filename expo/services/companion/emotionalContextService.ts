@@ -2,6 +2,9 @@ import { JournalEntry, MessageDraft } from '@/types';
 import { MemoryProfile } from '@/types/memory';
 import { CompanionMemoryStore, WeeklyCompanionInsight } from '@/types/companionMemory';
 import { CompanionPatternInsight } from './patternInsightService';
+import { SmartJournalEntry } from '@/types/journalEntry';
+import { EnhancedMessageOutcome } from '@/types/messageOutcome';
+import { buildCompanionContextEnrichment } from '@/services/crossLoop/crossLoopBridgeService';
 
 export interface LiveEmotionalContext {
   recentDistressLevel: 'low' | 'moderate' | 'high' | 'unknown';
@@ -29,8 +32,10 @@ export function buildLiveEmotionalContext(params: {
   memoryStore: CompanionMemoryStore | null;
   weeklyInsights: WeeklyCompanionInsight[];
   patternInsights: CompanionPatternInsight[];
+  smartJournalEntries?: SmartJournalEntry[];
+  messageOutcomes?: EnhancedMessageOutcome[];
 }): LiveEmotionalContext {
-  const { journalEntries, messageDrafts, memoryProfile, memoryStore, weeklyInsights, patternInsights } = params;
+  const { journalEntries, messageDrafts, memoryProfile, memoryStore, weeklyInsights, patternInsights, smartJournalEntries, messageOutcomes } = params;
 
   console.log('[EmotionalContext] Building live context from', journalEntries.length, 'entries,', messageDrafts.length, 'drafts');
 
@@ -95,6 +100,10 @@ export function buildLiveEmotionalContext(params: {
     ? `${memoryProfile.recentCheckInCount} recent check-ins`
     : null;
 
+  const crossLoopEnrichment = (smartJournalEntries || messageOutcomes)
+    ? buildCompanionContextEnrichment(smartJournalEntries ?? [], messageOutcomes ?? [])
+    : null;
+
   const contextNarrative = buildContextNarrative({
     recentDistressLevel,
     recentDistressScore,
@@ -110,6 +119,7 @@ export function buildLiveEmotionalContext(params: {
     streakContext,
     patternInsights,
     memoryProfile,
+    crossLoopEnrichment,
   });
 
   return {
@@ -168,6 +178,7 @@ function buildContextNarrative(params: {
   streakContext: string | null;
   patternInsights: CompanionPatternInsight[];
   memoryProfile: MemoryProfile;
+  crossLoopEnrichment: ReturnType<typeof buildCompanionContextEnrichment> | null;
 }): string {
   const parts: string[] = [];
 
@@ -222,6 +233,18 @@ function buildContextNarrative(params: {
   if (params.patternInsights.length > 0) {
     const topInsight = params.patternInsights[0];
     parts.push(`Top pattern insight: ${topInsight.title} — ${topInsight.narrative.substring(0, 100)}`);
+  }
+
+  if (params.crossLoopEnrichment) {
+    if (params.crossLoopEnrichment.recentSmartJournalNarrative) {
+      parts.push(params.crossLoopEnrichment.recentSmartJournalNarrative);
+    }
+    if (params.crossLoopEnrichment.recentMessageOutcomeNarrative) {
+      parts.push(params.crossLoopEnrichment.recentMessageOutcomeNarrative);
+    }
+    for (const insight of params.crossLoopEnrichment.crossSystemInsights) {
+      parts.push(insight);
+    }
   }
 
   return parts.join('\n');
