@@ -81,12 +81,14 @@ export default function MessageAnalysisScreen() {
     better_after_pause: Colors.accent,
     better_rewritten: '#9B8EC4',
     better_not_sent: Colors.danger,
+    do_not_send: Colors.dangerDark,
   };
   const recEmojis: Record<string, string> = {
     safe_to_send: '✅',
     better_after_pause: '⏳',
     better_rewritten: '✏️',
     better_not_sent: '🛑',
+    do_not_send: '⛔',
   };
 
   if (!analysis) {

@@ -4,20 +4,36 @@ import {
   RESPONSE_PATH_META,
 } from '@/types/messageSimulation';
 import { EnhancedMessageContext } from '@/types/messageHealth';
+import { classifyMessageSafety, extractCoreEmotion, extractCoreSituation } from '@/services/messages/messageSafetyClassifier';
 
-function generateUrgentVersion(draft: string): string {
+function generateUrgentVersion(draft: string, isSafe: boolean): string {
+  if (!isSafe) {
+    const situation = extractCoreSituation(draft);
+    return `I need you to hear this right now. I'm really upset about ${situation}. Why aren't you responding?!`;
+  }
   let text = draft.trim();
   text = text.replace(/\./g, '!');
   if (!text.endsWith('!')) text += '!';
   return "I need you to hear this right now. " + text + " Why aren't you responding?";
 }
 
-function generateAvoidantVersion(draft: string): string {
+function generateAvoidantVersion(draft: string, isSafe: boolean): string {
+  if (!isSafe) {
+    return "Whatever. It's fine. Forget I said anything.";
+  }
   const firstSentence = draft.trim().split(/[.!?]/).filter(Boolean)[0] || draft.trim();
   return firstSentence.replace(/!/g, '.').trim() + ". Actually, forget it. It's fine.";
 }
 
-function generateSoftVersion(draft: string, context: EnhancedMessageContext): string {
+function generateSoftVersion(draft: string, context: EnhancedMessageContext, isSafe: boolean): string {
+  if (!isSafe) {
+    const emotion = extractCoreEmotion(draft);
+    const situation = extractCoreSituation(draft);
+    const opener = context.desiredOutcome === 'reconnect'
+      ? "I care about us, and I want to share something gently."
+      : "This is hard for me to say, and I hope you'll hear me.";
+    return `${opener} I'm feeling ${emotion} because of ${situation}. I want us to be okay.`;
+  }
   let text = draft.trim();
   text = text.replace(/!/g, '.');
   text = text.replace(/you always/gi, 'sometimes I notice');
@@ -28,7 +44,12 @@ function generateSoftVersion(draft: string, context: EnhancedMessageContext): st
   return `${opener} ${text}`;
 }
 
-function generateBoundaryVersion(draft: string): string {
+function generateBoundaryVersion(draft: string, isSafe: boolean): string {
+  if (!isSafe) {
+    const situation = extractCoreSituation(draft);
+    const emotion = extractCoreEmotion(draft);
+    return `I need to be honest about something important. I feel ${emotion} about ${situation}, and this doesn't work for me. I'm stepping back to protect my wellbeing.`;
+  }
   let text = draft.trim();
   text = text.replace(/!/g, '.');
   text = text.replace(/you always/gi, 'When this happens,');
@@ -36,7 +57,17 @@ function generateBoundaryVersion(draft: string): string {
   return `I need to be honest about something important. ${text} This boundary is about protecting my wellbeing.`;
 }
 
-function generateSecureVersion(draft: string, context: EnhancedMessageContext): string {
+function generateSecureVersion(draft: string, context: EnhancedMessageContext, isSafe: boolean): string {
+  if (!isSafe) {
+    const emotion = extractCoreEmotion(draft);
+    const situation = extractCoreSituation(draft);
+    const opener = context.emotionalState === 'rejected'
+      ? "I'm feeling vulnerable right now, and I want to be open with you."
+      : context.emotionalState === 'anxious'
+        ? "I notice my anxiety is speaking, so I want to be intentional."
+        : "I've taken a moment to think about what I actually want to say.";
+    return `${opener} I'm feeling ${emotion} about ${situation}. I want to address this clearly rather than react. I trust we can handle this.`;
+  }
   let text = draft.trim();
   text = text.replace(/!/g, '.');
   text = text.replace(/you always/gi, 'I notice that sometimes');
@@ -58,16 +89,24 @@ export function simulateResponsePaths(
 ): ResponsePathSimulation[] {
   console.log('[MessageSimulation] Generating response paths');
 
+  const classification = classifyMessageSafety(draft);
+  const isSafe = classification.preserveWordingAllowed;
+  console.log('[MessageSimulation] Safety:', classification.riskLevel, 'Preserve allowed:', isSafe);
+
   const paths: ResponsePath[] = ['urgent', 'avoidant', 'soft', 'boundary', 'secure'];
 
   const generators: Record<ResponsePath, () => ResponsePathSimulation> = {
     urgent: () => ({
       path: 'urgent',
       ...RESPONSE_PATH_META.urgent,
-      exampleMessage: generateUrgentVersion(draft),
-      shortTermEffect: 'May give momentary relief from anxiety, but often increases tension and regret.',
-      relationshipEffect: 'Likely to create pressure, trigger defensiveness, or push the other person away.',
-      regretRisk: 'high',
+      exampleMessage: generateUrgentVersion(draft, isSafe),
+      shortTermEffect: !isSafe
+        ? 'This version would almost certainly escalate the situation and lead to significant regret.'
+        : 'May give momentary relief from anxiety, but often increases tension and regret.',
+      relationshipEffect: !isSafe
+        ? 'Very likely to cause lasting damage to the relationship and shut down any possibility of resolution.'
+        : 'Likely to create pressure, trigger defensiveness, or push the other person away.',
+      regretRisk: !isSafe ? 'high' : 'high',
       dignityProtection: 'low',
       clarityLevel: 'low',
       isRecommended: false,
@@ -75,7 +114,7 @@ export function simulateResponsePaths(
     avoidant: () => ({
       path: 'avoidant',
       ...RESPONSE_PATH_META.avoidant,
-      exampleMessage: generateAvoidantVersion(draft),
+      exampleMessage: generateAvoidantVersion(draft, isSafe),
       shortTermEffect: 'Feels self-protective in the moment, but leaves real feelings unexpressed.',
       relationshipEffect: 'May signal indifference when you actually care deeply. Creates emotional distance.',
       regretRisk: 'moderate',
@@ -86,29 +125,29 @@ export function simulateResponsePaths(
     soft: () => ({
       path: 'soft',
       ...RESPONSE_PATH_META.soft,
-      exampleMessage: generateSoftVersion(draft, context),
+      exampleMessage: generateSoftVersion(draft, context, isSafe),
       shortTermEffect: 'Feels vulnerable but caring. May ease the emotional charge of the conversation.',
       relationshipEffect: 'Invites understanding rather than defensiveness. Shows emotional maturity.',
       regretRisk: 'low',
       dignityProtection: 'moderate',
       clarityLevel: 'moderate',
-      isRecommended: context.desiredOutcome === 'reconnect' || context.desiredOutcome === 'avoid_conflict',
+      isRecommended: !isSafe ? false : (context.desiredOutcome === 'reconnect' || context.desiredOutcome === 'avoid_conflict'),
     }),
     boundary: () => ({
       path: 'boundary',
       ...RESPONSE_PATH_META.boundary,
-      exampleMessage: generateBoundaryVersion(draft),
+      exampleMessage: generateBoundaryVersion(draft, isSafe),
       shortTermEffect: 'May feel uncomfortable but empowering. Protects your emotional space.',
       relationshipEffect: 'Healthy boundaries strengthen relationships long-term, even if they create short-term friction.',
       regretRisk: 'low',
       dignityProtection: 'high',
       clarityLevel: 'high',
-      isRecommended: context.desiredOutcome === 'protect_dignity' || context.urge === 'set_boundary',
+      isRecommended: !isSafe ? true : (context.desiredOutcome === 'protect_dignity' || context.urge === 'set_boundary'),
     }),
     secure: () => ({
       path: 'secure',
       ...RESPONSE_PATH_META.secure,
-      exampleMessage: generateSecureVersion(draft, context),
+      exampleMessage: generateSecureVersion(draft, context, isSafe),
       shortTermEffect: 'May feel slower, but creates more clarity and self-respect.',
       relationshipEffect: 'Invites genuine connection. Shows self-awareness without demanding the other person fix your feelings.',
       regretRisk: 'low',

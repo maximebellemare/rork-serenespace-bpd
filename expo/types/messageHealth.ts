@@ -15,7 +15,8 @@ export type SendRecommendation =
   | 'safe_to_send'
   | 'better_after_pause'
   | 'better_rewritten'
-  | 'better_not_sent';
+  | 'better_not_sent'
+  | 'do_not_send';
 
 export interface MessageHealthAnalysis {
   score: MessageHealthScore;

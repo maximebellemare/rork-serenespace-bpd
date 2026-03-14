@@ -51,6 +51,10 @@ import {
 } from '@/types/messageHealth';
 import { analyzeMessageHealth } from '@/services/messages/messageHealthService';
 import { saveToDraftVault } from '@/services/messages/messageOutcomeService';
+import { classifyMessageSafety } from '@/services/messages/messageSafetyClassifier';
+import { generateSafeRewrites, buildDoNotSendRecommendation } from '@/services/messages/messageRiskScoringService';
+import { MessageSafetyClassification, SafeRewrite, DoNotSendRecommendation } from '@/types/messageRisk';
+import { ShieldAlert, ShieldOff, BookOpen, Heart, Timer, AlertOctagon } from 'lucide-react-native';
 
 type ContextKey = keyof MessageContext;
 
@@ -197,6 +201,24 @@ export default function MessagesScreen() {
     if (enhancedContext.draft.trim().length < 5) return null;
     return analyzeMessageHealth(enhancedContext.draft, enhancedContext);
   }, [enhancedContext]);
+
+  const safetyClassification = useMemo<MessageSafetyClassification | null>(() => {
+    if (enhancedContext.draft.trim().length < 5) return null;
+    return classifyMessageSafety(enhancedContext.draft);
+  }, [enhancedContext.draft]);
+
+  const safeRewrites = useMemo<SafeRewrite[]>(() => {
+    if (!safetyClassification || safetyClassification.riskLevel === 'low') return [];
+    return generateSafeRewrites(enhancedContext.draft, safetyClassification, enhancedContext);
+  }, [safetyClassification, enhancedContext]);
+
+  const doNotSend = useMemo<DoNotSendRecommendation | null>(() => {
+    if (!safetyClassification) return null;
+    return buildDoNotSendRecommendation(safetyClassification);
+  }, [safetyClassification]);
+
+  const [showSafeRewrites, setShowSafeRewrites] = useState<boolean>(false);
+  const [selectedSafeRewrite, setSelectedSafeRewrite] = useState<SafeRewrite | null>(null);
 
   const startFlow = useCallback((situation?: QuickEntrySituation) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -630,25 +652,149 @@ export default function MessagesScreen() {
     </View>
   );
 
+  const handleDoNotSendAction = useCallback((action: string) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    switch (action) {
+      case 'save_draft':
+        void handleSaveToVault();
+        break;
+      case 'rewrite_boundary':
+        setShowSafeRewrites(true);
+        break;
+      case 'pause':
+        router.push('/grounding-mode' as never);
+        break;
+      case 'journal':
+        router.push('/journal-entry' as never);
+        break;
+      case 'grounding':
+        router.push('/grounding-mode' as never);
+        break;
+    }
+  }, [handleSaveToVault, router]);
+
+  const renderDoNotSendMode = () => {
+    if (!doNotSend?.active) return null;
+    return (
+      <View style={styles.doNotSendContainer}>
+        <View style={styles.doNotSendHeader}>
+          <View style={styles.doNotSendIconWrap}>
+            <ShieldAlert size={22} color={Colors.danger} />
+          </View>
+          <Text style={styles.doNotSendTitle}>Do Not Send Right Now</Text>
+        </View>
+        <Text style={styles.doNotSendReason}>{doNotSend.reason}</Text>
+        <View style={styles.doNotSendConsequence}>
+          <AlertOctagon size={14} color={Colors.accent} />
+          <Text style={styles.doNotSendConsequenceText}>{doNotSend.likelyConsequence}</Text>
+        </View>
+        <Text style={styles.doNotSendOptionsLabel}>What you can do instead</Text>
+        <View style={styles.doNotSendOptions}>
+          {doNotSend.options.map((opt) => (
+            <TouchableOpacity
+              key={opt.id}
+              style={styles.doNotSendOption}
+              onPress={() => handleDoNotSendAction(opt.action)}
+              activeOpacity={0.7}
+              testID={`dns-${opt.id}`}
+            >
+              <Text style={styles.doNotSendOptionEmoji}>{opt.emoji}</Text>
+              <Text style={styles.doNotSendOptionLabel}>{opt.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
+  };
+
+  const renderSafeRewrites = () => {
+    if (safeRewrites.length === 0) return null;
+    return (
+      <View style={styles.safeRewritesSection}>
+        <Text style={styles.safeRewritesTitle}>Safer alternatives</Text>
+        <Text style={styles.safeRewritesHint}>These replace the original — they don't preserve harmful language.</Text>
+        {safeRewrites.map((rw) => {
+          const isSelected = selectedSafeRewrite?.type === rw.type;
+          return (
+            <TouchableOpacity
+              key={rw.type}
+              style={[
+                styles.safeRewriteCard,
+                { borderLeftColor: rw.color },
+                isSelected && styles.safeRewriteCardSelected,
+              ]}
+              onPress={() => {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setSelectedSafeRewrite(isSelected ? null : rw);
+              }}
+              activeOpacity={0.7}
+              testID={`safe-rw-${rw.type}`}
+            >
+              <View style={styles.safeRewriteHeader}>
+                <Text style={styles.safeRewriteEmoji}>{rw.emoji}</Text>
+                <Text style={[styles.safeRewriteLabel, { color: rw.color }]}>{rw.label}</Text>
+                {rw.isRecommended && (
+                  <View style={styles.recommendedBadge}>
+                    <Heart size={10} color={Colors.success} />
+                    <Text style={styles.recommendedText}>Recommended</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.safeRewriteText} numberOfLines={isSelected ? undefined : 3}>{rw.text}</Text>
+              {isSelected && (
+                <View style={styles.safeRewriteWhySection}>
+                  <Text style={styles.safeRewriteWhyLabel}>Why this helps</Text>
+                  <Text style={styles.safeRewriteWhyText}>{rw.whyThisHelps}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
+
   const renderFlowAnalysis = () => {
     const analysis = healthAnalysis;
+    const isSevere = safetyClassification?.riskLevel === 'severe';
+    const isHigh = safetyClassification?.riskLevel === 'high';
+    const isHighRisk = isSevere || isHigh;
+
     const recColors: Record<string, string> = {
       safe_to_send: Colors.success,
       better_after_pause: Colors.accent,
       better_rewritten: '#9B8EC4',
       better_not_sent: Colors.danger,
+      do_not_send: Colors.dangerDark,
     };
     const recEmojis: Record<string, string> = {
       safe_to_send: '✅',
       better_after_pause: '⏳',
       better_rewritten: '✏️',
       better_not_sent: '🛑',
+      do_not_send: '⛔',
     };
 
     return (
       <View style={styles.flowSection}>
         {analysis ? (
           <>
+            {isHighRisk && safetyClassification?.flaggedContent && safetyClassification.flaggedContent.length > 0 && (
+              <View style={styles.safetyWarningBanner}>
+                <View style={styles.safetyWarningRow}>
+                  <ShieldOff size={18} color={Colors.danger} />
+                  <Text style={styles.safetyWarningTitle}>
+                    {isSevere ? 'High-risk language detected' : 'Escalation risk detected'}
+                  </Text>
+                </View>
+                <Text style={styles.safetyWarningText}>
+                  {isSevere
+                    ? 'This draft contains language that will almost certainly escalate conflict and cause regret. Your feelings are valid — but this version is not safe to send.'
+                    : 'This draft has elements that could significantly escalate conflict. A calmer approach is recommended.'}
+                </Text>
+              </View>
+            )}
+
             <View style={[styles.recCard, { borderLeftColor: recColors[analysis.recommendation] ?? Colors.primary }]}>
               <Text style={styles.recEmoji}>{recEmojis[analysis.recommendation] ?? '📋'}</Text>
               <View style={styles.recTextWrap}>
@@ -658,6 +804,8 @@ export default function MessagesScreen() {
                 <Text style={styles.recDetail}>{analysis.recommendationDetail}</Text>
               </View>
             </View>
+
+            {doNotSend?.active && renderDoNotSendMode()}
 
             {analysis.topConcerns.length > 0 && (
               <View style={styles.concernsSection}>
@@ -676,7 +824,7 @@ export default function MessagesScreen() {
               </View>
             )}
 
-            {analysis.strengths.length > 0 && (
+            {!isHighRisk && analysis.strengths.length > 0 && (
               <View style={styles.strengthsSection}>
                 <Text style={styles.strengthsTitle}>Strengths</Text>
                 <View style={styles.strengthsRow}>
@@ -690,64 +838,149 @@ export default function MessagesScreen() {
               </View>
             )}
 
+            {(isHighRisk || showSafeRewrites) && renderSafeRewrites()}
+
             <View style={styles.draftPreviewCard}>
               <Text style={styles.draftPreviewLabel}>Your message</Text>
               <Text style={styles.draftPreviewText} numberOfLines={3}>{enhancedContext.draft}</Text>
             </View>
 
             <View style={styles.analysisActions}>
-              <TouchableOpacity
-                style={styles.analysisPrimaryBtn}
-                onPress={navigateToSimulation}
-                activeOpacity={0.8}
-                testID="see-paths-btn"
-              >
-                <Compass size={16} color={Colors.white} />
-                <Text style={styles.analysisPrimaryBtnText}>See response paths</Text>
-              </TouchableOpacity>
+              {isHighRisk ? (
+                <>
+                  {!showSafeRewrites && (
+                    <TouchableOpacity
+                      style={[styles.analysisPrimaryBtn, { backgroundColor: Colors.brandSage }]}
+                      onPress={() => {
+                        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        setShowSafeRewrites(true);
+                      }}
+                      activeOpacity={0.8}
+                      testID="show-safe-rewrites-btn"
+                    >
+                      <Shield size={16} color={Colors.white} />
+                      <Text style={styles.analysisPrimaryBtnText}>See safer alternatives</Text>
+                    </TouchableOpacity>
+                  )}
 
-              <TouchableOpacity
-                style={styles.analysisSecondaryBtn}
-                onPress={navigateToAnalysis}
-                activeOpacity={0.7}
-                testID="full-analysis-btn"
-              >
-                <BarChart3 size={14} color={Colors.primary} />
-                <Text style={styles.analysisSecondaryBtnText}>Full health score</Text>
-              </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.analysisSecondaryBtn}
+                    onPress={navigateToSimulation}
+                    activeOpacity={0.7}
+                    testID="see-paths-btn"
+                  >
+                    <Compass size={14} color={Colors.primary} />
+                    <Text style={styles.analysisSecondaryBtnText}>See response paths</Text>
+                  </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.analysisSecondaryBtn}
-                onPress={proceedToLegacyRewrites}
-                activeOpacity={0.7}
-                testID="rewrite-btn"
-              >
-                <Sparkles size={14} color={Colors.accent} />
-                <Text style={[styles.analysisSecondaryBtnText, { color: Colors.accent }]}>Rewrite options</Text>
-              </TouchableOpacity>
+                  <View style={styles.analysisBottomRow}>
+                    <TouchableOpacity
+                      style={styles.analysisSmallBtn}
+                      onPress={handleSaveToVault}
+                      activeOpacity={0.7}
+                    >
+                      <Archive size={13} color={Colors.textSecondary} />
+                      <Text style={styles.analysisSmallBtnText}>Save to vault</Text>
+                    </TouchableOpacity>
 
-              <View style={styles.analysisBottomRow}>
-                <TouchableOpacity
-                  style={styles.analysisSmallBtn}
-                  onPress={handleSaveToVault}
-                  activeOpacity={0.7}
-                >
-                  <Archive size={13} color={Colors.textSecondary} />
-                  <Text style={styles.analysisSmallBtnText}>Save to vault</Text>
-                </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.analysisSmallBtn}
+                      onPress={() => {
+                        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push('/grounding-mode' as never);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Timer size={13} color={Colors.textSecondary} />
+                      <Text style={styles.analysisSmallBtnText}>Ground first</Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.analysisSmallBtn}
-                  onPress={() => {
-                    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push('/grounding-mode' as never);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Pause size={13} color={Colors.textSecondary} />
-                  <Text style={styles.analysisSmallBtnText}>Ground first</Text>
-                </TouchableOpacity>
-              </View>
+                    <TouchableOpacity
+                      style={styles.analysisSmallBtn}
+                      onPress={() => {
+                        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push('/journal-entry' as never);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <BookOpen size={13} color={Colors.textSecondary} />
+                      <Text style={styles.analysisSmallBtnText}>Journal first</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={styles.analysisPrimaryBtn}
+                    onPress={navigateToSimulation}
+                    activeOpacity={0.8}
+                    testID="see-paths-btn"
+                  >
+                    <Compass size={16} color={Colors.white} />
+                    <Text style={styles.analysisPrimaryBtnText}>See response paths</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.analysisSecondaryBtn}
+                    onPress={navigateToAnalysis}
+                    activeOpacity={0.7}
+                    testID="full-analysis-btn"
+                  >
+                    <BarChart3 size={14} color={Colors.primary} />
+                    <Text style={styles.analysisSecondaryBtnText}>Full health score</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.analysisSecondaryBtn}
+                    onPress={proceedToLegacyRewrites}
+                    activeOpacity={0.7}
+                    testID="rewrite-btn"
+                  >
+                    <Sparkles size={14} color={Colors.accent} />
+                    <Text style={[styles.analysisSecondaryBtnText, { color: Colors.accent }]}>Rewrite options</Text>
+                  </TouchableOpacity>
+
+                  {safetyClassification?.riskLevel === 'medium' && (
+                    <TouchableOpacity
+                      style={styles.analysisSecondaryBtn}
+                      onPress={() => {
+                        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setShowSafeRewrites(!showSafeRewrites);
+                      }}
+                      activeOpacity={0.7}
+                      testID="safe-alts-btn"
+                    >
+                      <Shield size={14} color={Colors.brandSage} />
+                      <Text style={[styles.analysisSecondaryBtnText, { color: Colors.brandSage }]}>
+                        {showSafeRewrites ? 'Hide safer alternatives' : 'Safer alternatives'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <View style={styles.analysisBottomRow}>
+                    <TouchableOpacity
+                      style={styles.analysisSmallBtn}
+                      onPress={handleSaveToVault}
+                      activeOpacity={0.7}
+                    >
+                      <Archive size={13} color={Colors.textSecondary} />
+                      <Text style={styles.analysisSmallBtnText}>Save to vault</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.analysisSmallBtn}
+                      onPress={() => {
+                        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push('/grounding-mode' as never);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Pause size={13} color={Colors.textSecondary} />
+                      <Text style={styles.analysisSmallBtnText}>Ground first</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
             </View>
           </>
         ) : (
@@ -1417,5 +1650,187 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.primary,
     fontWeight: '500' as const,
+  },
+  safetyWarningBanner: {
+    backgroundColor: Colors.dangerLight,
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.danger + '30',
+  },
+  safetyWarningRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    marginBottom: 8,
+  },
+  safetyWarningTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.dangerDark,
+  },
+  safetyWarningText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 21,
+  },
+  doNotSendContainer: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: Colors.danger + '40',
+  },
+  doNotSendHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 10,
+    marginBottom: 12,
+  },
+  doNotSendIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: Colors.dangerLight,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  doNotSendTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: Colors.dangerDark,
+  },
+  doNotSendReason: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 21,
+    marginBottom: 12,
+  },
+  doNotSendConsequence: {
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
+    gap: 8,
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
+  doNotSendConsequenceText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 19,
+  },
+  doNotSendOptionsLabel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.text,
+    marginBottom: 10,
+  },
+  doNotSendOptions: {
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
+    gap: 8,
+  },
+  doNotSendOption: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  doNotSendOptionEmoji: {
+    fontSize: 16,
+  },
+  doNotSendOptionLabel: {
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: Colors.text,
+  },
+  safeRewritesSection: {
+    marginBottom: 16,
+  },
+  safeRewritesTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  safeRewritesHint: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    lineHeight: 19,
+    marginBottom: 12,
+  },
+  safeRewriteCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 10,
+    borderLeftWidth: 3,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  safeRewriteCardSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryLight,
+  },
+  safeRewriteHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    marginBottom: 10,
+  },
+  safeRewriteEmoji: {
+    fontSize: 18,
+  },
+  safeRewriteLabel: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+  },
+  recommendedBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    backgroundColor: Colors.successLight,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginLeft: 'auto' as const,
+  },
+  recommendedText: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: Colors.success,
+  },
+  safeRewriteText: {
+    fontSize: 14,
+    color: Colors.text,
+    lineHeight: 21,
+  },
+  safeRewriteWhySection: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  safeRewriteWhyLabel: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: Colors.primary,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  safeRewriteWhyText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 19,
   },
 });

@@ -5,6 +5,44 @@ import {
   TriggerSuggestion,
 } from '@/types/messages';
 import { MemoryProfile } from '@/types/memory';
+import { classifyMessageSafety } from '@/services/messages/messageSafetyClassifier';
+
+const BLOCKED_PHRASES = [
+  /\bgo\s+fuck\s+(yourself|urself|off)\b/gi,
+  /\bfuck\s+you\b/gi,
+  /\bf\s*u\s*c\s*k/gi,
+  /\bshit\b/gi,
+  /\bbitch\b/gi,
+  /\basshole\b/gi,
+  /\bcunt\b/gi,
+  /\bstfu\b/gi,
+  /\bgo\s+to\s+hell\b/gi,
+  /\bdamn\s+you\b/gi,
+  /\bscrew\s+you\b/gi,
+  /\byou('re|\s+are)\s+(a\s+)?(piece\s+of\s+shit|pos|pathetic|disgusting|worthless|useless|trash|garbage)\b/gi,
+  /\bi\s+hate\s+you\b/gi,
+  /\byou\s+disgust\s+me\b/gi,
+  /\byou('re|\s+are)\s+dead\s+to\s+me\b/gi,
+  /\bnobody\s+(loves|likes|cares\s+about|wants)\s+you\b/gi,
+  /\byou\s+deserve\s+(nothing|to\s+be\s+alone|the\s+worst)\b/gi,
+  /\bi\s+wish\s+i\s+never\s+(met|knew)\s+you\b/gi,
+  /\byou\s+make\s+me\s+sick\b/gi,
+  /\bi('ll|\s+will)\s+(make|ruin|destroy)\b/gi,
+  /\byou('ll|\s+will)\s+(pay|regret|be\s+sorry)\b/gi,
+  /\bi('ll|\s+will)\s+tell\s+everyone\b/gi,
+  /\bkill\s+(yourself|urself)\b/gi,
+  /\bi\s+hope\s+you\s+(die|suffer|rot)\b/gi,
+];
+
+function sanitizeRewrite(text: string): string {
+  let result = text;
+  for (const pattern of BLOCKED_PHRASES) {
+    result = result.replace(pattern, '');
+  }
+  result = result.replace(/\s{2,}/g, ' ').trim();
+  result = result.replace(/^[.,;:\s]+/, '').trim();
+  return result;
+}
 
 const REWRITE_TEMPLATES: Record<RewriteStyle, {
   transform: (original: string, context: MessageContext) => string;
@@ -153,13 +191,28 @@ export function generateRewrites(
   originalText: string,
   context: MessageContext,
 ): RewriteResult[] {
+  const classification = classifyMessageSafety(originalText);
+  console.log('[Rewrite] Safety classification:', classification.riskLevel, 'Preserve allowed:', classification.preserveWordingAllowed);
+
+  if (!classification.preserveWordingAllowed) {
+    console.log('[Rewrite] High-risk draft detected — returning safe alternatives only');
+    return [
+      { style: 'nosend', text: REWRITE_TEMPLATES.nosend.transform(originalText, context), whyThisHelps: 'This draft contains language that is very likely to escalate conflict. Writing it out without sending is a powerful way to process the emotion.' },
+      { style: 'boundaried', text: sanitizeRewrite(REWRITE_TEMPLATES.boundaried.transform(originalText, context)), whyThisHelps: 'A calm boundary communicates your limit without the language that could cause lasting damage.' },
+      { style: 'secure', text: sanitizeRewrite(REWRITE_TEMPLATES.secure.transform(originalText, context)), whyThisHelps: 'This version names your feelings clearly and calmly. It protects your dignity and invites real conversation.' },
+      { style: 'delay', text: REWRITE_TEMPLATES.delay.transform(originalText, context), whyThisHelps: 'Waiting even 10 minutes before sending dramatically reduces regret. Save this and revisit when the intensity passes.' },
+    ];
+  }
+
   const styles: RewriteStyle[] = ['softer', 'clearer', 'warmer', 'boundaried', 'secure', 'delay', 'nosend'];
 
   return styles.map(style => {
     const template = REWRITE_TEMPLATES[style];
+    const rawText = template.transform(originalText, context);
+    const text = (style === 'delay' || style === 'nosend') ? rawText : sanitizeRewrite(rawText);
     return {
       style,
-      text: template.transform(originalText, context),
+      text,
       whyThisHelps: template.whyThisHelps(context),
     };
   });

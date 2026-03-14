@@ -5,6 +5,7 @@ import {
   MessageConcern,
   EnhancedMessageContext,
 } from '@/types/messageHealth';
+import { classifyMessageSafety } from '@/services/messages/messageSafetyClassifier';
 
 const URGENCY_PATTERNS = [
   /right now/i, /immediately/i, /asap/i, /\?\?+/, /!{2,}/,
@@ -115,11 +116,21 @@ export function analyzeMessageHealth(
 
   const isHighActivation = context.emotionalState === 'angry' || context.emotionalState === 'rejected' || context.emotionalState === 'overwhelmed';
 
+  const safetyClassification = classifyMessageSafety(draft);
+
   let recommendation: SendRecommendation;
   let recommendationMessage: string;
   let recommendationDetail: string;
 
-  if (overallRisk <= 2 && !isHighActivation) {
+  if (safetyClassification.riskLevel === 'severe') {
+    recommendation = 'do_not_send';
+    recommendationMessage = 'Do not send this right now';
+    recommendationDetail = safetyClassification.explanation;
+  } else if (safetyClassification.riskLevel === 'high') {
+    recommendation = 'better_not_sent';
+    recommendationMessage = 'This message carries high risk';
+    recommendationDetail = safetyClassification.explanation;
+  } else if (overallRisk <= 2 && !isHighActivation) {
     recommendation = 'safe_to_send';
     recommendationMessage = 'This looks safe to send';
     recommendationDetail = 'Your message is clear and measured. It communicates what you need without unnecessary risk.';
