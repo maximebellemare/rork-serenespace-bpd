@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Animated,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,11 +28,15 @@ import {
   Sprout,
   HeartHandshake,
   Clock,
+  Lightbulb,
+  Award,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { QUICK_ACCESS_TOOLS } from '@/data/quickAccessTools';
-import { getRecentlyUsedTools, getMostHelpfulTools } from '@/services/tools/toolOutcomeService';
+import { getRecentlyUsedTools } from '@/services/tools/toolOutcomeService';
+import { getToolRecords, getUsageLogs, getPlaybookStats } from '@/services/playbook/playbookService';
+import type { PersonalToolRecord, PlaybookStats } from '@/types/personalPlaybook';
 
 const ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string }>> = {
   Wind,
@@ -50,19 +55,13 @@ interface RecentTool {
   timestamp: number;
 }
 
-interface HelpfulTool {
-  toolId: string;
-  toolType: string;
-  helpRate: number;
-  uses: number;
-}
-
 export default function ToolsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [recentTools, setRecentTools] = useState<RecentTool[]>([]);
-  const [_helpfulTools, setHelpfulTools] = useState<HelpfulTool[]>([]);
+  const [playbookRecords, setPlaybookRecords] = useState<PersonalToolRecord[]>([]);
+  const [playbookStats, setPlaybookStats] = useState<PlaybookStats | null>(null);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -77,18 +76,37 @@ export default function ToolsScreen() {
       setRecentTools(tools.map(t => ({ toolId: t.toolId, toolType: t.toolType, timestamp: t.timestamp })));
     }).catch(e => console.log('[Tools] Error loading recent:', e));
 
-    getMostHelpfulTools(3).then(setHelpfulTools).catch(e => console.log('[Tools] Error loading helpful:', e));
+    void loadPlaybookData();
   }, []);
 
+  const loadPlaybookData = async () => {
+    try {
+      const [records, logs] = await Promise.all([getToolRecords(), getUsageLogs()]);
+      setPlaybookRecords(records);
+      if (records.length > 0 || logs.length > 0) {
+        setPlaybookStats(getPlaybookStats(records, logs));
+      }
+    } catch (e) {
+      console.log('[Tools] Error loading playbook:', e);
+    }
+  };
+
   const handleQuickAccess = useCallback((route: string) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     router.push(route as never);
   }, [router]);
 
   const handleNav = useCallback((route: string) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     router.push(route as never);
   }, [router]);
+
+  const topTool = playbookStats?.mostEffectiveTool;
+  const hasPlaybookData = playbookRecords.length > 0;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -126,6 +144,41 @@ export default function ToolsScreen() {
               );
             })}
           </View>
+
+          {topTool && (
+            <TouchableOpacity
+              style={styles.whatHelpedCard}
+              onPress={() => handleNav('/tools/playbook')}
+              activeOpacity={0.7}
+              testID="what-helped-card"
+            >
+              <View style={styles.whatHelpedHeader}>
+                <Lightbulb size={14} color={Colors.accent} />
+                <Text style={styles.whatHelpedLabel}>What works for you</Text>
+              </View>
+              <View style={styles.whatHelpedBody}>
+                <View style={styles.whatHelpedToolInfo}>
+                  <Text style={styles.whatHelpedToolName}>{topTool.toolTitle}</Text>
+                  <Text style={styles.whatHelpedToolMeta}>
+                    {topTool.avgDistressReduction > 0 && `Reduces distress by ${topTool.avgDistressReduction} · `}
+                    Used {topTool.totalUses}x
+                  </Text>
+                </View>
+                <View style={styles.whatHelpedBadge}>
+                  <Award size={12} color={Colors.success} />
+                  <Text style={styles.whatHelpedBadgeText}>#1</Text>
+                </View>
+              </View>
+              {playbookRecords.length > 1 && (
+                <View style={styles.whatHelpedMore}>
+                  <Text style={styles.whatHelpedMoreText}>
+                    +{playbookRecords.length - 1} more tools tracked
+                  </Text>
+                  <ChevronRight size={14} color={Colors.textMuted} />
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             style={styles.matcherCard}
@@ -208,18 +261,22 @@ export default function ToolsScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.featureCard}
+            style={[styles.featureCard, hasPlaybookData && styles.playbookFeatureCard]}
             onPress={() => handleNav('/tools/playbook')}
             activeOpacity={0.7}
             testID="playbook-card"
           >
             <View style={styles.featureLeft}>
-              <View style={[styles.featureIcon, { backgroundColor: Colors.accentLight }]}>
-                <Bookmark size={18} color={Colors.accent} />
+              <View style={[styles.featureIcon, { backgroundColor: hasPlaybookData ? Colors.brandTealSoft : Colors.accentLight }]}>
+                <Bookmark size={18} color={hasPlaybookData ? Colors.brandTeal : Colors.accent} />
               </View>
               <View style={styles.featureInfo}>
                 <Text style={styles.featureTitle}>My Playbook</Text>
-                <Text style={styles.featureDesc}>Tools that work best for you</Text>
+                <Text style={styles.featureDesc}>
+                  {hasPlaybookData
+                    ? `${playbookRecords.length} tools tracked · ${playbookStats?.toolsThisWeek ?? 0} this week`
+                    : 'Tools that work best for you'}
+                </Text>
               </View>
             </View>
             <ChevronRight size={18} color={Colors.textMuted} />
@@ -359,6 +416,73 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 15,
   },
+  whatHelpedCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.brandTeal + '20',
+  },
+  whatHelpedHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    marginBottom: 10,
+  },
+  whatHelpedLabel: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: Colors.accent,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  whatHelpedBody: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+  },
+  whatHelpedToolInfo: {
+    flex: 1,
+  },
+  whatHelpedToolName: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    marginBottom: 3,
+  },
+  whatHelpedToolMeta: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  whatHelpedBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    backgroundColor: Colors.successLight,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  whatHelpedBadgeText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: Colors.success,
+  },
+  whatHelpedMore: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  whatHelpedMoreText: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    fontWeight: '500' as const,
+  },
   matcherCard: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
@@ -449,6 +573,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     borderColor: Colors.borderLight,
+  },
+  playbookFeatureCard: {
+    borderColor: Colors.brandTeal + '30',
   },
   featureLeft: {
     flexDirection: 'row' as const,

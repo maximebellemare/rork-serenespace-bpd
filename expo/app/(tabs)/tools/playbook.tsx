@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,58 +6,154 @@ import {
   ScrollView,
   TouchableOpacity,
   Animated,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Bookmark, Pin, Trash2, TrendingUp } from 'lucide-react-native';
+import {
+  ChevronLeft,
+  Bookmark,
+  Pin,
+  TrendingUp,
+  Zap,
+  Sparkles,
+  Eye,
+  ShieldOff,
+  MessageCircle,
+  HeartCrack,
+  AlertCircle,
+  UserX,
+  CloudOff,
+  Flame,
+  Target,
+  Award,
+  BarChart3,
+  Lightbulb,
+} from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
-import { PlaybookEntry } from '@/types/tools';
-import { getPlaybook, togglePlaybookPin, removeFromPlaybook, getMostHelpfulTools } from '@/services/tools/toolOutcomeService';
+import {
+  getToolRecords,
+  getUsageLogs,
+  getPlaybookInsights,
+  getPlaybookStats,
+  getPlaybookMilestones,
+  toggleToolPin,
+} from '@/services/playbook/playbookService';
+import {
+  SITUATION_CATEGORIES,
+  getAllSituationRecommendations,
+  generatePlaybookInsights,
+} from '@/services/playbook/playbookLearningService';
+import type {
+  PersonalToolRecord,
+  ToolUsageLog,
+  PlaybookInsight,
+  PlaybookStats,
+  PlaybookMilestone,
+  SituationRecommendation,
+} from '@/types/personalPlaybook';
+import { trackEvent } from '@/services/analytics/analyticsService';
+
+const SITUATION_ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string }>> = {
+  ShieldOff,
+  Zap,
+  Eye,
+  Flame,
+  AlertCircle,
+  UserX,
+  MessageCircle,
+  HeartCrack,
+  TrendingUp,
+  CloudOff,
+};
+
+type ActiveTab = 'overview' | 'situations' | 'insights';
 
 export default function PlaybookScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const [playbook, setPlaybook] = useState<PlaybookEntry[]>([]);
-  const [helpfulTools, setHelpfulTools] = useState<Array<{ toolId: string; toolType: string; helpRate: number; uses: number }>>([]);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
+  const [records, setRecords] = useState<PersonalToolRecord[]>([]);
+  const [logs, setLogs] = useState<ToolUsageLog[]>([]);
+  const [insights, setInsights] = useState<PlaybookInsight[]>([]);
+  const [stats, setStats] = useState<PlaybookStats | null>(null);
+  const [milestones, setMilestones] = useState<PlaybookMilestone[]>([]);
+  const [recommendations, setRecommendations] = useState<SituationRecommendation[]>([]);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
-      duration: 400,
+      duration: 500,
       useNativeDriver: true,
     }).start();
   }, [fadeAnim]);
 
   useEffect(() => {
-    void loadData();
+    void loadAllData();
+    void trackEvent('playbook_opened');
   }, []);
 
-  const loadData = async () => {
+  const loadAllData = async () => {
     try {
-      const [pb, ht] = await Promise.all([getPlaybook(), getMostHelpfulTools(5)]);
-      setPlaybook(pb);
-      setHelpfulTools(ht);
+      const [recs, usageLogs, savedInsights] = await Promise.all([
+        getToolRecords(),
+        getUsageLogs(),
+        getPlaybookInsights(),
+      ]);
+
+      setRecords(recs);
+      setLogs(usageLogs);
+
+      const computedStats = getPlaybookStats(recs, usageLogs);
+      setStats(computedStats);
+      setMilestones(getPlaybookMilestones(computedStats));
+
+      const recs2 = getAllSituationRecommendations(recs, usageLogs);
+      setRecommendations(recs2);
+
+      const generatedInsights = savedInsights.length > 0
+        ? savedInsights
+        : generatePlaybookInsights(recs, usageLogs);
+      setInsights(generatedInsights);
+
+      console.log('[Playbook] Loaded:', {
+        records: recs.length,
+        logs: usageLogs.length,
+        insights: generatedInsights.length,
+      });
     } catch (e) {
       console.log('[Playbook] Error loading data:', e);
     }
   };
 
   const handlePin = useCallback(async (toolId: string) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await togglePlaybookPin(toolId);
-    void loadData();
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    await toggleToolPin(toolId);
+    void loadAllData();
   }, []);
 
-  const handleRemove = useCallback(async (toolId: string) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await removeFromPlaybook(toolId);
-    void loadData();
+  const handleTabPress = useCallback((tab: ActiveTab) => {
+    if (Platform.OS !== 'web') {
+      void Haptics.selectionAsync();
+    }
+    setActiveTab(tab);
   }, []);
 
-  const pinnedTools = playbook.filter(p => p.pinned);
-  const otherTools = playbook.filter(p => !p.pinned);
+  const pinnedTools = useMemo(() => records.filter(r => r.pinned), [records]);
+  const topTools = useMemo(
+    () => [...records].sort((a, b) => b.effectivenessScore - a.effectivenessScore).slice(0, 5),
+    [records],
+  );
+  const activeSituations = useMemo(
+    () => recommendations.filter(r => r.tools.length > 0),
+    [recommendations],
+  );
+
+  const hasData = records.length > 0 || logs.length > 0;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -68,116 +164,451 @@ export default function PlaybookScreen() {
             style={styles.backBtn}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <ChevronLeft size={24} color={Colors.text} />
+            <ChevronLeft size={22} color={Colors.text} />
           </TouchableOpacity>
-          <View style={styles.headerText}>
-            <Text style={styles.title}>My Playbook</Text>
-            <Text style={styles.subtitle}>Tools that work best for you</Text>
+          <View style={styles.headerCenter}>
+            <View style={styles.headerTitleRow}>
+              <Bookmark size={20} color={Colors.brandTeal} />
+              <Text style={styles.title}>My Playbook</Text>
+            </View>
+            <Text style={styles.subtitle}>What works best for you</Text>
           </View>
+        </View>
+
+        {hasData && stats && (
+          <View style={styles.statsStrip}>
+            <StatPill label="Tools Used" value={String(stats.totalToolUses)} color={Colors.brandTeal} />
+            <StatPill label="This Week" value={String(stats.toolsThisWeek)} color={Colors.brandLilac} />
+            <StatPill
+              label="Avg Reduction"
+              value={stats.avgDistressReduction > 0 ? `-${stats.avgDistressReduction}` : '–'}
+              color={Colors.success}
+            />
+            {stats.streakDays > 0 && (
+              <StatPill label="Streak" value={`${stats.streakDays}d`} color={Colors.accent} />
+            )}
+          </View>
+        )}
+
+        <View style={styles.tabRow}>
+          {(['overview', 'situations', 'insights'] as const).map(tab => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tabBtn, activeTab === tab && styles.tabBtnActive]}
+              onPress={() => handleTabPress(tab)}
+              activeOpacity={0.7}
+              testID={`playbook-tab-${tab}`}
+            >
+              <Text style={[styles.tabLabel, activeTab === tab && styles.tabLabelActive]}>
+                {tab === 'overview' ? 'Overview' : tab === 'situations' ? 'By Situation' : 'Insights'}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {playbook.length === 0 && helpfulTools.length === 0 ? (
-            <View style={styles.emptyState}>
-              <View style={styles.emptyIcon}>
-                <Bookmark size={32} color={Colors.accent} />
-              </View>
-              <Text style={styles.emptyTitle}>Your playbook is empty</Text>
-              <Text style={styles.emptyDesc}>
-                As you use tools and mark them helpful, they'll appear here. Over time, this becomes your personalized go-to toolkit.
-              </Text>
-              <TouchableOpacity
-                style={styles.emptyBtn}
-                onPress={() => router.back()}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.emptyBtnText}>Explore Tools</Text>
-              </TouchableOpacity>
-            </View>
+          {!hasData ? (
+            <EmptyPlaybook onExplore={() => router.back()} />
+          ) : activeTab === 'overview' ? (
+            <OverviewTab
+              pinnedTools={pinnedTools}
+              topTools={topTools}
+              milestones={milestones}
+              stats={stats}
+              insights={insights}
+              onPin={handlePin}
+            />
+          ) : activeTab === 'situations' ? (
+            <SituationsTab
+              activeSituations={activeSituations}
+              allSituations={SITUATION_CATEGORIES}
+            />
           ) : (
-            <>
-              {helpfulTools.length > 0 && (
-                <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                    <TrendingUp size={16} color={Colors.success} />
-                    <Text style={styles.sectionTitle}>Most Effective for You</Text>
-                  </View>
-                  {helpfulTools.map(tool => (
-                    <View key={tool.toolId} style={styles.helpfulCard}>
-                      <View style={styles.helpfulInfo}>
-                        <Text style={styles.helpfulTitle}>{tool.toolId}</Text>
-                        <View style={styles.helpfulMeta}>
-                          <Text style={styles.helpfulRate}>{tool.helpRate}% helpful</Text>
-                          <Text style={styles.helpfulUses}>{tool.uses} uses</Text>
-                        </View>
-                      </View>
-                      <View style={styles.helpfulBar}>
-                        <View style={[styles.helpfulBarFill, { width: `${tool.helpRate}%` }]} />
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {pinnedTools.length > 0 && (
-                <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                    <Pin size={16} color={Colors.accent} />
-                    <Text style={styles.sectionTitle}>Pinned</Text>
-                  </View>
-                  {pinnedTools.map(entry => (
-                    <View key={entry.toolId} style={styles.playbookCard}>
-                      <View style={styles.playbookInfo}>
-                        <Text style={styles.playbookTitle}>{entry.toolTitle}</Text>
-                        <Text style={styles.playbookMeta}>
-                          Used {entry.useCount} times
-                          {entry.bestForSituations.length > 0 && ` · Best for ${entry.bestForSituations[0]}`}
-                        </Text>
-                      </View>
-                      <View style={styles.playbookActions}>
-                        <TouchableOpacity onPress={() => handlePin(entry.toolId)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                          <Pin size={16} color={Colors.accent} fill={Colors.accent} />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => handleRemove(entry.toolId)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                          <Trash2 size={16} color={Colors.textMuted} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {otherTools.length > 0 && (
-                <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                    <Bookmark size={16} color={Colors.textSecondary} />
-                    <Text style={styles.sectionTitle}>Saved Tools</Text>
-                  </View>
-                  {otherTools.map(entry => (
-                    <View key={entry.toolId} style={styles.playbookCard}>
-                      <View style={styles.playbookInfo}>
-                        <Text style={styles.playbookTitle}>{entry.toolTitle}</Text>
-                        <Text style={styles.playbookMeta}>Used {entry.useCount} times</Text>
-                      </View>
-                      <View style={styles.playbookActions}>
-                        <TouchableOpacity onPress={() => handlePin(entry.toolId)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                          <Pin size={16} color={Colors.textMuted} />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => handleRemove(entry.toolId)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                          <Trash2 size={16} color={Colors.textMuted} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </>
+            <InsightsTab insights={insights} milestones={milestones} />
           )}
+          <View style={{ height: insets.bottom + 24 }} />
         </ScrollView>
       </Animated.View>
+    </View>
+  );
+}
+
+function StatPill({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <View style={[styles.statPill, { borderColor: color + '30' }]}>
+      <Text style={[styles.statPillValue, { color }]}>{value}</Text>
+      <Text style={styles.statPillLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function EmptyPlaybook({ onExplore }: { onExplore: () => void }) {
+  return (
+    <View style={styles.emptyState}>
+      <View style={styles.emptyIconWrap}>
+        <Bookmark size={36} color={Colors.brandTeal} />
+      </View>
+      <Text style={styles.emptyTitle}>Your personal playbook</Text>
+      <Text style={styles.emptyDesc}>
+        As you use tools and rate what helps, your playbook learns which strategies work best for you — and when.
+      </Text>
+      <View style={styles.emptySteps}>
+        <EmptyStep number="1" text="Use a tool from the library" />
+        <EmptyStep number="2" text="Rate if it helped after" />
+        <EmptyStep number="3" text="Your playbook builds itself" />
+      </View>
+      <TouchableOpacity style={styles.emptyBtn} onPress={onExplore} activeOpacity={0.7}>
+        <Text style={styles.emptyBtnText}>Explore Tools</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function EmptyStep({ number, text }: { number: string; text: string }) {
+  return (
+    <View style={styles.emptyStep}>
+      <View style={styles.emptyStepNum}>
+        <Text style={styles.emptyStepNumText}>{number}</Text>
+      </View>
+      <Text style={styles.emptyStepText}>{text}</Text>
+    </View>
+  );
+}
+
+function OverviewTab({
+  pinnedTools,
+  topTools,
+  milestones,
+  stats,
+  insights,
+  onPin,
+}: {
+  pinnedTools: PersonalToolRecord[];
+  topTools: PersonalToolRecord[];
+  milestones: PlaybookMilestone[];
+  stats: PlaybookStats | null;
+  insights: PlaybookInsight[];
+  onPin: (toolId: string) => void;
+}) {
+  const achievedMilestones = milestones.filter(m => m.achieved);
+  const nextMilestone = milestones.find(m => !m.achieved);
+  const topInsight = insights[0];
+
+  return (
+    <>
+      {topInsight && (
+        <View style={styles.insightBanner}>
+          <Lightbulb size={16} color={Colors.accent} />
+          <Text style={styles.insightBannerText}>{topInsight.text}</Text>
+        </View>
+      )}
+
+      {stats?.mostEffectiveTool && (
+        <View style={styles.topToolCard}>
+          <View style={styles.topToolBadge}>
+            <Award size={14} color={Colors.white} />
+            <Text style={styles.topToolBadgeText}>Most Effective</Text>
+          </View>
+          <Text style={styles.topToolName}>{stats.mostEffectiveTool.toolTitle}</Text>
+          <View style={styles.topToolStats}>
+            <View style={styles.topToolStat}>
+              <Text style={styles.topToolStatValue}>
+                -{stats.mostEffectiveTool.avgDistressReduction}
+              </Text>
+              <Text style={styles.topToolStatLabel}>avg reduction</Text>
+            </View>
+            <View style={styles.topToolStatDivider} />
+            <View style={styles.topToolStat}>
+              <Text style={styles.topToolStatValue}>{stats.mostEffectiveTool.totalUses}x</Text>
+              <Text style={styles.topToolStatLabel}>used</Text>
+            </View>
+            <View style={styles.topToolStatDivider} />
+            <View style={styles.topToolStat}>
+              <Text style={styles.topToolStatValue}>{stats.mostEffectiveTool.effectivenessScore}%</Text>
+              <Text style={styles.topToolStatLabel}>effective</Text>
+            </View>
+          </View>
+          <View style={styles.topToolBar}>
+            <View
+              style={[
+                styles.topToolBarFill,
+                { width: `${Math.min(stats.mostEffectiveTool.effectivenessScore, 100)}%` },
+              ]}
+            />
+          </View>
+        </View>
+      )}
+
+      {pinnedTools.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Pin size={15} color={Colors.accent} />
+            <Text style={styles.sectionTitle}>Quick Access</Text>
+          </View>
+          {pinnedTools.map(tool => (
+            <ToolCard key={tool.toolId} tool={tool} isPinned onPin={onPin} />
+          ))}
+        </View>
+      )}
+
+      {topTools.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <TrendingUp size={15} color={Colors.success} />
+            <Text style={styles.sectionTitle}>Top Performing Tools</Text>
+          </View>
+          {topTools.map((tool, idx) => (
+            <ToolCard key={tool.toolId} tool={tool} rank={idx + 1} isPinned={tool.pinned} onPin={onPin} />
+          ))}
+        </View>
+      )}
+
+      {nextMilestone && (
+        <View style={styles.milestoneCard}>
+          <View style={styles.milestoneHeader}>
+            <Target size={16} color={Colors.brandLilac} />
+            <Text style={styles.milestoneTitle}>Next Milestone</Text>
+          </View>
+          <Text style={styles.milestoneName}>{nextMilestone.label}</Text>
+          <Text style={styles.milestoneDesc}>{nextMilestone.description}</Text>
+          <View style={styles.milestoneBar}>
+            <View
+              style={[
+                styles.milestoneBarFill,
+                { width: `${Math.min((nextMilestone.current / nextMilestone.target) * 100, 100)}%` },
+              ]}
+            />
+          </View>
+          <Text style={styles.milestoneProgress}>
+            {nextMilestone.current} / {nextMilestone.target}
+          </Text>
+        </View>
+      )}
+
+      {achievedMilestones.length > 0 && (
+        <View style={styles.achievedRow}>
+          {achievedMilestones.map(m => (
+            <View key={m.id} style={styles.achievedBadge}>
+              <Award size={12} color={Colors.success} />
+              <Text style={styles.achievedText}>{m.label}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </>
+  );
+}
+
+function SituationsTab({
+  activeSituations,
+  allSituations,
+}: {
+  activeSituations: SituationRecommendation[];
+  allSituations: typeof SITUATION_CATEGORIES;
+}) {
+  const activeSitIds = new Set(activeSituations.map(s => s.situation));
+  const emptySituations = allSituations.filter(s => !activeSitIds.has(s.id));
+
+  return (
+    <>
+      {activeSituations.length > 0 ? (
+        <>
+          <Text style={styles.situationIntro}>
+            Based on your tool usage, here's what works best in different moments.
+          </Text>
+          {activeSituations.map(rec => {
+            const cat = allSituations.find(c => c.id === rec.situation);
+            if (!cat) return null;
+            const IconComp = SITUATION_ICON_MAP[cat.iconName];
+            return (
+              <View key={rec.situation} style={styles.situationCard}>
+                <View style={styles.situationHeader}>
+                  <View style={[styles.situationIconWrap, { backgroundColor: cat.bgColor }]}>
+                    {IconComp && <IconComp size={18} color={cat.color} />}
+                  </View>
+                  <View style={styles.situationInfo}>
+                    <Text style={styles.situationLabel}>{cat.label}</Text>
+                    <Text style={styles.situationDesc}>{cat.description}</Text>
+                  </View>
+                </View>
+                {rec.insight && (
+                  <View style={styles.situationInsight}>
+                    <Lightbulb size={12} color={Colors.accent} />
+                    <Text style={styles.situationInsightText}>{rec.insight}</Text>
+                  </View>
+                )}
+                <View style={styles.situationTools}>
+                  {rec.tools.map((tool, idx) => (
+                    <View key={tool.toolId} style={styles.situationToolRow}>
+                      <View style={styles.situationToolRank}>
+                        <Text style={styles.situationToolRankText}>{idx + 1}</Text>
+                      </View>
+                      <View style={styles.situationToolInfo}>
+                        <Text style={styles.situationToolName}>{tool.toolTitle}</Text>
+                        <Text style={styles.situationToolMeta}>
+                          {tool.avgDistressReduction > 0 && `-${tool.avgDistressReduction} distress · `}
+                          {tool.totalUses}x used
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            );
+          })}
+        </>
+      ) : (
+        <View style={styles.emptyTab}>
+          <BarChart3 size={28} color={Colors.textMuted} />
+          <Text style={styles.emptyTabTitle}>Building situation data</Text>
+          <Text style={styles.emptyTabDesc}>
+            Keep using tools and tracking how they help. Your playbook will learn which tools work best for each emotional situation.
+          </Text>
+        </View>
+      )}
+
+      {emptySituations.length > 0 && activeSituations.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle2}>Not enough data yet</Text>
+          <View style={styles.emptySituationGrid}>
+            {emptySituations.map(cat => {
+              const IconComp = SITUATION_ICON_MAP[cat.iconName];
+              return (
+                <View key={cat.id} style={styles.emptySituationChip}>
+                  {IconComp && <IconComp size={14} color={cat.color} />}
+                  <Text style={styles.emptySituationText}>{cat.label}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      )}
+    </>
+  );
+}
+
+function InsightsTab({
+  insights,
+  milestones,
+}: {
+  insights: PlaybookInsight[];
+  milestones: PlaybookMilestone[];
+}) {
+  const achievedMilestones = milestones.filter(m => m.achieved);
+
+  if (insights.length === 0 && achievedMilestones.length === 0) {
+    return (
+      <View style={styles.emptyTab}>
+        <Sparkles size={28} color={Colors.textMuted} />
+        <Text style={styles.emptyTabTitle}>Insights coming soon</Text>
+        <Text style={styles.emptyTabDesc}>
+          Use more tools and track their helpfulness. Patterns and insights will emerge.
+        </Text>
+      </View>
+    );
+  }
+
+  const insightColors: Record<string, { bg: string; accent: string }> = {
+    pattern: { bg: '#F0ECF7', accent: Colors.brandLilac },
+    effectiveness: { bg: Colors.successLight, accent: Colors.success },
+    milestone: { bg: Colors.accentLight, accent: Colors.accent },
+    suggestion: { bg: Colors.brandTealSoft, accent: Colors.brandTeal },
+  };
+
+  return (
+    <>
+      {insights.map(insight => {
+        const colors = insightColors[insight.type] ?? insightColors.pattern;
+        return (
+          <View key={insight.id} style={[styles.insightCard, { borderLeftColor: colors.accent }]}>
+            <View style={[styles.insightBadge, { backgroundColor: colors.bg }]}>
+              <Text style={[styles.insightBadgeText, { color: colors.accent }]}>
+                {insight.type === 'pattern' ? 'Pattern' : insight.type === 'effectiveness' ? 'Effectiveness' : insight.type === 'milestone' ? 'Milestone' : 'Suggestion'}
+              </Text>
+            </View>
+            <Text style={styles.insightText}>{insight.text}</Text>
+          </View>
+        );
+      })}
+
+      {achievedMilestones.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Award size={15} color={Colors.accent} />
+            <Text style={styles.sectionTitle}>Milestones Achieved</Text>
+          </View>
+          {achievedMilestones.map(m => (
+            <View key={m.id} style={styles.milestoneAchievedCard}>
+              <Award size={18} color={Colors.success} />
+              <View style={styles.milestoneAchievedInfo}>
+                <Text style={styles.milestoneAchievedName}>{m.label}</Text>
+                <Text style={styles.milestoneAchievedDesc}>{m.description}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+    </>
+  );
+}
+
+function ToolCard({
+  tool,
+  rank,
+  isPinned,
+  onPin,
+}: {
+  tool: PersonalToolRecord;
+  rank?: number;
+  isPinned: boolean;
+  onPin: (toolId: string) => void;
+}) {
+  const helpRate = tool.totalUses > 0 ? Math.round((tool.helpfulCount / tool.totalUses) * 100) : 0;
+
+  return (
+    <View style={styles.toolCard}>
+      <View style={styles.toolCardLeft}>
+        {rank && (
+          <View style={styles.toolRank}>
+            <Text style={styles.toolRankText}>{rank}</Text>
+          </View>
+        )}
+        <View style={styles.toolCardInfo}>
+          <Text style={styles.toolCardTitle}>{tool.toolTitle}</Text>
+          <View style={styles.toolCardMetaRow}>
+            {tool.avgDistressReduction > 0 && (
+              <View style={styles.toolMetaBadge}>
+                <Zap size={10} color={Colors.success} />
+                <Text style={styles.toolMetaGreen}>-{tool.avgDistressReduction}</Text>
+              </View>
+            )}
+            <Text style={styles.toolCardMeta}>{tool.totalUses}x used</Text>
+            {helpRate > 0 && <Text style={styles.toolCardMeta}>· {helpRate}% helpful</Text>}
+          </View>
+          {tool.situations.length > 0 && (
+            <View style={styles.toolSituationTags}>
+              {tool.situations.slice(0, 2).map(sit => {
+                const cat = SITUATION_CATEGORIES.find(c => c.id === sit);
+                return cat ? (
+                  <View key={sit} style={[styles.toolSituationTag, { backgroundColor: cat.bgColor }]}>
+                    <Text style={[styles.toolSituationTagText, { color: cat.color }]}>{cat.label}</Text>
+                  </View>
+                ) : null;
+              })}
+            </View>
+          )}
+        </View>
+      </View>
+      <TouchableOpacity
+        onPress={() => onPin(tool.toolId)}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        style={styles.pinBtn}
+      >
+        <Pin size={16} color={isPinned ? Colors.accent : Colors.textMuted} fill={isPinned ? Colors.accent : 'none'} />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -192,133 +623,268 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 4,
+    paddingBottom: 8,
     gap: 12,
   },
   backBtn: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     borderRadius: 12,
     backgroundColor: Colors.white,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
   },
-  headerText: {
+  headerCenter: {
     flex: 1,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   title: {
     fontSize: 24,
     fontWeight: '700' as const,
-    color: Colors.text,
-    letterSpacing: -0.3,
+    color: Colors.brandNavy,
+    letterSpacing: -0.4,
   },
   subtitle: {
     fontSize: 13,
     color: Colors.textSecondary,
     marginTop: 2,
+    marginLeft: 28,
+  },
+  statsStrip: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  statPill: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  statPillValue: {
+    fontSize: 18,
+    fontWeight: '800' as const,
+  },
+  statPillLabel: {
+    fontSize: 9,
+    color: Colors.textMuted,
+    fontWeight: '600' as const,
+    marginTop: 2,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.3,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 6,
+    marginBottom: 4,
+  },
+  tabBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  tabBtnActive: {
+    backgroundColor: Colors.brandNavy,
+    borderColor: Colors.brandNavy,
+  },
+  tabLabel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+  },
+  tabLabelActive: {
+    color: Colors.white,
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 40,
+    paddingTop: 16,
   },
   emptyState: {
     alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 20,
+    paddingTop: 40,
+    paddingHorizontal: 16,
   },
-  emptyIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
-    backgroundColor: Colors.accentLight,
+  emptyIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 28,
+    backgroundColor: Colors.brandTealSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700' as const,
-    color: Colors.text,
+    color: Colors.brandNavy,
     marginBottom: 10,
   },
   emptyDesc: {
     fontSize: 15,
     color: Colors.textSecondary,
-    textAlign: 'center' as const,
+    textAlign: 'center',
     lineHeight: 23,
-    marginBottom: 28,
+    marginBottom: 32,
+  },
+  emptySteps: {
+    width: '100%',
+    gap: 12,
+    marginBottom: 32,
+  },
+  emptyStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  emptyStepNum: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: Colors.brandTealSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStepNumText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.brandTeal,
+  },
+  emptyStepText: {
+    fontSize: 15,
+    color: Colors.text,
+    fontWeight: '500' as const,
+    flex: 1,
   },
   emptyBtn: {
     backgroundColor: Colors.brandNavy,
     borderRadius: 14,
-    paddingHorizontal: 28,
-    paddingVertical: 14,
+    paddingHorizontal: 32,
+    paddingVertical: 15,
   },
   emptyBtnText: {
     fontSize: 16,
     fontWeight: '600' as const,
     color: Colors.white,
   },
+  insightBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: Colors.warmGlow,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: Colors.accentLight,
+  },
+  insightBannerText: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.accent,
+    lineHeight: 20,
+    fontWeight: '500' as const,
+  },
+  topToolCard: {
+    backgroundColor: Colors.brandNavy,
+    borderRadius: 18,
+    padding: 20,
+    marginBottom: 22,
+  },
+  topToolBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  topToolBadgeText: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: 'rgba(255,255,255,0.7)',
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.8,
+  },
+  topToolName: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: Colors.white,
+    marginBottom: 14,
+  },
+  topToolStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    marginBottom: 14,
+  },
+  topToolStat: {
+    alignItems: 'center',
+  },
+  topToolStatValue: {
+    fontSize: 20,
+    fontWeight: '800' as const,
+    color: Colors.white,
+  },
+  topToolStatLabel: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 2,
+    fontWeight: '500' as const,
+  },
+  topToolStatDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  topToolBar: {
+    height: 5,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  topToolBarFill: {
+    height: 5,
+    backgroundColor: '#6BE5A0',
+    borderRadius: 3,
+  },
   section: {
-    marginBottom: 28,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700' as const,
     color: Colors.text,
   },
-  helpfulCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  helpfulInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  helpfulTitle: {
+  sectionTitle2: {
     fontSize: 14,
     fontWeight: '600' as const,
-    color: Colors.text,
-    flex: 1,
-  },
-  helpfulMeta: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  helpfulRate: {
-    fontSize: 12,
-    color: Colors.success,
-    fontWeight: '600' as const,
-  },
-  helpfulUses: {
-    fontSize: 12,
     color: Colors.textMuted,
+    marginBottom: 10,
   },
-  helpfulBar: {
-    height: 4,
-    backgroundColor: Colors.borderLight,
-    borderRadius: 2,
-    overflow: 'hidden' as const,
-  },
-  helpfulBarFill: {
-    height: 4,
-    backgroundColor: Colors.success,
-    borderRadius: 2,
-  },
-  playbookCard: {
+  toolCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
@@ -328,22 +894,322 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.borderLight,
   },
-  playbookInfo: {
+  toolCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  toolRank: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolRankText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: Colors.textSecondary,
+  },
+  toolCardInfo: {
     flex: 1,
   },
-  playbookTitle: {
+  toolCardTitle: {
     fontSize: 15,
     fontWeight: '600' as const,
     color: Colors.text,
     marginBottom: 3,
   },
-  playbookMeta: {
+  toolCardMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  toolMetaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: Colors.successLight,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  toolMetaGreen: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: Colors.success,
+  },
+  toolCardMeta: {
     fontSize: 12,
     color: Colors.textMuted,
   },
-  playbookActions: {
+  toolSituationTags: {
     flexDirection: 'row',
+    gap: 6,
+    marginTop: 6,
+    flexWrap: 'wrap',
+  },
+  toolSituationTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  toolSituationTagText: {
+    fontSize: 10,
+    fontWeight: '600' as const,
+  },
+  pinBtn: {
+    padding: 6,
+  },
+  milestoneCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: Colors.brandLilac + '25',
+  },
+  milestoneHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  milestoneTitle: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.brandLilac,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  milestoneName: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  milestoneDesc: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+  },
+  milestoneBar: {
+    height: 6,
+    backgroundColor: Colors.borderLight,
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 6,
+  },
+  milestoneBarFill: {
+    height: 6,
+    backgroundColor: Colors.brandLilac,
+    borderRadius: 3,
+  },
+  milestoneProgress: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    textAlign: 'right',
+  },
+  achievedRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 20,
+  },
+  achievedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.successLight,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  achievedText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.success,
+  },
+  situationIntro: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 21,
+    marginBottom: 18,
+  },
+  situationCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  situationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  situationIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  situationInfo: {
+    flex: 1,
+  },
+  situationLabel: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.text,
+  },
+  situationDesc: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  situationInsight: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: Colors.warmGlow,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+  },
+  situationInsightText: {
+    flex: 1,
+    fontSize: 12,
+    color: Colors.accent,
+    lineHeight: 18,
+    fontWeight: '500' as const,
+  },
+  situationTools: {
+    gap: 8,
+  },
+  situationToolRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  situationToolRank: {
+    width: 22,
+    height: 22,
+    borderRadius: 7,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  situationToolRankText: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: Colors.textSecondary,
+  },
+  situationToolInfo: {
+    flex: 1,
+  },
+  situationToolName: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.text,
+  },
+  situationToolMeta: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 1,
+  },
+  emptyTab: {
+    alignItems: 'center',
+    paddingTop: 50,
+    paddingHorizontal: 24,
+  },
+  emptyTabTitle: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyTabDesc: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  emptySituationGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  emptySituationChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.white,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  emptySituationText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: '500' as const,
+  },
+  insightCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 10,
+    borderLeftWidth: 3,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  insightBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  insightBadgeText: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  insightText: {
+    fontSize: 14,
+    color: Colors.text,
+    lineHeight: 22,
+  },
+  milestoneAchievedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 14,
-    marginLeft: 12,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Colors.successLight,
+  },
+  milestoneAchievedInfo: {
+    flex: 1,
+  },
+  milestoneAchievedName: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.text,
+  },
+  milestoneAchievedDesc: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 2,
   },
 });
