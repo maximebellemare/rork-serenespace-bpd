@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,12 +19,16 @@ import {
   Eye,
   AlertTriangle,
   Check,
+  Shield,
+  Sparkles,
+  X,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
-import { CATEGORIES } from '@/constants/community';
+import { CATEGORIES, SITUATION_TAGS, SUPPORT_TYPES, EMOTION_OPTIONS } from '@/constants/community';
 import { useCreatePost } from '@/hooks/useCommunityFeed';
-import { PostCategory } from '@/types/community';
+import { PostCategory, SituationTag } from '@/types/community';
+import { checkContentSafety, getPostSuggestions } from '@/services/community/communitySafetyService';
 
 export default function NewPostScreen() {
   const router = useRouter();
@@ -36,13 +40,43 @@ export default function NewPostScreen() {
   const [isAnonymous, setIsAnonymous] = useState<boolean>(true);
   const [hasContentWarning, setHasContentWarning] = useState<boolean>(false);
   const [contentWarningText, setContentWarningText] = useState<string>('');
+  const [situationTag, setSituationTag] = useState<SituationTag | null>(null);
+  const [selectedEmotions, setSelectedEmotions] = useState<string[]>([]);
+  const [supportType, setSupportType] = useState<string | null>(null);
+  const [showEmotions, setShowEmotions] = useState<boolean>(false);
+  const [safetyWarning, setSafetyWarning] = useState<string | null>(null);
 
   const canSubmit = title.trim().length > 0 && body.trim().length > 0 && category !== null;
 
-  const handleSubmit = useCallback(async () => {
-    if (!canSubmit || !category) return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  const suggestions = useMemo(
+    () => getPostSuggestions(title, body),
+    [title, body]
+  );
 
+  const handleBodyChange = useCallback((text: string) => {
+    setBody(text);
+    if (text.length > 20) {
+      const safety = checkContentSafety(text);
+      if (!safety.isSafe && safety.suggestion) {
+        setSafetyWarning(safety.suggestion);
+      } else {
+        setSafetyWarning(null);
+      }
+    } else {
+      setSafetyWarning(null);
+    }
+  }, []);
+
+  const toggleEmotion = useCallback((emotion: string) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedEmotions((prev) =>
+      prev.includes(emotion) ? prev.filter((e) => e !== emotion) : [...prev, emotion]
+    );
+  }, []);
+
+  const doSubmit = useCallback(async () => {
+    if (!category) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       await createPost({
         title: title.trim(),
@@ -51,6 +85,9 @@ export default function NewPostScreen() {
         isAnonymous,
         hasContentWarning,
         contentWarningText: hasContentWarning ? contentWarningText.trim() : undefined,
+        situationTag: situationTag ?? undefined,
+        emotions: selectedEmotions.length > 0 ? selectedEmotions : undefined,
+        supportType: supportType ?? undefined,
       });
       console.log('[NewPost] Post created successfully');
       router.back();
@@ -58,17 +95,37 @@ export default function NewPostScreen() {
       console.error('[NewPost] Failed to create post:', error);
       Alert.alert('Something went wrong', 'Please try again in a moment.');
     }
-  }, [canSubmit, category, title, body, isAnonymous, hasContentWarning, contentWarningText, createPost, router]);
+  }, [category, title, body, isAnonymous, hasContentWarning, contentWarningText, situationTag, selectedEmotions, supportType, createPost, router]);
+
+  const handleSubmit = useCallback(async () => {
+    if (!canSubmit || !category) return;
+
+    const safety = checkContentSafety(body);
+    if (!safety.isSafe) {
+      Alert.alert(
+        'A gentle reminder',
+        safety.suggestion ?? 'Please review your message before posting.',
+        [
+          { text: 'Edit post', style: 'cancel' },
+          {
+            text: 'Post anyway',
+            onPress: async () => {
+              await doSubmit();
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    await doSubmit();
+  }, [canSubmit, category, body, doSubmit]);
 
   return (
     <View style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.safeTop}>
         <View style={styles.navBar}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => router.back()}
-            testID="back-btn"
-          >
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} testID="back-btn">
             <ArrowLeft size={20} color={Colors.text} />
           </TouchableOpacity>
           <Text style={styles.navTitle}>New Post</Text>
@@ -81,18 +138,13 @@ export default function NewPostScreen() {
             {isCreating ? (
               <ActivityIndicator size="small" color={Colors.white} />
             ) : (
-              <Text style={[styles.submitText, canSubmit && styles.submitTextActive]}>
-                Share
-              </Text>
+              <Text style={[styles.submitText, canSubmit && styles.submitTextActive]}>Share</Text>
             )}
           </TouchableOpacity>
         </View>
       </SafeAreaView>
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -100,6 +152,7 @@ export default function NewPostScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.safeNotice}>
+            <Shield size={14} color={Colors.primary} />
             <Text style={styles.safeNoticeText}>
               This is a safe space. Share what feels right for you.
             </Text>
@@ -114,11 +167,7 @@ export default function NewPostScreen() {
               }}
               testID="anon-toggle"
             >
-              {isAnonymous ? (
-                <EyeOff size={16} color={Colors.primary} />
-              ) : (
-                <Eye size={16} color={Colors.textMuted} />
-              )}
+              {isAnonymous ? <EyeOff size={16} color={Colors.primary} /> : <Eye size={16} color={Colors.textMuted} />}
               <Text style={[styles.toggleText, isAnonymous && styles.toggleTextActive]}>
                 {isAnonymous ? 'Posting anonymously' : 'Posting as you'}
               </Text>
@@ -132,18 +181,8 @@ export default function NewPostScreen() {
               }}
               testID="cw-toggle"
             >
-              <AlertTriangle
-                size={16}
-                color={hasContentWarning ? Colors.accent : Colors.textMuted}
-              />
-              <Text
-                style={[
-                  styles.toggleText,
-                  hasContentWarning && { color: Colors.accent },
-                ]}
-              >
-                CW
-              </Text>
+              <AlertTriangle size={16} color={hasContentWarning ? Colors.accent : Colors.textMuted} />
+              <Text style={[styles.toggleText, hasContentWarning && { color: Colors.accent }]}>CW</Text>
             </TouchableOpacity>
           </View>
 
@@ -159,6 +198,51 @@ export default function NewPostScreen() {
             />
           )}
 
+          <Text style={styles.sectionLabel}>What's the situation?</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tagsRow}
+            style={styles.tagsScroll}
+          >
+            {SITUATION_TAGS.map((tag) => {
+              const isSelected = situationTag === tag.id;
+              return (
+                <TouchableOpacity
+                  key={tag.id}
+                  style={[styles.tagPill, isSelected && styles.tagPillActive]}
+                  onPress={() => {
+                    setSituationTag(isSelected ? null : tag.id);
+                    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                >
+                  <Text style={styles.tagEmoji}>{tag.emoji}</Text>
+                  <Text style={[styles.tagText, isSelected && styles.tagTextActive]}>{tag.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          <Text style={styles.sectionLabel}>What kind of support would help?</Text>
+          <View style={styles.supportGrid}>
+            {SUPPORT_TYPES.map((st) => {
+              const isSelected = supportType === st.id;
+              return (
+                <TouchableOpacity
+                  key={st.id}
+                  style={[styles.supportOption, isSelected && styles.supportOptionActive]}
+                  onPress={() => {
+                    setSupportType(isSelected ? null : st.id);
+                    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                >
+                  <Text style={styles.supportEmoji}>{st.emoji}</Text>
+                  <Text style={[styles.supportText, isSelected && styles.supportTextActive]}>{st.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
           <Text style={styles.sectionLabel}>Category</Text>
           <View style={styles.categoriesGrid}>
             {CATEGORIES.map((cat) => {
@@ -168,10 +252,7 @@ export default function NewPostScreen() {
                   key={cat.id}
                   style={[
                     styles.categoryOption,
-                    isSelected && {
-                      backgroundColor: cat.color + '18',
-                      borderColor: cat.color,
-                    },
+                    isSelected && { backgroundColor: cat.color + '18', borderColor: cat.color },
                   ]}
                   onPress={() => {
                     setCategory(cat.id);
@@ -180,12 +261,7 @@ export default function NewPostScreen() {
                   testID={`category-${cat.id}`}
                 >
                   <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
-                  <Text
-                    style={[
-                      styles.categoryText,
-                      isSelected && { color: cat.color, fontWeight: '600' as const },
-                    ]}
-                  >
+                  <Text style={[styles.categoryText, isSelected && { color: cat.color, fontWeight: '600' as const }]}>
                     {cat.label}
                   </Text>
                   {isSelected && (
@@ -216,13 +292,63 @@ export default function NewPostScreen() {
             placeholder="Share what's on your mind. This community understands."
             placeholderTextColor={Colors.textMuted}
             value={body}
-            onChangeText={setBody}
+            onChangeText={handleBodyChange}
             multiline
             textAlignVertical="top"
             maxLength={3000}
             testID="body-input"
           />
           <Text style={styles.charCount}>{body.length}/3000</Text>
+
+          {safetyWarning && (
+            <View style={styles.safetyWarningCard}>
+              <Shield size={14} color={Colors.accent} />
+              <Text style={styles.safetyWarningText}>{safetyWarning}</Text>
+              <TouchableOpacity onPress={() => setSafetyWarning(null)}>
+                <X size={14} color={Colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {suggestions.length > 0 && body.length > 10 && (
+            <View style={styles.suggestionsCard}>
+              <View style={styles.suggestionsHeader}>
+                <Sparkles size={14} color={Colors.brandLilac} />
+                <Text style={styles.suggestionsTitle}>Suggestions</Text>
+              </View>
+              {suggestions.map((s, idx) => (
+                <Text key={idx} style={styles.suggestionText}>• {s.message}</Text>
+              ))}
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={styles.emotionToggle}
+            onPress={() => setShowEmotions(!showEmotions)}
+          >
+            <Text style={styles.emotionToggleText}>
+              {showEmotions ? 'Hide emotions' : `Add emotions${selectedEmotions.length > 0 ? ` (${selectedEmotions.length})` : ''}`}
+            </Text>
+          </TouchableOpacity>
+
+          {showEmotions && (
+            <View style={styles.emotionsGrid}>
+              {EMOTION_OPTIONS.map((emotion) => {
+                const isSelected = selectedEmotions.includes(emotion);
+                return (
+                  <TouchableOpacity
+                    key={emotion}
+                    style={[styles.emotionChip, isSelected && styles.emotionChipActive]}
+                    onPress={() => toggleEmotion(emotion)}
+                  >
+                    <Text style={[styles.emotionChipText, isSelected && styles.emotionChipTextActive]}>
+                      {emotion}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
 
           <View style={styles.bottomSpacer} />
         </ScrollView>
@@ -288,15 +414,18 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   safeNotice: {
-    backgroundColor: Colors.warmGlow,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.primaryLight,
     borderRadius: 12,
     padding: 14,
     marginBottom: 20,
   },
   safeNoticeText: {
+    flex: 1,
     fontSize: 13,
-    color: Colors.accent,
-    textAlign: 'center',
+    color: Colors.primaryDark,
     fontWeight: '500' as const,
   },
   toggleRow: {
@@ -352,6 +481,74 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     textTransform: 'uppercase' as const,
     letterSpacing: 0.5,
+  },
+  tagsScroll: {
+    marginBottom: 20,
+    marginHorizontal: -20,
+  },
+  tagsRow: {
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  tagPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  tagPillActive: {
+    backgroundColor: Colors.warmGlow,
+    borderColor: Colors.accent + '40',
+  },
+  tagEmoji: {
+    fontSize: 14,
+  },
+  tagText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontWeight: '500' as const,
+  },
+  tagTextActive: {
+    color: Colors.accent,
+    fontWeight: '600' as const,
+  },
+  supportGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 24,
+  },
+  supportOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  supportOptionActive: {
+    backgroundColor: Colors.brandLilacSoft,
+    borderColor: Colors.brandLilac + '40',
+  },
+  supportEmoji: {
+    fontSize: 14,
+  },
+  supportText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: '500' as const,
+  },
+  supportTextActive: {
+    color: Colors.brandLilac,
+    fontWeight: '600' as const,
   },
   categoriesGrid: {
     flexDirection: 'row',
@@ -416,12 +613,87 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 15,
     color: Colors.text,
-    minHeight: 160,
+    minHeight: 140,
     marginBottom: 4,
     lineHeight: 22,
     ...Platform.select({
       web: { outlineStyle: 'none' } as Record<string, string>,
     }),
+  },
+  safetyWarningCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: Colors.accentLight,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+  },
+  safetyWarningText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.accent,
+    lineHeight: 18,
+  },
+  suggestionsCard: {
+    backgroundColor: Colors.brandLilacSoft,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+  },
+  suggestionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  suggestionsTitle: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.brandLilac,
+  },
+  suggestionText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+    marginBottom: 4,
+  },
+  emotionToggle: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  emotionToggleText: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '500' as const,
+  },
+  emotionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 20,
+  },
+  emotionChip: {
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  emotionChipActive: {
+    backgroundColor: Colors.primaryLight,
+    borderColor: Colors.primary + '40',
+  },
+  emotionChipText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: '500' as const,
+  },
+  emotionChipTextActive: {
+    color: Colors.primaryDark,
+    fontWeight: '600' as const,
   },
   bottomSpacer: {
     height: 40,

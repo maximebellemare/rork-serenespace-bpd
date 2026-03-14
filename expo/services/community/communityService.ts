@@ -7,6 +7,7 @@ import {
   PostCategory,
   ReportInput,
   BlockedUser,
+  SupportCircle,
 } from '@/types/community';
 
 export async function fetchPosts(category?: PostCategory | null, search?: string): Promise<CommunityPost[]> {
@@ -51,4 +52,16 @@ export async function unblockUser(userId: string): Promise<void> {
 
 export async function getBlockedUsers(): Promise<BlockedUser[]> {
   return communityRepository.getBlockedUsers();
+}
+
+export async function fetchCircles(): Promise<SupportCircle[]> {
+  return communityRepository.getCircles();
+}
+
+export async function joinCircle(circleId: string): Promise<void> {
+  return communityRepository.joinCircle(circleId);
+}
+
+export async function leaveCircle(circleId: string): Promise<void> {
+  return communityRepository.leaveCircle(circleId);
 }

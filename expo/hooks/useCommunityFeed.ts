@@ -9,6 +9,9 @@ import {
   toggleReaction,
   reportContent,
   blockUser,
+  fetchCircles,
+  joinCircle,
+  leaveCircle,
 } from '@/services/community/communityService';
 import { PostCategory, NewPostInput, NewReplyInput, ReportInput } from '@/types/community';
 
@@ -109,5 +112,37 @@ export function useCreatePost() {
   return {
     createPost: mutation.mutateAsync,
     isCreating: mutation.isPending,
+  };
+}
+
+export function useSupportCircles() {
+  const queryClient = useQueryClient();
+
+  const circlesQuery = useQuery({
+    queryKey: ['community', 'circles'],
+    queryFn: () => fetchCircles(),
+  });
+
+  const joinMutation = useMutation({
+    mutationFn: (circleId: string) => joinCircle(circleId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['community', 'circles'] });
+    },
+  });
+
+  const leaveMutation = useMutation({
+    mutationFn: (circleId: string) => leaveCircle(circleId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['community', 'circles'] });
+    },
+  });
+
+  return {
+    circles: circlesQuery.data ?? [],
+    isLoading: circlesQuery.isLoading,
+    joinCircle: joinMutation.mutate,
+    leaveCircle: leaveMutation.mutate,
+    isJoining: joinMutation.isPending,
+    isLeaving: leaveMutation.isPending,
   };
 }

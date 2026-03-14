@@ -27,12 +27,23 @@ import {
   Ban,
   X,
   Check,
+  Award,
+  Sparkles,
+  Tag,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
-import { CATEGORIES, REACTION_LABELS, REPORT_REASONS } from '@/constants/community';
+import {
+  CATEGORIES,
+  SUPPORT_REACTION_LABELS,
+  REPORT_REASONS,
+  REPLY_LABEL_INFO,
+  SITUATION_TAGS,
+} from '@/constants/community';
 import { usePostDetail } from '@/hooks/useCommunityFeed';
-import { PostReply, SupportiveReaction, ReportReason } from '@/types/community';
+import { PostReply, SupportReaction, ReportReason, ReplyLabel } from '@/types/community';
+import { getSuggestedTool } from '@/services/community/communityMatchingService';
+import { checkContentSafety } from '@/services/community/communitySafetyService';
 
 function timeAgo(timestamp: number): string {
   const now = Date.now();
@@ -47,37 +58,34 @@ function timeAgo(timestamp: number): string {
   return `${Math.floor(days / 7)}w ago`;
 }
 
-function ReactionBar({
+function SupportReactionBar({
   reactions,
   onToggle,
 }: {
-  reactions: SupportiveReaction[];
+  reactions: SupportReaction[];
   onToggle: (type: string) => void;
 }) {
   return (
-    <View style={styles.reactionBar}>
+    <View style={styles.supportReactionBar}>
       {reactions.map((reaction) => {
-        const info = REACTION_LABELS[reaction.type];
+        const info = SUPPORT_REACTION_LABELS[reaction.type];
         if (!info) return null;
         return (
           <TouchableOpacity
             key={reaction.type}
-            style={[
-              styles.reactionBtn,
-              reaction.userReacted && styles.reactionBtnActive,
-            ]}
+            style={[styles.supportReactionBtn, reaction.userReacted && styles.supportReactionBtnActive]}
             onPress={() => onToggle(reaction.type)}
             activeOpacity={0.7}
           >
-            <Text style={styles.reactionEmoji}>{info.emoji}</Text>
-            <Text
-              style={[
-                styles.reactionCount,
-                reaction.userReacted && styles.reactionCountActive,
-              ]}
-            >
-              {reaction.count}
+            <Text style={styles.supportReactionEmoji}>{info.emoji}</Text>
+            <Text style={[styles.supportReactionLabel, reaction.userReacted && styles.supportReactionLabelActive]}>
+              {info.label}
             </Text>
+            {reaction.count > 0 && (
+              <Text style={[styles.supportReactionCount, reaction.userReacted && styles.supportReactionCountActive]}>
+                {reaction.count}
+              </Text>
+            )}
           </TouchableOpacity>
         );
       })}
@@ -95,21 +103,34 @@ function ReplyCard({
   onReport: (replyId: string, authorId: string) => void;
 }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const labelInfo = reply.label ? REPLY_LABEL_INFO[reply.label] : null;
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
   return (
     <Animated.View style={[styles.replyCard, { opacity: fadeAnim }]}>
+      {labelInfo && (
+        <View style={[styles.replyLabelBadge, { backgroundColor: labelInfo.color + '15' }]}>
+          <Text style={styles.replyLabelEmoji}>{labelInfo.emoji}</Text>
+          <Text style={[styles.replyLabelText, { color: labelInfo.color }]}>{labelInfo.label}</Text>
+        </View>
+      )}
       <View style={styles.replyHeader}>
-        <Text style={styles.replyAuthor}>
-          {reply.author.isAnonymous ? '🫧 Anonymous' : reply.author.displayName}
-        </Text>
+        <View style={styles.replyAuthorRow}>
+          {reply.author.isTrustedHelper && (
+            <View style={styles.trustedMini}>
+              <Award size={10} color={Colors.primary} />
+            </View>
+          )}
+          <Text style={styles.replyAuthor}>
+            {reply.author.isAnonymous ? '🫧 Anonymous' : reply.author.displayName}
+          </Text>
+          {reply.author.isTrustedHelper && (
+            <Text style={styles.trustedLabel}>Trusted helper</Text>
+          )}
+        </View>
         <View style={styles.replyHeaderRight}>
           <Text style={styles.replyTime}>{timeAgo(reply.createdAt)}</Text>
           {reply.author.id !== 'current_user' && (
@@ -125,16 +146,13 @@ function ReplyCard({
       </View>
       <Text style={styles.replyBody}>{reply.body}</Text>
       <View style={styles.replyReactions}>
-        {reply.reactions.map((reaction) => {
-          const info = REACTION_LABELS[reaction.type];
+        {reply.supportReactions.map((reaction) => {
+          const info = SUPPORT_REACTION_LABELS[reaction.type];
           if (!info) return null;
           return (
             <TouchableOpacity
               key={reaction.type}
-              style={[
-                styles.replyReactionBtn,
-                reaction.userReacted && styles.replyReactionActive,
-              ]}
+              style={[styles.replyReactionBtn, reaction.userReacted && styles.replyReactionActive]}
               onPress={() => onReaction(reply.id, reaction.type)}
             >
               <Text style={styles.replyReactionEmoji}>{info.emoji}</Text>
@@ -148,6 +166,13 @@ function ReplyCard({
     </Animated.View>
   );
 }
+
+const REPLY_LABELS: { id: ReplyLabel; emoji: string; label: string }[] = [
+  { id: 'what-helped-me', emoji: '💡', label: 'What helped me' },
+  { id: 'a-skill-that-worked', emoji: '🧘', label: 'A skill that worked' },
+  { id: 'another-perspective', emoji: '🔄', label: 'Another perspective' },
+  { id: 'personal-experience', emoji: '🫂', label: 'Personal experience' },
+];
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -173,26 +198,77 @@ export default function PostDetailScreen() {
   const [reportTargetAuthorId, setReportTargetAuthorId] = useState<string>('');
   const [selectedReason, setSelectedReason] = useState<ReportReason | null>(null);
   const [reportSubmitted, setReportSubmitted] = useState<boolean>(false);
+  const [replyLabel, setReplyLabel] = useState<ReplyLabel | null>(null);
+  const [showReplyLabels, setShowReplyLabels] = useState<boolean>(false);
+  const [replySafetyWarning, setReplySafetyWarning] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const actionsAnim = useRef(new Animated.Value(0)).current;
 
   const category = post ? CATEGORIES.find((c) => c.id === post.category) : null;
+  const situationTag = post?.situationTag ? SITUATION_TAGS.find((t) => t.id === post.situationTag) : null;
+  const suggestedTool = post ? getSuggestedTool(post) : null;
+
+  const handleReplyTextChange = useCallback((text: string) => {
+    setReplyText(text);
+    if (text.length > 20) {
+      const safety = checkContentSafety(text);
+      if (!safety.isSafe && safety.suggestion) {
+        setReplySafetyWarning(safety.suggestion);
+      } else {
+        setReplySafetyWarning(null);
+      }
+    } else {
+      setReplySafetyWarning(null);
+    }
+  }, []);
 
   const handleSendReply = useCallback(() => {
     if (!replyText.trim() || !id) return;
+
+    const safety = checkContentSafety(replyText);
+    if (!safety.isSafe) {
+      Alert.alert(
+        'A gentle reminder',
+        safety.suggestion ?? 'Please review your reply.',
+        [
+          { text: 'Edit reply', style: 'cancel' },
+          {
+            text: 'Send anyway',
+            onPress: () => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              addReply({
+                postId: id,
+                body: replyText.trim(),
+                isAnonymous,
+                label: replyLabel ?? undefined,
+              });
+              setReplyText('');
+              setReplyLabel(null);
+              setShowReplyLabels(false);
+              setReplySafetyWarning(null);
+              setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 500);
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     addReply({
       postId: id,
       body: replyText.trim(),
       isAnonymous,
+      label: replyLabel ?? undefined,
     });
     setReplyText('');
-    setTimeout(() => {
-      scrollRef.current?.scrollToEnd({ animated: true });
-    }, 500);
-  }, [replyText, id, isAnonymous, addReply]);
+    setReplyLabel(null);
+    setShowReplyLabels(false);
+    setReplySafetyWarning(null);
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 500);
+  }, [replyText, id, isAnonymous, replyLabel, addReply]);
 
-  const handleTogglePostReaction = useCallback(
+  const handleToggleReaction = useCallback(
     (type: string) => {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       toggleReaction({ reactionType: type });
@@ -210,19 +286,11 @@ export default function PostDetailScreen() {
 
   const handleShowActions = useCallback(() => {
     setShowActions(true);
-    Animated.spring(actionsAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      friction: 8,
-    }).start();
+    Animated.spring(actionsAnim, { toValue: 1, useNativeDriver: true, friction: 8 }).start();
   }, [actionsAnim]);
 
   const handleHideActions = useCallback(() => {
-    Animated.timing(actionsAnim, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => setShowActions(false));
+    Animated.timing(actionsAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => setShowActions(false));
   }, [actionsAnim]);
 
   const handleOpenReportForPost = useCallback(() => {
@@ -236,17 +304,14 @@ export default function PostDetailScreen() {
     setTimeout(() => setShowReportModal(true), 250);
   }, [post, handleHideActions]);
 
-  const handleOpenReportForReply = useCallback(
-    (replyId: string, authorId: string) => {
-      setReportTargetId(replyId);
-      setReportTargetType('reply');
-      setReportTargetAuthorId(authorId);
-      setSelectedReason(null);
-      setReportSubmitted(false);
-      setShowReportModal(true);
-    },
-    []
-  );
+  const handleOpenReportForReply = useCallback((replyId: string, authorId: string) => {
+    setReportTargetId(replyId);
+    setReportTargetType('reply');
+    setReportTargetAuthorId(authorId);
+    setSelectedReason(null);
+    setReportSubmitted(false);
+    setShowReportModal(true);
+  }, []);
 
   const handleSubmitReport = useCallback(async () => {
     if (!selectedReason) return;
@@ -268,10 +333,9 @@ export default function PostDetailScreen() {
   const handleBlockUser = useCallback(async () => {
     handleHideActions();
     if (!post) return;
-
     Alert.alert(
       'Block this user?',
-      'You will no longer see their posts or replies. You can unblock them later from your profile.',
+      'You will no longer see their posts or replies.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -317,22 +381,14 @@ export default function PostDetailScreen() {
     <View style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.safeTop}>
         <View style={styles.navBar}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => router.back()}
-            testID="back-btn"
-          >
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} testID="back-btn">
             <ArrowLeft size={20} color={Colors.text} />
           </TouchableOpacity>
           <Text style={styles.navTitle} numberOfLines={1}>
             {category?.emoji} {category?.label}
           </Text>
           {post.author.id !== 'current_user' ? (
-            <TouchableOpacity
-              style={styles.backBtn}
-              onPress={handleShowActions}
-              testID="more-btn"
-            >
+            <TouchableOpacity style={styles.backBtn} onPress={handleShowActions} testID="more-btn">
               <MoreHorizontal size={20} color={Colors.text} />
             </TouchableOpacity>
           ) : (
@@ -341,11 +397,7 @@ export default function PostDetailScreen() {
         </View>
       </SafeAreaView>
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
-      >
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
         <ScrollView
           ref={scrollRef}
           style={styles.scrollView}
@@ -363,9 +415,12 @@ export default function PostDetailScreen() {
               {category && (
                 <View style={[styles.categoryChip, { backgroundColor: category.color + '18' }]}>
                   <Text style={styles.categoryEmoji}>{category.emoji}</Text>
-                  <Text style={[styles.categoryLabel, { color: category.color }]}>
-                    {category.label}
-                  </Text>
+                  <Text style={[styles.categoryLabel, { color: category.color }]}>{category.label}</Text>
+                </View>
+              )}
+              {situationTag && (
+                <View style={styles.situationChip}>
+                  <Text style={styles.situationChipText}>{situationTag.emoji} {situationTag.label}</Text>
                 </View>
               )}
             </View>
@@ -373,24 +428,50 @@ export default function PostDetailScreen() {
             <Text style={styles.postTitle}>{post.title}</Text>
 
             <View style={styles.postMeta}>
-              <Text style={styles.postAuthor}>
-                {post.author.isAnonymous ? '🫧 Anonymous' : post.author.displayName}
-              </Text>
+              <View style={styles.authorRow}>
+                {post.author.isTrustedHelper && (
+                  <View style={styles.trustedBadge}>
+                    <Award size={10} color={Colors.primary} />
+                  </View>
+                )}
+                <Text style={styles.postAuthor}>
+                  {post.author.isAnonymous ? '🫧 Anonymous' : post.author.displayName}
+                </Text>
+                {post.author.isTrustedHelper && (
+                  <Text style={styles.trustedLabel}>Trusted helper</Text>
+                )}
+              </View>
               <Text style={styles.metaDot}>·</Text>
               <Text style={styles.postTime}>{timeAgo(post.createdAt)}</Text>
             </View>
 
+            {post.supportType && (
+              <View style={styles.supportTypeBadge}>
+                <Text style={styles.supportTypeText}>
+                  {post.supportType === 'just-listening' ? '👂 Just needs to be heard' :
+                   post.supportType === 'advice' ? '💡 Looking for advice' :
+                   post.supportType === 'shared-experience' ? '🤝 Wants shared experiences' :
+                   post.supportType === 'encouragement' ? '💪 Needs encouragement' :
+                   '🧠 Help with a skill'}
+                </Text>
+              </View>
+            )}
+
+            {post.emotions && post.emotions.length > 0 && (
+              <View style={styles.emotionsRow}>
+                {post.emotions.map((emotion) => (
+                  <View key={emotion} style={styles.emotionTag}>
+                    <Text style={styles.emotionTagText}>{emotion}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
             {post.hasContentWarning && !showCW && (
-              <TouchableOpacity
-                style={styles.cwOverlay}
-                onPress={() => setShowCW(true)}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity style={styles.cwOverlay} onPress={() => setShowCW(true)} activeOpacity={0.8}>
                 <Shield size={20} color={Colors.accent} />
                 <Text style={styles.cwTitle}>Content Warning</Text>
-                {post.contentWarningText && (
-                  <Text style={styles.cwDesc}>{post.contentWarningText}</Text>
-                )}
+                {post.contentWarningText && <Text style={styles.cwDesc}>{post.contentWarningText}</Text>}
                 <Text style={styles.cwAction}>Tap to reveal</Text>
               </TouchableOpacity>
             )}
@@ -399,25 +480,30 @@ export default function PostDetailScreen() {
               <Text style={styles.postBody}>{post.body}</Text>
             )}
 
-            <ReactionBar
-              reactions={post.reactions}
-              onToggle={handleTogglePostReaction}
-            />
+            <SupportReactionBar reactions={post.supportReactions} onToggle={handleToggleReaction} />
+
+            {suggestedTool && (
+              <View style={styles.toolCard}>
+                <View style={styles.toolCardLeft}>
+                  <Sparkles size={14} color={Colors.primary} />
+                  <Text style={styles.toolCardText}>Related tool: {suggestedTool.toolName}</Text>
+                </View>
+                <TouchableOpacity style={styles.toolCardBtn}>
+                  <Text style={styles.toolCardBtnText}>Try it</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           <View style={styles.repliesSection}>
             <Text style={styles.repliesTitle}>
-              {replies.length > 0
-                ? `${replies.length} ${replies.length === 1 ? 'Reply' : 'Replies'}`
-                : 'No replies yet'}
+              {replies.length > 0 ? `${replies.length} ${replies.length === 1 ? 'Reply' : 'Replies'}` : 'No replies yet'}
             </Text>
 
             {replies.length === 0 && (
               <View style={styles.emptyReplies}>
                 <Text style={styles.emptyRepliesEmoji}>💬</Text>
-                <Text style={styles.emptyRepliesText}>
-                  Be the first to share some support
-                </Text>
+                <Text style={styles.emptyRepliesText}>Be the first to share some support</Text>
               </View>
             )}
 
@@ -434,6 +520,41 @@ export default function PostDetailScreen() {
           <View style={styles.bottomSpacer} />
         </ScrollView>
 
+        {replySafetyWarning && (
+          <View style={styles.replySafetyBanner}>
+            <Shield size={12} color={Colors.accent} />
+            <Text style={styles.replySafetyText}>{replySafetyWarning}</Text>
+            <TouchableOpacity onPress={() => setReplySafetyWarning(null)}>
+              <X size={12} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {showReplyLabels && (
+          <View style={styles.replyLabelsBar}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.replyLabelsRow}>
+              {REPLY_LABELS.map((label) => {
+                const isSelected = replyLabel === label.id;
+                return (
+                  <TouchableOpacity
+                    key={label.id}
+                    style={[styles.replyLabelPill, isSelected && styles.replyLabelPillActive]}
+                    onPress={() => {
+                      setReplyLabel(isSelected ? null : label.id);
+                      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                  >
+                    <Text style={styles.replyLabelPillEmoji}>{label.emoji}</Text>
+                    <Text style={[styles.replyLabelPillText, isSelected && styles.replyLabelPillTextActive]}>
+                      {label.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
         <SafeAreaView edges={['bottom']} style={styles.composerSafe}>
           <View style={styles.composer}>
             <TouchableOpacity
@@ -441,27 +562,26 @@ export default function PostDetailScreen() {
               onPress={() => setIsAnonymous((prev) => !prev)}
               testID="anon-toggle"
             >
-              {isAnonymous ? (
-                <EyeOff size={16} color={Colors.primary} />
-              ) : (
-                <Eye size={16} color={Colors.textMuted} />
-              )}
+              {isAnonymous ? <EyeOff size={16} color={Colors.primary} /> : <Eye size={16} color={Colors.textMuted} />}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.labelToggle, showReplyLabels && styles.labelToggleActive]}
+              onPress={() => setShowReplyLabels((prev) => !prev)}
+            >
+              <Tag size={16} color={showReplyLabels ? Colors.primary : Colors.textMuted} />
             </TouchableOpacity>
             <TextInput
               style={styles.composerInput}
               placeholder={isAnonymous ? 'Reply anonymously...' : 'Write a supportive reply...'}
               placeholderTextColor={Colors.textMuted}
               value={replyText}
-              onChangeText={setReplyText}
+              onChangeText={handleReplyTextChange}
               multiline
               maxLength={1000}
               testID="reply-input"
             />
             <TouchableOpacity
-              style={[
-                styles.sendBtn,
-                replyText.trim().length > 0 && styles.sendBtnActive,
-              ]}
+              style={[styles.sendBtn, replyText.trim().length > 0 && styles.sendBtnActive]}
               onPress={handleSendReply}
               disabled={replyText.trim().length === 0 || isAddingReply}
               testID="send-reply-btn"
@@ -478,23 +598,12 @@ export default function PostDetailScreen() {
 
       {showActions && (
         <Modal transparent animationType="none" visible={showActions}>
-          <TouchableOpacity
-            style={styles.actionOverlay}
-            activeOpacity={1}
-            onPress={handleHideActions}
-          >
+          <TouchableOpacity style={styles.actionOverlay} activeOpacity={1} onPress={handleHideActions}>
             <Animated.View
               style={[
                 styles.actionSheet,
                 {
-                  transform: [
-                    {
-                      translateY: actionsAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [300, 0],
-                      }),
-                    },
-                  ],
+                  transform: [{ translateY: actionsAnim.interpolate({ inputRange: [0, 1], outputRange: [300, 0] }) }],
                   opacity: actionsAnim,
                 },
               ]}
@@ -502,12 +611,7 @@ export default function PostDetailScreen() {
               <SafeAreaView edges={['bottom']}>
                 <View style={styles.actionSheetHandle} />
                 <Text style={styles.actionSheetTitle}>Options</Text>
-
-                <TouchableOpacity
-                  style={styles.actionItem}
-                  onPress={handleOpenReportForPost}
-                  testID="report-post-btn"
-                >
+                <TouchableOpacity style={styles.actionItem} onPress={handleOpenReportForPost} testID="report-post-btn">
                   <View style={[styles.actionIcon, { backgroundColor: '#FFF3E0' }]}>
                     <Flag size={18} color="#E65100" />
                   </View>
@@ -516,12 +620,7 @@ export default function PostDetailScreen() {
                     <Text style={styles.actionDesc}>Let us know if something feels unsafe</Text>
                   </View>
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.actionItem}
-                  onPress={handleBlockUser}
-                  testID="block-user-btn"
-                >
+                <TouchableOpacity style={styles.actionItem} onPress={handleBlockUser} testID="block-user-btn">
                   <View style={[styles.actionIcon, { backgroundColor: Colors.dangerLight }]}>
                     <Ban size={18} color={Colors.danger} />
                   </View>
@@ -530,11 +629,7 @@ export default function PostDetailScreen() {
                     <Text style={styles.actionDesc}>Hide all their content from your feed</Text>
                   </View>
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.actionCancelBtn}
-                  onPress={handleHideActions}
-                >
+                <TouchableOpacity style={styles.actionCancelBtn} onPress={handleHideActions}>
                   <Text style={styles.actionCancelText}>Cancel</Text>
                 </TouchableOpacity>
               </SafeAreaView>
@@ -543,24 +638,13 @@ export default function PostDetailScreen() {
         </Modal>
       )}
 
-      <Modal
-        transparent
-        animationType="slide"
-        visible={showReportModal}
-        onRequestClose={() => setShowReportModal(false)}
-      >
+      <Modal transparent animationType="slide" visible={showReportModal} onRequestClose={() => setShowReportModal(false)}>
         <View style={styles.reportOverlay}>
           <View style={styles.reportSheet}>
             <SafeAreaView edges={['bottom']}>
               <View style={styles.reportHeader}>
-                <Text style={styles.reportTitle}>
-                  {reportSubmitted ? 'Thank you' : 'Report content'}
-                </Text>
-                <TouchableOpacity
-                  style={styles.reportCloseBtn}
-                  onPress={() => setShowReportModal(false)}
-                  testID="close-report-btn"
-                >
+                <Text style={styles.reportTitle}>{reportSubmitted ? 'Thank you' : 'Report content'}</Text>
+                <TouchableOpacity style={styles.reportCloseBtn} onPress={() => setShowReportModal(false)} testID="close-report-btn">
                   <X size={18} color={Colors.textSecondary} />
                 </TouchableOpacity>
               </View>
@@ -572,40 +656,26 @@ export default function PostDetailScreen() {
                   </View>
                   <Text style={styles.reportSuccessTitle}>Report received</Text>
                   <Text style={styles.reportSuccessText}>
-                    We take community safety seriously. Our team will review this content. Thank you for helping keep this space safe.
+                    We take community safety seriously. Our team will review this content.
                   </Text>
-                  <TouchableOpacity
-                    style={styles.reportDoneBtn}
-                    onPress={() => setShowReportModal(false)}
-                  >
+                  <TouchableOpacity style={styles.reportDoneBtn} onPress={() => setShowReportModal(false)}>
                     <Text style={styles.reportDoneBtnText}>Done</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
                 <>
-                  <Text style={styles.reportSubtext}>
-                    Help us understand what feels wrong. Your report is confidential.
-                  </Text>
-
+                  <Text style={styles.reportSubtext}>Help us understand what feels wrong. Your report is confidential.</Text>
                   {REPORT_REASONS.map((reason) => (
                     <TouchableOpacity
                       key={reason.id}
-                      style={[
-                        styles.reportReasonItem,
-                        selectedReason === reason.id && styles.reportReasonActive,
-                      ]}
+                      style={[styles.reportReasonItem, selectedReason === reason.id && styles.reportReasonActive]}
                       onPress={() => {
                         setSelectedReason(reason.id);
                         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       }}
                     >
                       <Text style={styles.reportReasonEmoji}>{reason.emoji}</Text>
-                      <Text
-                        style={[
-                          styles.reportReasonText,
-                          selectedReason === reason.id && styles.reportReasonTextActive,
-                        ]}
-                      >
+                      <Text style={[styles.reportReasonText, selectedReason === reason.id && styles.reportReasonTextActive]}>
                         {reason.label}
                       </Text>
                       {selectedReason === reason.id && (
@@ -615,40 +685,24 @@ export default function PostDetailScreen() {
                       )}
                     </TouchableOpacity>
                   ))}
-
                   {reportTargetAuthorId !== 'current_user' && (
                     <TouchableOpacity
                       style={styles.reportBlockRow}
                       onPress={() => {
                         setShowReportModal(false);
-                        setTimeout(() => {
-                          void handleBlockUser();
-                        }, 300);
+                        setTimeout(() => void handleBlockUser(), 300);
                       }}
                     >
                       <Ban size={14} color={Colors.textMuted} />
-                      <Text style={styles.reportBlockText}>
-                        You can also block this user
-                      </Text>
+                      <Text style={styles.reportBlockText}>You can also block this user</Text>
                     </TouchableOpacity>
                   )}
-
                   <TouchableOpacity
-                    style={[
-                      styles.reportSubmitBtn,
-                      selectedReason && styles.reportSubmitBtnActive,
-                    ]}
+                    style={[styles.reportSubmitBtn, selectedReason && styles.reportSubmitBtnActive]}
                     onPress={handleSubmitReport}
                     disabled={!selectedReason}
                   >
-                    <Text
-                      style={[
-                        styles.reportSubmitText,
-                        selectedReason && styles.reportSubmitTextActive,
-                      ]}
-                    >
-                      Submit Report
-                    </Text>
+                    <Text style={[styles.reportSubmitText, selectedReason && styles.reportSubmitTextActive]}>Submit Report</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -661,296 +715,94 @@ export default function PostDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  flex: {
-    flex: 1,
-  },
-  safeTop: {
-    backgroundColor: Colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-  },
-  navBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  navTitle: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: Colors.text,
-    flex: 1,
-    textAlign: 'center',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: Colors.textMuted,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: 16,
-    paddingHorizontal: 16,
-  },
-  postContainer: {
-    backgroundColor: Colors.white,
-    borderRadius: 18,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  postHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-    flexWrap: 'wrap',
-  },
-  pinnedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.primaryLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  pinnedText: {
-    fontSize: 11,
-    fontWeight: '600' as const,
-    color: Colors.primary,
-  },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-    gap: 5,
-  },
-  categoryEmoji: {
-    fontSize: 12,
-  },
-  categoryLabel: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-  },
-  postTitle: {
-    fontSize: 20,
-    fontWeight: '700' as const,
-    color: Colors.text,
-    lineHeight: 26,
-    marginBottom: 8,
-  },
-  postMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 16,
-  },
-  postAuthor: {
-    fontSize: 13,
-    color: Colors.textMuted,
-    fontWeight: '500' as const,
-  },
-  metaDot: {
-    fontSize: 13,
-    color: Colors.textMuted,
-  },
-  postTime: {
-    fontSize: 13,
-    color: Colors.textMuted,
-  },
-  cwOverlay: {
-    backgroundColor: Colors.accentLight,
-    borderRadius: 14,
-    padding: 24,
-    alignItems: 'center',
-    gap: 8,
-  },
-  cwTitle: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-    color: Colors.accent,
-  },
-  cwDesc: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-  cwAction: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginTop: 4,
-  },
-  postBody: {
-    fontSize: 15,
-    color: Colors.text,
-    lineHeight: 24,
-    marginBottom: 16,
-  },
-  reactionBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-    paddingTop: 14,
-    flexWrap: 'wrap',
-  },
-  reactionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: Colors.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  reactionBtnActive: {
-    backgroundColor: Colors.primaryLight,
-    borderColor: Colors.primary + '40',
-  },
-  reactionEmoji: {
-    fontSize: 15,
-  },
-  reactionCount: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    fontWeight: '500' as const,
-  },
-  reactionCountActive: {
-    color: Colors.primaryDark,
-  },
-  repliesSection: {
-    marginTop: 20,
-  },
-  repliesTitle: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: Colors.text,
-    marginBottom: 14,
-  },
-  emptyReplies: {
-    alignItems: 'center',
-    paddingVertical: 32,
-  },
-  emptyRepliesEmoji: {
-    fontSize: 28,
-    marginBottom: 8,
-  },
-  emptyRepliesText: {
-    fontSize: 14,
-    color: Colors.textMuted,
-  },
-  replyCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  replyHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  replyHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  replyAuthor: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-    color: Colors.textSecondary,
-  },
-  replyTime: {
-    fontSize: 11,
-    color: Colors.textMuted,
-  },
-  replyMoreBtn: {
-    padding: 2,
-  },
-  replyBody: {
-    fontSize: 14,
-    color: Colors.text,
-    lineHeight: 21,
-    marginBottom: 10,
-  },
-  replyReactions: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  replyReactionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: Colors.surface,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  replyReactionActive: {
-    backgroundColor: Colors.primaryLight,
-  },
-  replyReactionEmoji: {
-    fontSize: 12,
-  },
-  replyReactionCount: {
-    fontSize: 11,
-    color: Colors.textMuted,
-  },
-  bottomSpacer: {
-    height: 20,
-  },
-  composerSafe: {
-    backgroundColor: Colors.white,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-  },
-  composer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 8,
-  },
-  anonToggle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  anonToggleActive: {
-    backgroundColor: Colors.primaryLight,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  flex: { flex: 1 },
+  safeTop: { backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
+  navBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
+  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.surface, justifyContent: 'center', alignItems: 'center' },
+  navTitle: { fontSize: 16, fontWeight: '600' as const, color: Colors.text, flex: 1, textAlign: 'center' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
+  loadingText: { fontSize: 14, color: Colors.textMuted },
+  scrollView: { flex: 1 },
+  scrollContent: { paddingTop: 16, paddingHorizontal: 16 },
+  postContainer: { backgroundColor: Colors.white, borderRadius: 18, padding: 20, borderWidth: 1, borderColor: Colors.borderLight },
+  postHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' },
+  pinnedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.primaryLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  pinnedText: { fontSize: 11, fontWeight: '600' as const, color: Colors.primary },
+  categoryChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, gap: 5 },
+  categoryEmoji: { fontSize: 12 },
+  categoryLabel: { fontSize: 12, fontWeight: '600' as const },
+  situationChip: { backgroundColor: Colors.warmGlow, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  situationChipText: { fontSize: 10, color: Colors.accent, fontWeight: '500' as const },
+  postTitle: { fontSize: 20, fontWeight: '700' as const, color: Colors.text, lineHeight: 26, marginBottom: 8 },
+  postMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  trustedBadge: { width: 16, height: 16, borderRadius: 8, backgroundColor: Colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
+  trustedLabel: { fontSize: 10, color: Colors.primary, fontWeight: '600' as const, marginLeft: 2 },
+  postAuthor: { fontSize: 13, color: Colors.textMuted, fontWeight: '500' as const },
+  metaDot: { fontSize: 13, color: Colors.textMuted },
+  postTime: { fontSize: 13, color: Colors.textMuted },
+  supportTypeBadge: { backgroundColor: Colors.surface, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, alignSelf: 'flex-start', marginBottom: 12 },
+  supportTypeText: { fontSize: 12, color: Colors.textSecondary, fontWeight: '500' as const },
+  emotionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
+  emotionTag: { backgroundColor: Colors.primaryLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  emotionTagText: { fontSize: 11, color: Colors.primaryDark, fontWeight: '500' as const },
+  cwOverlay: { backgroundColor: Colors.accentLight, borderRadius: 14, padding: 24, alignItems: 'center', gap: 8 },
+  cwTitle: { fontSize: 15, fontWeight: '600' as const, color: Colors.accent },
+  cwDesc: { fontSize: 13, color: Colors.textSecondary },
+  cwAction: { fontSize: 12, color: Colors.textMuted, marginTop: 4 },
+  postBody: { fontSize: 15, color: Colors.text, lineHeight: 24, marginBottom: 16 },
+  supportReactionBar: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, borderTopWidth: 1, borderTopColor: Colors.borderLight, paddingTop: 14 },
+  supportReactionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: Colors.surface, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: 'transparent' },
+  supportReactionBtnActive: { backgroundColor: Colors.primaryLight, borderColor: Colors.primary + '40' },
+  supportReactionEmoji: { fontSize: 14 },
+  supportReactionLabel: { fontSize: 11, color: Colors.textSecondary, fontWeight: '500' as const },
+  supportReactionLabelActive: { color: Colors.primaryDark },
+  supportReactionCount: { fontSize: 11, color: Colors.textMuted, fontWeight: '600' as const, marginLeft: 2 },
+  supportReactionCountActive: { color: Colors.primaryDark },
+  toolCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, backgroundColor: Colors.primaryLight, borderRadius: 12, padding: 12 },
+  toolCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  toolCardText: { fontSize: 13, color: Colors.primaryDark, fontWeight: '500' as const },
+  toolCardBtn: { backgroundColor: Colors.primary, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 14 },
+  toolCardBtnText: { fontSize: 12, color: Colors.white, fontWeight: '600' as const },
+  repliesSection: { marginTop: 20 },
+  repliesTitle: { fontSize: 16, fontWeight: '600' as const, color: Colors.text, marginBottom: 14 },
+  emptyReplies: { alignItems: 'center', paddingVertical: 32 },
+  emptyRepliesEmoji: { fontSize: 28, marginBottom: 8 },
+  emptyRepliesText: { fontSize: 14, color: Colors.textMuted },
+  replyCard: { backgroundColor: Colors.white, borderRadius: 14, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: Colors.borderLight },
+  replyLabelBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, alignSelf: 'flex-start', marginBottom: 10 },
+  replyLabelEmoji: { fontSize: 11 },
+  replyLabelText: { fontSize: 11, fontWeight: '600' as const },
+  replyHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  replyAuthorRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  trustedMini: { width: 14, height: 14, borderRadius: 7, backgroundColor: Colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
+  replyHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  replyAuthor: { fontSize: 13, fontWeight: '600' as const, color: Colors.textSecondary },
+  replyTime: { fontSize: 11, color: Colors.textMuted },
+  replyMoreBtn: { padding: 2 },
+  replyBody: { fontSize: 14, color: Colors.text, lineHeight: 21, marginBottom: 10 },
+  replyReactions: { flexDirection: 'row', gap: 6 },
+  replyReactionBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: Colors.surface, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
+  replyReactionActive: { backgroundColor: Colors.primaryLight },
+  replyReactionEmoji: { fontSize: 12 },
+  replyReactionCount: { fontSize: 11, color: Colors.textMuted },
+  bottomSpacer: { height: 20 },
+  replySafetyBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.accentLight, paddingHorizontal: 16, paddingVertical: 10 },
+  replySafetyText: { flex: 1, fontSize: 12, color: Colors.accent, lineHeight: 16 },
+  replyLabelsBar: { backgroundColor: Colors.white, borderTopWidth: 1, borderTopColor: Colors.borderLight, paddingVertical: 8 },
+  replyLabelsRow: { paddingHorizontal: 12, gap: 6 },
+  replyLabelPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: Colors.surface, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+  replyLabelPillActive: { backgroundColor: Colors.primaryLight },
+  replyLabelPillEmoji: { fontSize: 12 },
+  replyLabelPillText: { fontSize: 12, color: Colors.textSecondary, fontWeight: '500' as const },
+  replyLabelPillTextActive: { color: Colors.primaryDark, fontWeight: '600' as const },
+  composerSafe: { backgroundColor: Colors.white, borderTopWidth: 1, borderTopColor: Colors.borderLight },
+  composer: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
+  anonToggle: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.surface, justifyContent: 'center', alignItems: 'center', marginBottom: 2 },
+  anonToggleActive: { backgroundColor: Colors.primaryLight },
+  labelToggle: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.surface, justifyContent: 'center', alignItems: 'center', marginBottom: 2 },
+  labelToggleActive: { backgroundColor: Colors.primaryLight },
   composerInput: {
     flex: 1,
     backgroundColor: Colors.surface,
@@ -960,229 +812,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.text,
     maxHeight: 100,
-    ...Platform.select({
-      web: { outlineStyle: 'none' } as Record<string, string>,
-    }),
+    ...Platform.select({ web: { outlineStyle: 'none' } as Record<string, string> }),
   },
-  sendBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  sendBtnActive: {
-    backgroundColor: Colors.primary,
-  },
-  actionOverlay: {
-    flex: 1,
-    backgroundColor: Colors.overlay,
-    justifyContent: 'flex-end',
-  },
-  actionSheet: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  actionSheetHandle: {
-    width: 36,
-    height: 4,
-    backgroundColor: Colors.border,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  actionSheetTitle: {
-    fontSize: 17,
-    fontWeight: '700' as const,
-    color: Colors.text,
-    marginBottom: 16,
-  },
-  actionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-  },
-  actionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionTextGroup: {
-    flex: 1,
-  },
-  actionLabel: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-    color: Colors.text,
-    marginBottom: 2,
-  },
-  actionDesc: {
-    fontSize: 12,
-    color: Colors.textMuted,
-  },
-  actionCancelBtn: {
-    alignItems: 'center',
-    paddingVertical: 16,
-    marginTop: 4,
-  },
-  actionCancelText: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-    color: Colors.textMuted,
-  },
-  reportOverlay: {
-    flex: 1,
-    backgroundColor: Colors.overlay,
-    justifyContent: 'flex-end',
-  },
-  reportSheet: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
-    maxHeight: '80%',
-  },
-  reportHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  reportTitle: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    color: Colors.text,
-  },
-  reportCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  reportSubtext: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: 18,
-  },
-  reportReasonItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 8,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  reportReasonActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryLight,
-  },
-  reportReasonEmoji: {
-    fontSize: 16,
-  },
-  reportReasonText: {
-    flex: 1,
-    fontSize: 14,
-    color: Colors.text,
-    fontWeight: '500' as const,
-  },
-  reportReasonTextActive: {
-    color: Colors.primaryDark,
-    fontWeight: '600' as const,
-  },
-  reportReasonCheck: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  reportBlockRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-  },
-  reportBlockText: {
-    fontSize: 13,
-    color: Colors.textMuted,
-  },
-  reportSubmitBtn: {
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  reportSubmitBtnActive: {
-    backgroundColor: Colors.primary,
-  },
-  reportSubmitText: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-    color: Colors.textMuted,
-  },
-  reportSubmitTextActive: {
-    color: Colors.white,
-  },
-  reportSuccess: {
-    alignItems: 'center',
-    paddingVertical: 24,
-  },
-  reportSuccessIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  reportSuccessTitle: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  reportSuccessText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    lineHeight: 21,
-    textAlign: 'center',
-    paddingHorizontal: 12,
-    marginBottom: 20,
-  },
-  reportDoneBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: 14,
-    paddingHorizontal: 40,
-    paddingVertical: 14,
-  },
-  reportDoneBtnText: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-    color: Colors.white,
-  },
+  sendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.surface, justifyContent: 'center', alignItems: 'center', marginBottom: 2 },
+  sendBtnActive: { backgroundColor: Colors.primary },
+  actionOverlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
+  actionSheet: { backgroundColor: Colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+  actionSheetHandle: { width: 36, height: 4, backgroundColor: Colors.border, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  actionSheetTitle: { fontSize: 17, fontWeight: '700' as const, color: Colors.text, marginBottom: 16 },
+  actionItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
+  actionIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  actionTextGroup: { flex: 1 },
+  actionLabel: { fontSize: 15, fontWeight: '600' as const, color: Colors.text, marginBottom: 2 },
+  actionDesc: { fontSize: 12, color: Colors.textMuted },
+  actionCancelBtn: { alignItems: 'center', paddingVertical: 16, marginTop: 4 },
+  actionCancelText: { fontSize: 15, fontWeight: '600' as const, color: Colors.textMuted },
+  reportOverlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
+  reportSheet: { backgroundColor: Colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, maxHeight: '80%' },
+  reportHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  reportTitle: { fontSize: 18, fontWeight: '700' as const, color: Colors.text },
+  reportCloseBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.surface, justifyContent: 'center', alignItems: 'center' },
+  reportSubtext: { fontSize: 14, color: Colors.textSecondary, lineHeight: 20, marginBottom: 18 },
+  reportReasonItem: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 8, borderWidth: 1.5, borderColor: 'transparent' },
+  reportReasonActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryLight },
+  reportReasonEmoji: { fontSize: 16 },
+  reportReasonText: { flex: 1, fontSize: 14, color: Colors.text, fontWeight: '500' as const },
+  reportReasonTextActive: { color: Colors.primaryDark, fontWeight: '600' as const },
+  reportReasonCheck: { width: 22, height: 22, borderRadius: 11, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center' },
+  reportBlockRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 4 },
+  reportBlockText: { fontSize: 13, color: Colors.textMuted },
+  reportSubmitBtn: { backgroundColor: Colors.surface, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 8, marginBottom: 8 },
+  reportSubmitBtnActive: { backgroundColor: Colors.primary },
+  reportSubmitText: { fontSize: 15, fontWeight: '600' as const, color: Colors.textMuted },
+  reportSubmitTextActive: { color: Colors.white },
+  reportSuccess: { alignItems: 'center', paddingVertical: 24 },
+  reportSuccessIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.primaryLight, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  reportSuccessTitle: { fontSize: 18, fontWeight: '700' as const, color: Colors.text, marginBottom: 8 },
+  reportSuccessText: { fontSize: 14, color: Colors.textSecondary, lineHeight: 21, textAlign: 'center', paddingHorizontal: 12, marginBottom: 20 },
+  reportDoneBtn: { backgroundColor: Colors.primary, borderRadius: 14, paddingHorizontal: 40, paddingVertical: 14 },
+  reportDoneBtnText: { fontSize: 15, fontWeight: '600' as const, color: Colors.white },
 });

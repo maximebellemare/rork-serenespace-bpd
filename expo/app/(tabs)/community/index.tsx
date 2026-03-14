@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,11 +21,16 @@ import {
   ChevronRight,
   X,
   Heart,
+  Users,
+  Award,
+  Sparkles,
+  TrendingUp,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
-import { CATEGORIES, REACTION_LABELS } from '@/constants/community';
-import { useCommunityFeed } from '@/hooks/useCommunityFeed';
-import { CommunityPost, PostCategory } from '@/types/community';
+import { CATEGORIES, SUPPORT_REACTION_LABELS, SITUATION_TAGS } from '@/constants/community';
+import { useCommunityFeed, useSupportCircles } from '@/hooks/useCommunityFeed';
+import { CommunityPost, PostCategory, SupportCircle } from '@/types/community';
+import { getRecommendedPosts } from '@/services/community/communityMatchingService';
 
 function timeAgo(timestamp: number): string {
   const now = Date.now();
@@ -40,24 +45,23 @@ function timeAgo(timestamp: number): string {
   return `${Math.floor(days / 7)}w ago`;
 }
 
-function PostCard({ post, onPress }: { post: CommunityPost; onPress: () => void }) {
+const PostCard = React.memo(function PostCard({ post, onPress }: { post: CommunityPost; onPress: () => void }) {
   const category = CATEGORIES.find((c) => c.id === post.category);
+  const situationTag = SITUATION_TAGS.find((t) => t.id === post.situationTag);
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = useCallback(() => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.97,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true }).start();
   }, [scaleAnim]);
 
   const handlePressOut = useCallback(() => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      friction: 4,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(scaleAnim, { toValue: 1, friction: 4, useNativeDriver: true }).start();
   }, [scaleAnim]);
+
+  const totalSupportReactions = useMemo(
+    () => post.supportReactions.reduce((sum, r) => sum + r.count, 0),
+    [post.supportReactions]
+  );
 
   return (
     <Animated.View style={[styles.postCard, { transform: [{ scale: scaleAnim }] }]}>
@@ -83,11 +87,14 @@ function PostCard({ post, onPress }: { post: CommunityPost; onPress: () => void 
               </Text>
             </View>
           )}
+          {situationTag && (
+            <View style={styles.situationChip}>
+              <Text style={styles.situationChipText}>{situationTag.emoji} {situationTag.label}</Text>
+            </View>
+          )}
         </View>
 
-        <Text style={styles.postTitle} numberOfLines={2}>
-          {post.title}
-        </Text>
+        <Text style={styles.postTitle} numberOfLines={2}>{post.title}</Text>
 
         {post.hasContentWarning && (
           <View style={styles.contentWarning}>
@@ -99,39 +106,59 @@ function PostCard({ post, onPress }: { post: CommunityPost; onPress: () => void 
         )}
 
         {!post.hasContentWarning && (
-          <Text style={styles.postPreview} numberOfLines={2}>
-            {post.body}
-          </Text>
+          <Text style={styles.postPreview} numberOfLines={2}>{post.body}</Text>
+        )}
+
+        {post.supportType && (
+          <View style={styles.supportTypeBadge}>
+            <Text style={styles.supportTypeText}>
+              {post.supportType === 'just-listening' ? '👂 Just listening' :
+               post.supportType === 'advice' ? '💡 Looking for advice' :
+               post.supportType === 'shared-experience' ? '🤝 Shared experiences' :
+               post.supportType === 'encouragement' ? '💪 Encouragement' :
+               '🧠 Skill help'}
+            </Text>
+          </View>
         )}
 
         <View style={styles.postMeta}>
-          <Text style={styles.postAuthor}>
-            {post.author.isAnonymous ? '🫧 Anonymous' : post.author.displayName}
-          </Text>
+          <View style={styles.authorRow}>
+            {post.author.isTrustedHelper && (
+              <View style={styles.trustedBadge}>
+                <Award size={10} color={Colors.primary} />
+              </View>
+            )}
+            <Text style={styles.postAuthor}>
+              {post.author.isAnonymous ? '🫧 Anonymous' : post.author.displayName}
+            </Text>
+          </View>
           <Text style={styles.postDot}>·</Text>
           <Text style={styles.postTime}>{timeAgo(post.createdAt)}</Text>
         </View>
 
         <View style={styles.postFooter}>
           <View style={styles.reactionsRow}>
-            {post.reactions.slice(0, 3).map((reaction) => {
-              const info = REACTION_LABELS[reaction.type];
-              if (!info || reaction.count === 0) return null;
+            {post.supportReactions.slice(0, 3).filter(r => r.count > 0).map((reaction) => {
+              const info = SUPPORT_REACTION_LABELS[reaction.type];
+              if (!info) return null;
               return (
                 <View
                   key={reaction.type}
-                  style={[
-                    styles.reactionMini,
-                    reaction.userReacted && styles.reactionMiniActive,
-                  ]}
+                  style={[styles.reactionMini, reaction.userReacted && styles.reactionMiniActive]}
                 >
                   <Text style={styles.reactionMiniEmoji}>{info.emoji}</Text>
-                  <Text
-                    style={[
-                      styles.reactionMiniCount,
-                      reaction.userReacted && styles.reactionMiniCountActive,
-                    ]}
-                  >
+                  <Text style={[styles.reactionMiniCount, reaction.userReacted && styles.reactionMiniCountActive]}>
+                    {reaction.count}
+                  </Text>
+                </View>
+              );
+            })}
+            {totalSupportReactions === 0 && post.reactions.slice(0, 3).filter(r => r.count > 0).map((reaction) => {
+              const labels: Record<string, string> = { heart: '💛', hug: '🤗', strength: '💪', seen: '👁', relate: '🤝' };
+              return (
+                <View key={reaction.type} style={[styles.reactionMini, reaction.userReacted && styles.reactionMiniActive]}>
+                  <Text style={styles.reactionMiniEmoji}>{labels[reaction.type] ?? '💛'}</Text>
+                  <Text style={[styles.reactionMiniCount, reaction.userReacted && styles.reactionMiniCountActive]}>
                     {reaction.count}
                   </Text>
                 </View>
@@ -143,8 +170,34 @@ function PostCard({ post, onPress }: { post: CommunityPost; onPress: () => void 
             <Text style={styles.replyCountText}>{post.replyCount}</Text>
           </View>
         </View>
+
+        {post.suggestedToolName && (
+          <View style={styles.toolSuggestion}>
+            <Sparkles size={12} color={Colors.primary} />
+            <Text style={styles.toolSuggestionText}>Related: {post.suggestedToolName}</Text>
+          </View>
+        )}
       </TouchableOpacity>
     </Animated.View>
+  );
+});
+
+function CircleCard({ circle, onPress }: { circle: SupportCircle; onPress: () => void }) {
+  return (
+    <TouchableOpacity
+      style={[styles.circleCard, { borderColor: circle.color + '40' }]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <Text style={styles.circleEmoji}>{circle.emoji}</Text>
+      <Text style={styles.circleName} numberOfLines={1}>{circle.name}</Text>
+      <Text style={styles.circleMembers}>{circle.memberCount} members</Text>
+      {circle.isJoined && (
+        <View style={[styles.joinedBadge, { backgroundColor: circle.color + '20' }]}>
+          <Text style={[styles.joinedText, { color: circle.color }]}>Joined</Text>
+        </View>
+      )}
+    </TouchableOpacity>
   );
 }
 
@@ -160,17 +213,20 @@ export default function CommunityFeedScreen() {
     searchQuery,
     setSearchQuery,
   } = useCommunityFeed();
+  const { circles } = useSupportCircles();
   const [showSearch, setShowSearch] = useState<boolean>(false);
+  const [activeSection, setActiveSection] = useState<'feed' | 'circles'>('feed');
   const searchInputRef = useRef<TextInput>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 400,
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
   }, [fadeAnim]);
+
+  const recommendedPosts = useMemo(
+    () => getRecommendedPosts(posts, {}, 3),
+    [posts]
+  );
 
   const handleCategoryPress = useCallback(
     (cat: PostCategory) => {
@@ -181,9 +237,7 @@ export default function CommunityFeedScreen() {
 
   const handleToggleSearch = useCallback(() => {
     setShowSearch((prev) => {
-      if (prev) {
-        setSearchQuery('');
-      }
+      if (prev) setSearchQuery('');
       return !prev;
     });
   }, [setSearchQuery]);
@@ -203,6 +257,13 @@ export default function CommunityFeedScreen() {
     router.push('/community/guidelines' as never);
   }, [router]);
 
+  const handleCirclePress = useCallback(
+    (circleId: string) => {
+      router.push(`/community/circle-detail?id=${circleId}` as never);
+    },
+    [router]
+  );
+
   return (
     <View style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.safeTop}>
@@ -212,22 +273,10 @@ export default function CommunityFeedScreen() {
             <Text style={styles.headerSubtitle}>A safe space to connect</Text>
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.headerBtn}
-              onPress={handleToggleSearch}
-              testID="search-toggle"
-            >
-              {showSearch ? (
-                <X size={20} color={Colors.text} />
-              ) : (
-                <Search size={20} color={Colors.text} />
-              )}
+            <TouchableOpacity style={styles.headerBtn} onPress={handleToggleSearch} testID="search-toggle">
+              {showSearch ? <X size={20} color={Colors.text} /> : <Search size={20} color={Colors.text} />}
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.newPostBtn}
-              onPress={handleNewPost}
-              testID="new-post-btn"
-            >
+            <TouchableOpacity style={styles.newPostBtn} onPress={handleNewPost} testID="new-post-btn">
               <Plus size={18} color={Colors.white} />
             </TouchableOpacity>
           </View>
@@ -253,6 +302,23 @@ export default function CommunityFeedScreen() {
             )}
           </View>
         )}
+
+        <View style={styles.sectionTabs}>
+          <TouchableOpacity
+            style={[styles.sectionTab, activeSection === 'feed' && styles.sectionTabActive]}
+            onPress={() => setActiveSection('feed')}
+          >
+            <MessageCircle size={14} color={activeSection === 'feed' ? Colors.primary : Colors.textMuted} />
+            <Text style={[styles.sectionTabText, activeSection === 'feed' && styles.sectionTabTextActive]}>Feed</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.sectionTab, activeSection === 'circles' && styles.sectionTabActive]}
+            onPress={() => setActiveSection('circles')}
+          >
+            <Users size={14} color={activeSection === 'circles' ? Colors.primary : Colors.textMuted} />
+            <Text style={[styles.sectionTabText, activeSection === 'circles' && styles.sectionTabTextActive]}>Circles</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
 
       <ScrollView
@@ -260,85 +326,151 @@ export default function CommunityFeedScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={refetch}
-            tintColor={Colors.primary}
-          />
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />
         }
       >
-        <TouchableOpacity
-          style={styles.guidelinesCard}
-          onPress={handleGuidelines}
-          activeOpacity={0.7}
-          testID="guidelines-btn"
-        >
-          <View style={styles.guidelinesLeft}>
-            <Heart size={16} color={Colors.primary} />
-            <Text style={styles.guidelinesText}>Community Guidelines</Text>
-          </View>
-          <ChevronRight size={16} color={Colors.textMuted} />
-        </TouchableOpacity>
+        {activeSection === 'feed' ? (
+          <>
+            <TouchableOpacity
+              style={styles.guidelinesCard}
+              onPress={handleGuidelines}
+              activeOpacity={0.7}
+              testID="guidelines-btn"
+            >
+              <View style={styles.guidelinesLeft}>
+                <Heart size={16} color={Colors.primary} />
+                <Text style={styles.guidelinesText}>Community Guidelines</Text>
+              </View>
+              <ChevronRight size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoriesRow}
-          style={styles.categoriesScroll}
-        >
-          {CATEGORIES.map((cat) => {
-            const isActive = selectedCategory === cat.id;
-            return (
-              <TouchableOpacity
-                key={cat.id}
-                style={[
-                  styles.categoryPill,
-                  isActive && { backgroundColor: cat.color + '22', borderColor: cat.color },
-                ]}
-                onPress={() => handleCategoryPress(cat.id)}
-                testID={`category-${cat.id}`}
-              >
-                <Text style={styles.categoryPillEmoji}>{cat.emoji}</Text>
-                <Text
-                  style={[
-                    styles.categoryPillText,
-                    isActive && { color: cat.color, fontWeight: '600' as const },
-                  ]}
+            {recommendedPosts.length > 0 && !selectedCategory && !searchQuery && (
+              <View style={styles.recommendedSection}>
+                <View style={styles.sectionHeader}>
+                  <TrendingUp size={16} color={Colors.brandAmber} />
+                  <Text style={styles.sectionTitle}>Recommended for you</Text>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.recommendedRow}
                 >
-                  {cat.label}
+                  {recommendedPosts.map((post) => (
+                    <TouchableOpacity
+                      key={post.id}
+                      style={styles.recommendedCard}
+                      onPress={() => handlePostPress(post.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.recommendedTitle} numberOfLines={2}>{post.title}</Text>
+                      <Text style={styles.recommendedPreview} numberOfLines={2}>{post.body}</Text>
+                      <View style={styles.recommendedMeta}>
+                        <Text style={styles.recommendedReactions}>
+                          {post.supportReactions.reduce((s, r) => s + r.count, 0)} reactions
+                        </Text>
+                        <Text style={styles.recommendedDot}>·</Text>
+                        <Text style={styles.recommendedReplies}>{post.replyCount} replies</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {circles.filter(c => c.isJoined).length > 0 && !selectedCategory && !searchQuery && (
+              <View style={styles.myCirclesSection}>
+                <View style={styles.sectionHeader}>
+                  <Users size={16} color={Colors.brandLilac} />
+                  <Text style={styles.sectionTitle}>My circles</Text>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.circlesHorizontal}
+                >
+                  {circles.filter(c => c.isJoined).map((circle) => (
+                    <TouchableOpacity
+                      key={circle.id}
+                      style={[styles.miniCircle, { backgroundColor: circle.color + '12' }]}
+                      onPress={() => handleCirclePress(circle.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.miniCircleEmoji}>{circle.emoji}</Text>
+                      <Text style={[styles.miniCircleName, { color: circle.color }]} numberOfLines={1}>
+                        {circle.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoriesRow}
+              style={styles.categoriesScroll}
+            >
+              {CATEGORIES.map((cat) => {
+                const isActive = selectedCategory === cat.id;
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[
+                      styles.categoryPill,
+                      isActive && { backgroundColor: cat.color + '22', borderColor: cat.color },
+                    ]}
+                    onPress={() => handleCategoryPress(cat.id)}
+                    testID={`category-${cat.id}`}
+                  >
+                    <Text style={styles.categoryPillEmoji}>{cat.emoji}</Text>
+                    <Text style={[styles.categoryPillText, isActive && { color: cat.color, fontWeight: '600' as const }]}>
+                      {cat.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {isLoading && (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>Loading posts...</Text>
+              </View>
+            )}
+
+            {!isLoading && posts.length === 0 && (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateEmoji}>🌿</Text>
+                <Text style={styles.emptyStateTitle}>No posts yet</Text>
+                <Text style={styles.emptyStateText}>
+                  {selectedCategory || searchQuery
+                    ? 'Try adjusting your filters or search'
+                    : 'Be the first to share something'}
                 </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+              </View>
+            )}
 
-        {isLoading && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>Loading posts...</Text>
-          </View>
+            <Animated.View style={{ opacity: fadeAnim }}>
+              {posts.map((post) => (
+                <PostCard key={post.id} post={post} onPress={() => handlePostPress(post.id)} />
+              ))}
+            </Animated.View>
+          </>
+        ) : (
+          <>
+            <View style={styles.circlesIntro}>
+              <Text style={styles.circlesIntroEmoji}>🫂</Text>
+              <Text style={styles.circlesIntroTitle}>Support Circles</Text>
+              <Text style={styles.circlesIntroText}>
+                Smaller, focused groups where you can connect with others who share similar experiences.
+              </Text>
+            </View>
+
+            {circles.map((circle) => (
+              <CircleCard key={circle.id} circle={circle} onPress={() => handleCirclePress(circle.id)} />
+            ))}
+          </>
         )}
-
-        {!isLoading && posts.length === 0 && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateEmoji}>🌿</Text>
-            <Text style={styles.emptyStateTitle}>No posts yet</Text>
-            <Text style={styles.emptyStateText}>
-              {selectedCategory || searchQuery
-                ? 'Try adjusting your filters or search'
-                : 'Be the first to share something'}
-            </Text>
-          </View>
-        )}
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          {posts.map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              onPress={() => handlePostPress(post.id)}
-            />
-          ))}
-        </Animated.View>
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -418,6 +550,33 @@ const styles = StyleSheet.create({
       web: { outlineStyle: 'none' } as Record<string, string>,
     }),
   },
+  sectionTabs: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    gap: 4,
+  },
+  sectionTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+  },
+  sectionTabActive: {
+    backgroundColor: Colors.primaryLight,
+  },
+  sectionTabText: {
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: Colors.textMuted,
+  },
+  sectionTabTextActive: {
+    color: Colors.primary,
+    fontWeight: '600' as const,
+  },
   scrollView: {
     flex: 1,
   },
@@ -444,6 +603,82 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600' as const,
     color: Colors.primaryDark,
+  },
+  recommendedSection: {
+    marginBottom: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.text,
+  },
+  recommendedRow: {
+    gap: 10,
+  },
+  recommendedCard: {
+    width: 220,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  recommendedTitle: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.text,
+    lineHeight: 19,
+    marginBottom: 6,
+  },
+  recommendedPreview: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    lineHeight: 17,
+    marginBottom: 8,
+  },
+  recommendedMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  recommendedReactions: {
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  recommendedDot: {
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  recommendedReplies: {
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  myCirclesSection: {
+    marginBottom: 14,
+  },
+  circlesHorizontal: {
+    gap: 8,
+  },
+  miniCircle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  miniCircleEmoji: {
+    fontSize: 14,
+  },
+  miniCircleName: {
+    fontSize: 12,
+    fontWeight: '600' as const,
   },
   categoriesScroll: {
     marginBottom: 8,
@@ -516,6 +751,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600' as const,
   },
+  situationChip: {
+    backgroundColor: Colors.warmGlow,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  situationChipText: {
+    fontSize: 10,
+    color: Colors.accent,
+    fontWeight: '500' as const,
+  },
   postTitle: {
     fontSize: 16,
     fontWeight: '600' as const,
@@ -542,13 +788,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 20,
+    marginBottom: 8,
+  },
+  supportTypeBadge: {
+    backgroundColor: Colors.surface,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
     marginBottom: 10,
+  },
+  supportTypeText: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontWeight: '500' as const,
   },
   postMeta: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
     gap: 6,
+  },
+  authorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  trustedBadge: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   postAuthor: {
     fontSize: 12,
@@ -609,6 +881,20 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontWeight: '500' as const,
   },
+  toolSuggestion: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  toolSuggestionText: {
+    fontSize: 11,
+    color: Colors.primary,
+    fontWeight: '500' as const,
+  },
   emptyState: {
     alignItems: 'center',
     paddingVertical: 60,
@@ -627,6 +913,65 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textMuted,
     textAlign: 'center',
+  },
+  circlesIntro: {
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: Colors.white,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    marginBottom: 16,
+  },
+  circlesIntroEmoji: {
+    fontSize: 36,
+    marginBottom: 10,
+  },
+  circlesIntroTitle: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    marginBottom: 6,
+  },
+  circlesIntroText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  circleCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 10,
+    borderWidth: 1.5,
+    borderColor: Colors.borderLight,
+  },
+  circleEmoji: {
+    fontSize: 28,
+    marginBottom: 8,
+  },
+  circleName: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  circleMembers: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    marginBottom: 6,
+  },
+  joinedBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    marginTop: 4,
+  },
+  joinedText: {
+    fontSize: 11,
+    fontWeight: '600' as const,
   },
   bottomSpacer: {
     height: 30,

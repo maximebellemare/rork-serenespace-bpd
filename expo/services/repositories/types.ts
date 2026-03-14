@@ -16,6 +16,7 @@ import {
   PostCategory,
   ReportInput,
   BlockedUser,
+  SupportCircle,
 } from '@/types/community';
 
 export type ServiceResult<T> = {
@@ -72,6 +73,9 @@ export interface ICommunityRepository {
   blockUser(userId: string): Promise<void>;
   unblockUser(userId: string): Promise<void>;
   getBlockedUsers(): Promise<BlockedUser[]>;
+  getCircles(): Promise<SupportCircle[]>;
+  joinCircle(circleId: string): Promise<void>;
+  leaveCircle(circleId: string): Promise<void>;
 }
 
 export interface IAuthRepository {
