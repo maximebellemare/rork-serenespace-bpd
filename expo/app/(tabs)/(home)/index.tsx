@@ -85,6 +85,8 @@ import AppointmentHomeCard from '@/components/AppointmentHomeCard';
 import CorrelationInsightsCard from '@/components/CorrelationInsightsCard';
 import MilestoneHomeCard from '@/components/MilestoneHomeCard';
 import SmartRecommendationCard from '@/components/SmartRecommendationCard';
+import SpiralInterventionCard from '@/components/SpiralInterventionCard';
+import { useSpiralDetection } from '@/hooks/useSpiralDetection';
 
 interface CardSlot {
   key: string;
@@ -122,6 +124,7 @@ export default function HomeScreen() {
   const safetyPrediction = useEmotionalSafety();
   const breakthroughs = useBreakthroughs();
   const playbook = usePlaybook();
+  const spiralDetection = useSpiralDetection();
 
   const dailyRitualsQuery = useQuery({
     queryKey: ['daily_rituals'],
@@ -499,6 +502,12 @@ export default function HomeScreen() {
       <PlaybookCard key="emotional_playbook" playbook={playbook} />
     ));
 
+    if (spiralDetection.shouldIntervene) {
+      addSlot('spiral_prevention', () => (
+        <SpiralInterventionCard key="spiral_prevention" result={spiralDetection} />
+      ));
+    }
+
     addSlot('trusted_support', () => (
       <TrustedSupportCard key="trusted_support" variant="home" />
     ));
@@ -534,7 +543,7 @@ export default function HomeScreen() {
     dailyCoaching, weeklyReflection, therapyReport, emotionalLoops,
     reflectionMirror, episodeReplayState, stormWarning, emotionalStorm,
     crisisPrediction, earlyWarning, recommendations, topRecommendation, router,
-    conflictReplay, safetyPrediction, breakthroughs.summary, dailyRitualCompletions, playbook,
+    conflictReplay, safetyPrediction, breakthroughs.summary, dailyRitualCompletions, playbook, spiralDetection,
   ]);
 
   const maxCards = MAX_CARDS_BY_ZONE[zone] ?? 10;

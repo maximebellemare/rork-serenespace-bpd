@@ -341,6 +341,8 @@ function computeHomePriorities(
 
   add('learning_recommendations', !isCrisis ? (isCalm || isRecovering ? 13 : 20) : 99, !isCrisis);
 
+  add('spiral_prevention', isActivated || isRelDistress ? 6 : (isCrisis ? 3 : 15), isActivated || isRelDistress || isCrisis);
+
   add('upgrade_prompt', isCalm || isRecovering ? 35 : 99, isCalm || isRecovering);
 
   onboardingBoosts.forEach(boost => {
