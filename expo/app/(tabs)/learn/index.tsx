@@ -42,6 +42,7 @@ import {
   Eye,
 } from 'lucide-react-native';
 import BrandLogo from '@/components/branding/BrandLogo';
+import DailyInsightCard from '@/components/DailyInsightCard';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import {
@@ -466,6 +467,8 @@ export default function LearnScreen() {
           >
             {activeTab === 'explore' ? (
               <Animated.View style={{ opacity: fadeAnim }}>
+                <DailyInsightCard variant="learn" />
+
                 {weeklyInsight && (
                   <View style={styles.weeklyInsightCard}>
                     <View style={styles.weeklyInsightHeader}>

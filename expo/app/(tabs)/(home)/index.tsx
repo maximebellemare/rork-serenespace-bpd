@@ -80,6 +80,7 @@ import { usePlaybook } from '@/hooks/usePlaybook';
 import NextInterventionCard from '@/components/NextInterventionCard';
 import OutcomePromptBanner from '@/components/OutcomePromptBanner';
 import LearningRecommendationCard from '@/components/LearningRecommendationCard';
+import DailyInsightCard from '@/components/DailyInsightCard';
 import MedicationHomeCard from '@/components/MedicationHomeCard';
 import AppointmentHomeCard from '@/components/AppointmentHomeCard';
 import CorrelationInsightsCard from '@/components/CorrelationInsightsCard';
@@ -536,6 +537,10 @@ export default function HomeScreen() {
 
     addSlot('learning_recommendations', () => (
       <LearningRecommendationCard key="learning_recommendations" />
+    ));
+
+    addSlot('daily_insight', () => (
+      <DailyInsightCard key="daily_insight" variant="home" />
     ));
 
     addSlot('upgrade_prompt', () => (
