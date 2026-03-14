@@ -86,7 +86,8 @@ import CorrelationInsightsCard from '@/components/CorrelationInsightsCard';
 import MilestoneHomeCard from '@/components/MilestoneHomeCard';
 import SmartRecommendationCard from '@/components/SmartRecommendationCard';
 import SpiralInterventionCard from '@/components/SpiralInterventionCard';
-import { useSpiralDetection } from '@/hooks/useSpiralDetection';
+import SpiralPausePrompt from '@/components/SpiralPausePrompt';
+import { useSpiralPrevention } from '@/providers/SpiralPreventionProvider';
 
 interface CardSlot {
   key: string;
@@ -124,7 +125,12 @@ export default function HomeScreen() {
   const safetyPrediction = useEmotionalSafety();
   const breakthroughs = useBreakthroughs();
   const playbook = usePlaybook();
-  const spiralDetection = useSpiralDetection();
+  const {
+    detection: spiralDetection,
+    showPausePrompt: spiralPauseVisible,
+    pausePromptConfig: spiralPauseConfig,
+    dismissPausePrompt: dismissSpiralPause,
+  } = useSpiralPrevention();
 
   const dailyRitualsQuery = useQuery({
     queryKey: ['daily_rituals'],
@@ -751,6 +757,12 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </Animated.View>
       </ScrollView>
+
+      <SpiralPausePrompt
+        visible={spiralPauseVisible}
+        config={spiralPauseConfig}
+        onClose={dismissSpiralPause}
+      />
     </View>
   );
 }

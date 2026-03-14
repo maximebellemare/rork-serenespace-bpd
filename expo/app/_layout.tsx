@@ -17,6 +17,7 @@ import { AppointmentProvider } from "@/providers/AppointmentProvider";
 import { RewardsProvider } from "@/providers/RewardsProvider";
 import { MovementProvider } from "@/providers/MovementProvider";
 import { JournalProvider } from "@/providers/JournalProvider";
+import { SpiralPreventionProvider } from "@/providers/SpiralPreventionProvider";
 import Colors from "@/constants/colors";
 import DeferredProviders from "@/components/DeferredProviders";
 import OnboardingGate from "@/components/OnboardingGate";
@@ -524,6 +525,7 @@ export default function RootLayout() {
                         <RewardsProvider>
                         <MovementProvider>
                         <JournalProvider>
+                        <SpiralPreventionProvider>
                         <NotificationEntryProvider>
                           {NotificationManagerLazy && (
                             <Suspense fallback={null}>
@@ -533,6 +535,7 @@ export default function RootLayout() {
                           <OnboardingGate />
                           <RootLayoutNav />
                         </NotificationEntryProvider>
+                        </SpiralPreventionProvider>
                         </JournalProvider>
                         </MovementProvider>
                         </RewardsProvider>
