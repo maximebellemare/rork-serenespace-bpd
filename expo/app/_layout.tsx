@@ -21,6 +21,7 @@ import { SpiralPreventionProvider } from "@/providers/SpiralPreventionProvider";
 import Colors from "@/constants/colors";
 import DeferredProviders from "@/components/DeferredProviders";
 import OnboardingGate from "@/components/OnboardingGate";
+import ErrorBoundary from "@/components/ErrorBoundary";
 const NotificationManagerLazy = Platform.OS !== 'web' 
   ? lazy(() => import("@/components/NotificationManager"))
   : null;
@@ -576,6 +577,41 @@ function RootLayoutNav() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="privacy-policy"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="terms-of-service"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="mental-health-disclaimer"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="data-deletion"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="support-feedback"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }
@@ -588,6 +624,7 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView>
+        <ErrorBoundary>
         <AppProvider>
           <AnalyticsProvider>
             <OnboardingProvider>
@@ -625,6 +662,7 @@ export default function RootLayout() {
             </OnboardingProvider>
           </AnalyticsProvider>
         </AppProvider>
+        </ErrorBoundary>
       </GestureHandlerRootView>
     </QueryClientProvider>
   );

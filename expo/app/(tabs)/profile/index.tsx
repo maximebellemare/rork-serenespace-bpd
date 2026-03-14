@@ -37,6 +37,9 @@ import {
   BookOpen,
   Bug,
   Zap,
+  MessageCircle,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react-native';
 import BrandLogo from '@/components/branding/BrandLogo';
 import { BRAND } from '@/constants/branding';
@@ -632,6 +635,57 @@ export default function ProfileScreen() {
                 thumbColor={profile.privacy.lockAppWithBiometrics ? Colors.primary : Colors.textMuted}
               />
             </View>
+          </View>
+        </Animated.View>
+
+        <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+          <Text style={styles.sectionLabel}>SUPPORT & LEGAL</Text>
+          <View style={styles.navGroup}>
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: '#E6F0FF' }]}>
+                <MessageCircle size={16} color="#3B82F6" />
+              </View>,
+              'Support & Feedback',
+              'Get help or share your thoughts',
+              () => router.push('/support-feedback' as never),
+              'support-feedback-btn',
+            )}
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: Colors.brandTealSoft }]}>
+                <Shield size={16} color={Colors.brandTeal} />
+              </View>,
+              'Privacy Policy',
+              'How we protect your data',
+              () => router.push('/privacy-policy' as never),
+              'privacy-policy-btn',
+            )}
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: Colors.surface }]}>
+                <FileText size={16} color={Colors.brandNavy} />
+              </View>,
+              'Terms of Service',
+              'Usage terms and conditions',
+              () => router.push('/terms-of-service' as never),
+              'terms-of-service-btn',
+            )}
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: Colors.dangerLight }]}>
+                <AlertTriangle size={16} color={Colors.danger} />
+              </View>,
+              'Mental Health Disclaimer',
+              'Important safety information',
+              () => router.push('/mental-health-disclaimer' as never),
+              'disclaimer-btn',
+            )}
+            {renderNavRow(
+              <View style={[styles.navIcon, { backgroundColor: '#FFE6E6' }]}>
+                <Trash2 size={16} color={Colors.danger} />
+              </View>,
+              'Delete My Data',
+              'Remove your personal data',
+              () => router.push('/data-deletion' as never),
+              'data-deletion-btn',
+            )}
           </View>
         </Animated.View>
 
