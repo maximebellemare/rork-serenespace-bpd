@@ -15,6 +15,7 @@ import {
   Bookmark,
   Pin,
   TrendingUp,
+  TrendingDown,
   Zap,
   Sparkles,
   Eye,
@@ -29,30 +30,23 @@ import {
   Award,
   BarChart3,
   Lightbulb,
+  Heart,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
-import {
-  getToolRecords,
-  getUsageLogs,
-  getPlaybookInsights,
-  getPlaybookStats,
-  getPlaybookMilestones,
-  toggleToolPin,
-} from '@/services/playbook/playbookService';
+import { usePersonalPlaybook } from '@/hooks/usePersonalPlaybook';
 import {
   SITUATION_CATEGORIES,
-  getAllSituationRecommendations,
-  generatePlaybookInsights,
+  getEmotionToolProfiles,
+  getToolTrends,
 } from '@/services/playbook/playbookLearningService';
 import type {
   PersonalToolRecord,
-  ToolUsageLog,
   PlaybookInsight,
-  PlaybookStats,
   PlaybookMilestone,
   SituationRecommendation,
 } from '@/types/personalPlaybook';
+import type { EmotionToolProfile } from '@/services/playbook/playbookLearningService';
 import { trackEvent } from '@/services/analytics/analyticsService';
 
 const SITUATION_ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string }>> = {
@@ -68,19 +62,36 @@ const SITUATION_ICON_MAP: Record<string, React.ComponentType<{ size: number; col
   CloudOff,
 };
 
-type ActiveTab = 'overview' | 'situations' | 'insights';
+const EMOTION_COLORS: Record<string, { bg: string; accent: string }> = {
+  anger: { bg: '#F5E0E0', accent: '#C47878' },
+  shame: { bg: '#F5E8DA', accent: '#C4956A' },
+  fear: { bg: '#E3EFF7', accent: '#5B8FB9' },
+  sadness: { bg: '#E8ECF0', accent: '#7A8BA0' },
+  anxiety: { bg: '#E3EFF7', accent: '#5B8FB9' },
+  loneliness: { bg: '#E8ECF0', accent: '#7A8BA0' },
+  hurt: { bg: '#F5E0E0', accent: '#C47878' },
+  rejection: { bg: '#F0ECF7', accent: '#9B8EC4' },
+  overwhelm: { bg: '#FDE8E3', accent: '#E17055' },
+  confusion: { bg: '#F0ECF7', accent: '#9B8EC4' },
+  relief: { bg: '#E3F0EA', accent: '#6BA38E' },
+  hope: { bg: '#E8F4F4', accent: '#4A8B8D' },
+  jealousy: { bg: '#FDE8E3', accent: '#E17055' },
+  guilt: { bg: '#F5E8DA', accent: '#C4956A' },
+};
+
+function getEmotionColor(emotion: string): { bg: string; accent: string } {
+  const lower = emotion.toLowerCase();
+  return EMOTION_COLORS[lower] ?? { bg: Colors.surface, accent: Colors.textSecondary };
+}
+
+type ActiveTab = 'overview' | 'situations' | 'emotions' | 'insights';
 
 export default function PlaybookScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
-  const [records, setRecords] = useState<PersonalToolRecord[]>([]);
-  const [logs, setLogs] = useState<ToolUsageLog[]>([]);
-  const [insights, setInsights] = useState<PlaybookInsight[]>([]);
-  const [stats, setStats] = useState<PlaybookStats | null>(null);
-  const [milestones, setMilestones] = useState<PlaybookMilestone[]>([]);
-  const [recommendations, setRecommendations] = useState<SituationRecommendation[]>([]);
+  const playbook = usePersonalPlaybook();
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -91,50 +102,16 @@ export default function PlaybookScreen() {
   }, [fadeAnim]);
 
   useEffect(() => {
-    void loadAllData();
     void trackEvent('playbook_opened');
   }, []);
 
-  const loadAllData = async () => {
-    try {
-      const [recs, usageLogs, savedInsights] = await Promise.all([
-        getToolRecords(),
-        getUsageLogs(),
-        getPlaybookInsights(),
-      ]);
-
-      setRecords(recs);
-      setLogs(usageLogs);
-
-      const computedStats = getPlaybookStats(recs, usageLogs);
-      setStats(computedStats);
-      setMilestones(getPlaybookMilestones(computedStats));
-
-      const recs2 = getAllSituationRecommendations(recs, usageLogs);
-      setRecommendations(recs2);
-
-      const generatedInsights = savedInsights.length > 0
-        ? savedInsights
-        : generatePlaybookInsights(recs, usageLogs);
-      setInsights(generatedInsights);
-
-      console.log('[Playbook] Loaded:', {
-        records: recs.length,
-        logs: usageLogs.length,
-        insights: generatedInsights.length,
-      });
-    } catch (e) {
-      console.log('[Playbook] Error loading data:', e);
-    }
-  };
-
+  const pinTool = playbook.pinTool;
   const handlePin = useCallback(async (toolId: string) => {
     if (Platform.OS !== 'web') {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    await toggleToolPin(toolId);
-    void loadAllData();
-  }, []);
+    await pinTool(toolId);
+  }, [pinTool]);
 
   const handleTabPress = useCallback((tab: ActiveTab) => {
     if (Platform.OS !== 'web') {
@@ -143,17 +120,20 @@ export default function PlaybookScreen() {
     setActiveTab(tab);
   }, []);
 
-  const pinnedTools = useMemo(() => records.filter(r => r.pinned), [records]);
-  const topTools = useMemo(
-    () => [...records].sort((a, b) => b.effectivenessScore - a.effectivenessScore).slice(0, 5),
-    [records],
-  );
   const activeSituations = useMemo(
-    () => recommendations.filter(r => r.tools.length > 0),
-    [recommendations],
+    () => playbook.recommendations.filter(r => r.tools.length > 0),
+    [playbook.recommendations],
   );
 
-  const hasData = records.length > 0 || logs.length > 0;
+  const emotionProfiles = useMemo(
+    () => getEmotionToolProfiles(playbook.records, playbook.logs),
+    [playbook.records, playbook.logs],
+  );
+
+  const trends = useMemo(
+    () => getToolTrends(playbook.logs),
+    [playbook.logs],
+  );
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -175,23 +155,28 @@ export default function PlaybookScreen() {
           </View>
         </View>
 
-        {hasData && stats && (
+        {playbook.hasData && playbook.stats && (
           <View style={styles.statsStrip}>
-            <StatPill label="Tools Used" value={String(stats.totalToolUses)} color={Colors.brandTeal} />
-            <StatPill label="This Week" value={String(stats.toolsThisWeek)} color={Colors.brandLilac} />
+            <StatPill label="Tools Used" value={String(playbook.stats.totalToolUses)} color={Colors.brandTeal} />
+            <StatPill label="This Week" value={String(playbook.stats.toolsThisWeek)} color={Colors.brandLilac} />
             <StatPill
               label="Avg Reduction"
-              value={stats.avgDistressReduction > 0 ? `-${stats.avgDistressReduction}` : '–'}
+              value={playbook.stats.avgDistressReduction > 0 ? `-${playbook.stats.avgDistressReduction}` : '–'}
               color={Colors.success}
             />
-            {stats.streakDays > 0 && (
-              <StatPill label="Streak" value={`${stats.streakDays}d`} color={Colors.accent} />
+            {playbook.stats.streakDays > 0 && (
+              <StatPill label="Streak" value={`${playbook.stats.streakDays}d`} color={Colors.accent} />
             )}
           </View>
         )}
 
-        <View style={styles.tabRow}>
-          {(['overview', 'situations', 'insights'] as const).map(tab => (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabRowContent}
+          style={styles.tabRow}
+        >
+          {(['overview', 'situations', 'emotions', 'insights'] as const).map(tab => (
             <TouchableOpacity
               key={tab}
               style={[styles.tabBtn, activeTab === tab && styles.tabBtnActive]}
@@ -200,25 +185,26 @@ export default function PlaybookScreen() {
               testID={`playbook-tab-${tab}`}
             >
               <Text style={[styles.tabLabel, activeTab === tab && styles.tabLabelActive]}>
-                {tab === 'overview' ? 'Overview' : tab === 'situations' ? 'By Situation' : 'Insights'}
+                {tab === 'overview' ? 'Overview' : tab === 'situations' ? 'By Situation' : tab === 'emotions' ? 'By Emotion' : 'Insights'}
               </Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
 
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {!hasData ? (
+          {!playbook.hasData ? (
             <EmptyPlaybook onExplore={() => router.back()} />
           ) : activeTab === 'overview' ? (
             <OverviewTab
-              pinnedTools={pinnedTools}
-              topTools={topTools}
-              milestones={milestones}
-              stats={stats}
-              insights={insights}
+              pinnedTools={playbook.pinnedTools}
+              topTools={playbook.topTools}
+              milestones={playbook.milestones}
+              stats={playbook.stats}
+              insights={playbook.insights}
+              trends={trends}
               onPin={handlePin}
             />
           ) : activeTab === 'situations' ? (
@@ -226,8 +212,10 @@ export default function PlaybookScreen() {
               activeSituations={activeSituations}
               allSituations={SITUATION_CATEGORIES}
             />
+          ) : activeTab === 'emotions' ? (
+            <EmotionsTab profiles={emotionProfiles} />
           ) : (
-            <InsightsTab insights={insights} milestones={milestones} />
+            <InsightsTab insights={playbook.insights} milestones={playbook.milestones} />
           )}
           <View style={{ height: insets.bottom + 24 }} />
         </ScrollView>
@@ -284,13 +272,15 @@ function OverviewTab({
   milestones,
   stats,
   insights,
+  trends,
   onPin,
 }: {
   pinnedTools: PersonalToolRecord[];
   topTools: PersonalToolRecord[];
   milestones: PlaybookMilestone[];
-  stats: PlaybookStats | null;
+  stats: import('@/types/personalPlaybook').PlaybookStats | null;
   insights: PlaybookInsight[];
+  trends: { improving: boolean; weeklyUsage: number; weeklyReduction: number; prevWeeklyUsage: number };
   onPin: (toolId: string) => void;
 }) {
   const achievedMilestones = milestones.filter(m => m.achieved);
@@ -303,6 +293,26 @@ function OverviewTab({
         <View style={styles.insightBanner}>
           <Lightbulb size={16} color={Colors.accent} />
           <Text style={styles.insightBannerText}>{topInsight.text}</Text>
+        </View>
+      )}
+
+      {trends.weeklyUsage > 0 && (
+        <View style={styles.trendCard}>
+          <View style={styles.trendHeader}>
+            {trends.improving ? (
+              <TrendingUp size={14} color={Colors.success} />
+            ) : (
+              <TrendingDown size={14} color={Colors.textMuted} />
+            )}
+            <Text style={[styles.trendLabel, trends.improving && { color: Colors.success }]}>
+              {trends.improving ? 'Building momentum' : 'This week'}
+            </Text>
+          </View>
+          <Text style={styles.trendText}>
+            {trends.weeklyUsage} tool{trends.weeklyUsage !== 1 ? 's' : ''} used this week
+            {trends.weeklyReduction > 0 && ` · avg -${trends.weeklyReduction} distress`}
+            {trends.prevWeeklyUsage > 0 && trends.weeklyUsage > trends.prevWeeklyUsage && ' · up from last week'}
+          </Text>
         </View>
       )}
 
@@ -486,6 +496,66 @@ function SituationsTab({
           </View>
         </View>
       )}
+    </>
+  );
+}
+
+function EmotionsTab({ profiles }: { profiles: EmotionToolProfile[] }) {
+  if (profiles.length === 0) {
+    return (
+      <View style={styles.emptyTab}>
+        <Heart size={28} color={Colors.textMuted} />
+        <Text style={styles.emptyTabTitle}>Learning your patterns</Text>
+        <Text style={styles.emptyTabDesc}>
+          As you log emotions when using tools, your playbook will show which tools work best for each feeling.
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <>
+      <Text style={styles.situationIntro}>
+        Tools that work best for you, organized by how you're feeling.
+      </Text>
+      {profiles.map(profile => {
+        const colors = getEmotionColor(profile.emotion);
+        return (
+          <View key={profile.emotion} style={styles.emotionCard}>
+            <View style={styles.emotionHeader}>
+              <View style={[styles.emotionDot, { backgroundColor: colors.accent }]} />
+              <Text style={styles.emotionName}>
+                {profile.emotion.charAt(0).toUpperCase() + profile.emotion.slice(1)}
+              </Text>
+              <View style={[styles.emotionMeta, { backgroundColor: colors.bg }]}>
+                <Text style={[styles.emotionMetaText, { color: colors.accent }]}>
+                  {profile.totalUses}x · avg -{profile.avgReduction}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.emotionToolsList}>
+              {profile.bestTools.map((tool, idx) => (
+                <View key={tool.toolId} style={styles.emotionToolRow}>
+                  <View style={[styles.emotionToolRank, { backgroundColor: colors.bg }]}>
+                    <Text style={[styles.emotionToolRankText, { color: colors.accent }]}>{idx + 1}</Text>
+                  </View>
+                  <View style={styles.emotionToolInfo}>
+                    <Text style={styles.emotionToolName}>{tool.toolTitle}</Text>
+                    <Text style={styles.emotionToolMeta}>
+                      {tool.avgDistressReduction > 0 ? `-${tool.avgDistressReduction} distress` : `${tool.totalUses}x used`}
+                    </Text>
+                  </View>
+                  {tool.effectivenessScore > 50 && (
+                    <View style={styles.emotionToolEffective}>
+                      <Sparkles size={10} color={Colors.success} />
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          </View>
+        );
+      })}
     </>
   );
 }
@@ -684,10 +754,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   tabRow: {
-    flexDirection: 'row',
+    maxHeight: 48,
+  },
+  tabRowContent: {
     paddingHorizontal: 20,
     gap: 6,
-    marginBottom: 4,
   },
   tabBtn: {
     paddingHorizontal: 16,
@@ -800,6 +871,33 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: Colors.accent,
+    lineHeight: 20,
+    fontWeight: '500' as const,
+  },
+  trendCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  trendHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  trendLabel: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: Colors.textSecondary,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  trendText: {
+    fontSize: 14,
+    color: Colors.text,
     lineHeight: 20,
     fontWeight: '500' as const,
   },
@@ -1121,6 +1219,80 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.textMuted,
     marginTop: 1,
+  },
+  emotionCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  emotionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
+  emotionDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  emotionName: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    flex: 1,
+  },
+  emotionMeta: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  emotionMetaText: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+  },
+  emotionToolsList: {
+    gap: 8,
+  },
+  emotionToolRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  emotionToolRank: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emotionToolRankText: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+  },
+  emotionToolInfo: {
+    flex: 1,
+  },
+  emotionToolName: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.text,
+  },
+  emotionToolMeta: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 1,
+  },
+  emotionToolEffective: {
+    width: 22,
+    height: 22,
+    borderRadius: 7,
+    backgroundColor: Colors.successLight,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyTab: {
     alignItems: 'center',

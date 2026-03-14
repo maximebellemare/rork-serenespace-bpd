@@ -271,3 +271,125 @@ export function getBestToolsForEmotion(
     .sort((a, b) => b.effectivenessScore - a.effectivenessScore)
     .slice(0, 3);
 }
+
+export interface EmotionToolProfile {
+  emotion: string;
+  bestTools: PersonalToolRecord[];
+  avgReduction: number;
+  totalUses: number;
+}
+
+export function getEmotionToolProfiles(
+  records: PersonalToolRecord[],
+  logs: ToolUsageLog[],
+): EmotionToolProfile[] {
+  const emotionMap = new Map<string, { toolIds: Set<string>; totalReduction: number; count: number }>();
+
+  for (const log of logs) {
+    if (!log.emotion) continue;
+    const emotion = log.emotion.toLowerCase();
+    const existing = emotionMap.get(emotion);
+    const reduction = Math.max(0, log.distressBefore - log.distressAfter);
+
+    if (existing) {
+      existing.toolIds.add(log.toolId);
+      existing.totalReduction += reduction;
+      existing.count++;
+    } else {
+      emotionMap.set(emotion, {
+        toolIds: new Set([log.toolId]),
+        totalReduction: reduction,
+        count: 1,
+      });
+    }
+  }
+
+  const profiles: EmotionToolProfile[] = [];
+
+  for (const [emotion, data] of emotionMap.entries()) {
+    const bestTools = records
+      .filter(r => data.toolIds.has(r.toolId))
+      .sort((a, b) => b.effectivenessScore - a.effectivenessScore)
+      .slice(0, 3);
+
+    if (bestTools.length > 0) {
+      profiles.push({
+        emotion,
+        bestTools,
+        avgReduction: data.count > 0 ? Math.round((data.totalReduction / data.count) * 10) / 10 : 0,
+        totalUses: data.count,
+      });
+    }
+  }
+
+  return profiles
+    .sort((a, b) => b.totalUses - a.totalUses)
+    .slice(0, 8);
+}
+
+export function getToolTrends(
+  logs: ToolUsageLog[],
+): { improving: boolean; weeklyUsage: number; weeklyReduction: number; prevWeeklyUsage: number } {
+  const now = Date.now();
+  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const twoWeeksAgo = now - 14 * 24 * 60 * 60 * 1000;
+
+  const thisWeekLogs = logs.filter(l => l.timestamp > weekAgo);
+  const prevWeekLogs = logs.filter(l => l.timestamp > twoWeeksAgo && l.timestamp <= weekAgo);
+
+  const weeklyUsage = thisWeekLogs.length;
+  const prevWeeklyUsage = prevWeekLogs.length;
+
+  const thisWeekReductions = thisWeekLogs
+    .filter(l => l.distressBefore > 0)
+    .map(l => Math.max(0, l.distressBefore - l.distressAfter));
+  const weeklyReduction = thisWeekReductions.length > 0
+    ? Math.round((thisWeekReductions.reduce((s, r) => s + r, 0) / thisWeekReductions.length) * 10) / 10
+    : 0;
+
+  const improving = weeklyUsage >= prevWeeklyUsage && weeklyReduction > 0;
+
+  return { improving, weeklyUsage, weeklyReduction, prevWeeklyUsage };
+}
+
+export function getSmartRecommendation(
+  currentEmotion: string | null,
+  currentIntensity: number,
+  records: PersonalToolRecord[],
+  _logs: ToolUsageLog[],
+): { tool: PersonalToolRecord | null; reason: string } {
+  if (records.length === 0) return { tool: null, reason: '' };
+
+  if (currentIntensity >= 7) {
+    const crisisTools = records
+      .filter(r =>
+        r.situations.includes('distress-spike') ||
+        r.situations.includes('overwhelmed') ||
+        r.avgDistressReduction >= 2
+      )
+      .sort((a, b) => b.avgDistressReduction - a.avgDistressReduction);
+
+    if (crisisTools.length > 0) {
+      return {
+        tool: crisisTools[0],
+        reason: `This tool has reduced your distress by ${crisisTools[0].avgDistressReduction} points before.`,
+      };
+    }
+  }
+
+  if (currentEmotion) {
+    const emotionTools = getBestToolsForEmotion(currentEmotion, records);
+    if (emotionTools.length > 0) {
+      return {
+        tool: emotionTools[0],
+        reason: `This tends to help when you feel ${currentEmotion.toLowerCase()}.`,
+      };
+    }
+  }
+
+  const topTool = [...records].sort((a, b) => b.effectivenessScore - a.effectivenessScore)[0];
+  return {
+    tool: topTool ?? null,
+    reason: topTool ? 'Your most effective tool overall.' : '',
+  };
+}

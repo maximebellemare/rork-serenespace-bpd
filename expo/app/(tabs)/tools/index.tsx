@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -30,13 +30,17 @@ import {
   Clock,
   Lightbulb,
   Award,
+  TrendingDown,
+  Pin,
+  History,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { QUICK_ACCESS_TOOLS } from '@/data/quickAccessTools';
-import { getRecentlyUsedTools } from '@/services/tools/toolOutcomeService';
-import { getToolRecords, getUsageLogs, getPlaybookStats } from '@/services/playbook/playbookService';
-import type { PersonalToolRecord, PlaybookStats } from '@/types/personalPlaybook';
+import { usePersonalPlaybook } from '@/hooks/usePersonalPlaybook';
+import { useEmotionalContext } from '@/providers/EmotionalContextProvider';
+import { getSmartRecommendation } from '@/services/playbook/playbookLearningService';
+import type { PersonalToolRecord } from '@/types/personalPlaybook';
 
 const ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string }>> = {
   Wind,
@@ -49,19 +53,12 @@ const ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string
   Anchor,
 };
 
-interface RecentTool {
-  toolId: string;
-  toolType: string;
-  timestamp: number;
-}
-
 export default function ToolsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const [recentTools, setRecentTools] = useState<RecentTool[]>([]);
-  const [playbookRecords, setPlaybookRecords] = useState<PersonalToolRecord[]>([]);
-  const [playbookStats, setPlaybookStats] = useState<PlaybookStats | null>(null);
+  const { activeContext } = useEmotionalContext();
+  const playbook = usePersonalPlaybook();
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -70,26 +67,6 @@ export default function ToolsScreen() {
       useNativeDriver: true,
     }).start();
   }, [fadeAnim]);
-
-  useEffect(() => {
-    getRecentlyUsedTools(3).then(tools => {
-      setRecentTools(tools.map(t => ({ toolId: t.toolId, toolType: t.toolType, timestamp: t.timestamp })));
-    }).catch(e => console.log('[Tools] Error loading recent:', e));
-
-    void loadPlaybookData();
-  }, []);
-
-  const loadPlaybookData = async () => {
-    try {
-      const [records, logs] = await Promise.all([getToolRecords(), getUsageLogs()]);
-      setPlaybookRecords(records);
-      if (records.length > 0 || logs.length > 0) {
-        setPlaybookStats(getPlaybookStats(records, logs));
-      }
-    } catch (e) {
-      console.log('[Tools] Error loading playbook:', e);
-    }
-  };
 
   const handleQuickAccess = useCallback((route: string) => {
     if (Platform.OS !== 'web') {
@@ -105,8 +82,28 @@ export default function ToolsScreen() {
     router.push(route as never);
   }, [router]);
 
-  const topTool = playbookStats?.mostEffectiveTool;
-  const hasPlaybookData = playbookRecords.length > 0;
+  const currentEmotion = activeContext?.latestEmotion ?? null;
+  const currentIntensity = activeContext?.latestIntensity ?? 0;
+
+  const smartRec = useMemo(() => {
+    if (playbook.records.length === 0) return null;
+    return getSmartRecommendation(currentEmotion, currentIntensity, playbook.records, playbook.logs);
+  }, [currentEmotion, currentIntensity, playbook.records, playbook.logs]);
+
+  const getWhatHelped = playbook.getWhatHelped;
+  const whatHelpedLastTime = useMemo(() => {
+    if (!currentEmotion) return null;
+    return getWhatHelped(currentEmotion);
+  }, [currentEmotion, getWhatHelped]);
+
+  const topTool = playbook.stats?.mostEffectiveTool ?? null;
+  const hasPlaybookData = playbook.hasData;
+
+  const recentTools = useMemo(() => {
+    return [...playbook.records]
+      .sort((a, b) => b.lastUsed - a.lastUsed)
+      .slice(0, 3);
+  }, [playbook.records]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -120,6 +117,48 @@ export default function ToolsScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          {smartRec?.tool && currentIntensity >= 5 && (
+            <TouchableOpacity
+              style={styles.smartRecCard}
+              onPress={() => handleNav('/tools/playbook')}
+              activeOpacity={0.7}
+              testID="smart-recommendation-card"
+            >
+              <View style={styles.smartRecIconWrap}>
+                <Sparkles size={18} color={Colors.white} />
+              </View>
+              <View style={styles.smartRecContent}>
+                <Text style={styles.smartRecLabel}>Recommended for you</Text>
+                <Text style={styles.smartRecToolName}>{smartRec.tool.toolTitle}</Text>
+                <Text style={styles.smartRecReason}>{smartRec.reason}</Text>
+              </View>
+              <ChevronRight size={16} color="rgba(255,255,255,0.6)" />
+            </TouchableOpacity>
+          )}
+
+          {whatHelpedLastTime && whatHelpedLastTime.tools.length > 0 && (
+            <View style={styles.whatHelpedLastTimeCard} testID="what-helped-last-time">
+              <View style={styles.whatHelpedLastTimeHeader}>
+                <History size={14} color={Colors.brandTeal} />
+                <Text style={styles.whatHelpedLastTimeLabel}>
+                  Last time you felt this way, these helped
+                </Text>
+              </View>
+              {whatHelpedLastTime.tools.map((tool) => (
+                <View key={tool.toolId} style={styles.whatHelpedLastTimeTool}>
+                  <View style={styles.whatHelpedLastTimeDot} />
+                  <Text style={styles.whatHelpedLastTimeToolName}>{tool.toolTitle}</Text>
+                  {tool.avgDistressReduction > 0 && (
+                    <View style={styles.reductionBadge}>
+                      <TrendingDown size={10} color={Colors.success} />
+                      <Text style={styles.reductionText}>-{tool.avgDistressReduction}</Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+
           <View style={styles.quickAccessGrid}>
             {QUICK_ACCESS_TOOLS.map(tool => {
               const IconComp = ICON_MAP[tool.iconName];
@@ -169,15 +208,30 @@ export default function ToolsScreen() {
                   <Text style={styles.whatHelpedBadgeText}>#1</Text>
                 </View>
               </View>
-              {playbookRecords.length > 1 && (
+              {playbook.records.length > 1 && (
                 <View style={styles.whatHelpedMore}>
                   <Text style={styles.whatHelpedMoreText}>
-                    +{playbookRecords.length - 1} more tools tracked
+                    +{playbook.records.length - 1} more tools tracked
                   </Text>
                   <ChevronRight size={14} color={Colors.textMuted} />
                 </View>
               )}
             </TouchableOpacity>
+          )}
+
+          {playbook.pinnedTools.length > 0 && (
+            <>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionHeaderRow}>
+                  <Pin size={15} color={Colors.accent} />
+                  <Text style={styles.sectionTitle}>Pinned Tools</Text>
+                </View>
+              </View>
+              {playbook.pinnedTools.slice(0, 3).map(tool => (
+                <PinnedToolRow key={tool.toolId} tool={tool} onPress={() => handleNav('/tools/playbook')} />
+              ))}
+              <View style={{ height: 12 }} />
+            </>
           )}
 
           <TouchableOpacity
@@ -274,7 +328,7 @@ export default function ToolsScreen() {
                 <Text style={styles.featureTitle}>My Playbook</Text>
                 <Text style={styles.featureDesc}>
                   {hasPlaybookData
-                    ? `${playbookRecords.length} tools tracked · ${playbookStats?.toolsThisWeek ?? 0} this week`
+                    ? `${playbook.records.length} tools tracked · ${playbook.stats?.toolsThisWeek ?? 0} this week`
                     : 'Tools that work best for you'}
                 </Text>
               </View>
@@ -339,12 +393,20 @@ export default function ToolsScreen() {
           {recentTools.length > 0 && (
             <>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Recently Used</Text>
+                <View style={styles.sectionHeaderRow}>
+                  <Clock size={15} color={Colors.textMuted} />
+                  <Text style={styles.sectionTitle}>Recently Used</Text>
+                </View>
               </View>
               {recentTools.map(tool => (
                 <View key={tool.toolId} style={styles.recentChip}>
                   <Clock size={14} color={Colors.textMuted} />
-                  <Text style={styles.recentText}>{tool.toolId}</Text>
+                  <View style={styles.recentChipInfo}>
+                    <Text style={styles.recentText}>{tool.toolTitle}</Text>
+                    {tool.avgDistressReduction > 0 && (
+                      <Text style={styles.recentMeta}>-{tool.avgDistressReduction} distress</Text>
+                    )}
+                  </View>
                 </View>
               ))}
             </>
@@ -354,6 +416,30 @@ export default function ToolsScreen() {
         </ScrollView>
       </Animated.View>
     </View>
+  );
+}
+
+function PinnedToolRow({ tool, onPress }: { tool: PersonalToolRecord; onPress: () => void }) {
+  return (
+    <TouchableOpacity
+      style={styles.pinnedToolRow}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={styles.pinnedToolLeft}>
+        <Pin size={14} color={Colors.accent} fill={Colors.accent} />
+        <Text style={styles.pinnedToolName}>{tool.toolTitle}</Text>
+      </View>
+      <View style={styles.pinnedToolRight}>
+        {tool.avgDistressReduction > 0 && (
+          <View style={styles.pinnedToolBadge}>
+            <TrendingDown size={10} color={Colors.success} />
+            <Text style={styles.pinnedToolBadgeText}>-{tool.avgDistressReduction}</Text>
+          </View>
+        )}
+        <Text style={styles.pinnedToolUses}>{tool.totalUses}x</Text>
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -383,6 +469,96 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingTop: 20,
     paddingBottom: 32,
+  },
+  smartRecCard: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: '#4A7A68',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  smartRecIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  smartRecContent: {
+    flex: 1,
+  },
+  smartRecLabel: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: 'rgba(255,255,255,0.6)',
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.8,
+    marginBottom: 3,
+  },
+  smartRecToolName: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.white,
+    marginBottom: 2,
+  },
+  smartRecReason: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+    lineHeight: 17,
+  },
+  whatHelpedLastTimeCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.brandTeal + '25',
+  },
+  whatHelpedLastTimeHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    marginBottom: 12,
+  },
+  whatHelpedLastTimeLabel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.brandTeal,
+  },
+  whatHelpedLastTimeTool: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 10,
+    paddingVertical: 6,
+  },
+  whatHelpedLastTimeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.brandTeal,
+  },
+  whatHelpedLastTimeToolName: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.text,
+    flex: 1,
+  },
+  reductionBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 3,
+    backgroundColor: Colors.successLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  reductionText: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: Colors.success,
   },
   quickAccessGrid: {
     flexDirection: 'row' as const,
@@ -483,6 +659,66 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontWeight: '500' as const,
   },
+  sectionHeader: {
+    marginBottom: 14,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    letterSpacing: -0.3,
+  },
+  pinnedToolRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: Colors.accentLight,
+  },
+  pinnedToolLeft: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 10,
+    flex: 1,
+  },
+  pinnedToolName: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.text,
+  },
+  pinnedToolRight: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+  },
+  pinnedToolBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 3,
+    backgroundColor: Colors.successLight,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  pinnedToolBadgeText: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: Colors.success,
+  },
+  pinnedToolUses: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    fontWeight: '500' as const,
+  },
   matcherCard: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
@@ -519,15 +755,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255,255,255,0.75)',
     lineHeight: 18,
-  },
-  sectionHeader: {
-    marginBottom: 14,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    color: Colors.text,
-    letterSpacing: -0.3,
   },
   libraryGrid: {
     flexDirection: 'row' as const,
@@ -606,7 +833,7 @@ const styles = StyleSheet.create({
   recentChip: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: 8,
+    gap: 10,
     backgroundColor: Colors.white,
     borderRadius: 12,
     padding: 12,
@@ -614,8 +841,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.borderLight,
   },
+  recentChipInfo: {
+    flex: 1,
+  },
   recentText: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: Colors.text,
+    fontWeight: '500' as const,
+  },
+  recentMeta: {
+    fontSize: 11,
+    color: Colors.success,
+    marginTop: 2,
+    fontWeight: '500' as const,
   },
 });
