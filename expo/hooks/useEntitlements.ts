@@ -4,6 +4,7 @@ import { PremiumFeature } from '@/types/subscription';
 import {
   canAccess as canAccessFeature,
   canAccessAI,
+  canAccessRewrite,
   shouldShowUpgradePrompt,
   getUpgradeReason,
   getLockedFeatures,
@@ -19,6 +20,10 @@ export function useEntitlements() {
     aiLimitReached,
     remainingAIMessages,
     trackAIUsage,
+    dailyRewriteUsage,
+    rewriteLimitReached,
+    remainingRewrites,
+    trackRewriteUsage,
   } = useSubscription();
 
   const canAccess = useCallback((feature: PremiumFeature): boolean => {
@@ -28,6 +33,10 @@ export function useEntitlements() {
   const canUseAI = useMemo(() => {
     return canAccessAI(dailyAIUsage, tier);
   }, [dailyAIUsage, tier]);
+
+  const canUseRewrite = useMemo(() => {
+    return canAccessRewrite(dailyRewriteUsage, tier);
+  }, [dailyRewriteUsage, tier]);
 
   const shouldPromptUpgrade = useCallback((
     feature: PremiumFeature,
@@ -53,24 +62,32 @@ export function useEntitlements() {
     tier,
     canAccess,
     canUseAI,
+    canUseRewrite,
     aiLimitReached,
     remainingAIMessages,
+    rewriteLimitReached,
+    remainingRewrites,
     shouldPromptUpgrade,
     getReasonForUpgrade,
     lockedFeatures,
     getFeatureInfo,
     trackAIUsage,
+    trackRewriteUsage,
   }), [
     isPremium,
     tier,
     canAccess,
     canUseAI,
+    canUseRewrite,
     aiLimitReached,
     remainingAIMessages,
+    rewriteLimitReached,
+    remainingRewrites,
     shouldPromptUpgrade,
     getReasonForUpgrade,
     lockedFeatures,
     getFeatureInfo,
     trackAIUsage,
+    trackRewriteUsage,
   ]);
 }

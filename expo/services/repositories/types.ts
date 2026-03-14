@@ -116,6 +116,8 @@ export interface ISubscriptionRepository {
   saveState(state: SubscriptionState): Promise<void>;
   getDailyAIUsage(dateKey: string): Promise<number>;
   saveDailyAIUsage(dateKey: string, count: number): Promise<void>;
+  getDailyRewriteUsage(dateKey: string): Promise<number>;
+  saveDailyRewriteUsage(dateKey: string, count: number): Promise<void>;
 }
 
 export interface ITherapyPlanRepository {

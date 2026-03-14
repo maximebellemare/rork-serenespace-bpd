@@ -4,6 +4,7 @@ import {
   SubscriptionTier,
   PremiumFeature,
   FREE_DAILY_AI_LIMIT,
+  FREE_DAILY_REWRITE_LIMIT,
 } from '@/types/subscription';
 import { subscriptionRepository } from '@/services/repositories';
 
@@ -149,4 +150,33 @@ export function getDaysRemaining(expiresAt: number | null): number {
   if (!expiresAt) return 0;
   const remaining = expiresAt - Date.now();
   return Math.max(0, Math.ceil(remaining / (24 * 60 * 60 * 1000)));
+}
+
+export async function getDailyRewriteUsage(): Promise<number> {
+  try {
+    return await subscriptionRepository.getDailyRewriteUsage(getTodayKey());
+  } catch {
+    return 0;
+  }
+}
+
+export async function incrementDailyRewriteUsage(): Promise<number> {
+  const current = await getDailyRewriteUsage();
+  const newCount = current + 1;
+  try {
+    await subscriptionRepository.saveDailyRewriteUsage(getTodayKey(), newCount);
+  } catch {
+    console.log('[SubscriptionService] Error incrementing rewrite usage');
+  }
+  return newCount;
+}
+
+export function hasReachedRewriteLimit(usage: number, tier: SubscriptionTier): boolean {
+  if (tier === 'premium') return false;
+  return usage >= FREE_DAILY_REWRITE_LIMIT;
+}
+
+export function getRemainingRewrites(usage: number, tier: SubscriptionTier): number | null {
+  if (tier === 'premium') return null;
+  return Math.max(0, FREE_DAILY_REWRITE_LIMIT - usage);
 }

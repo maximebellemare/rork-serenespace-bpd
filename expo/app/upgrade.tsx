@@ -26,6 +26,10 @@ import {
   Zap,
   Brain,
   Clipboard,
+  Compass,
+  BarChart3,
+  Lightbulb,
+  Activity,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
@@ -44,9 +48,19 @@ const ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string
   'git-branch': GitBranch,
   brain: Brain,
   clipboard: Clipboard,
+  shield: Shield,
+  compass: Compass,
+  'bar-chart-3': BarChart3,
+  lightbulb: Lightbulb,
+  activity: Activity,
+  zap: Zap,
 };
 
 const TESTIMONIALS = [
+  {
+    text: "The secure rewrite saved me from sending something I would have deeply regretted.",
+    label: 'Communication safety',
+  },
   {
     text: "The weekly reflections helped me see patterns I couldn't see on my own.",
     label: 'Pattern awareness',
@@ -56,8 +70,8 @@ const TESTIMONIALS = [
     label: 'Personalized support',
   },
   {
-    text: "The relationship copilot helped me pause before I did something I'd regret.",
-    label: 'Relationship support',
+    text: "Seeing response paths before sending changed how I communicate completely.",
+    label: 'Response simulation',
   },
 ];
 
@@ -303,11 +317,13 @@ export default function UpgradeScreen() {
           <Text style={styles.comparisonTitle}>What stays free</Text>
           <View style={styles.freeList}>
             {[
-              'Check-ins & journaling',
-              'Basic coping tools',
+              'Check-ins & basic journaling',
+              'Basic coping tools & grounding',
               'Safety mode & crisis support',
-              'Limited AI conversations',
-              'Basic message rewriting',
+              `${5} AI conversations per day`,
+              `${3} message rewrites per day`,
+              'Draft vault & pause timer',
+              'Do-not-send recommendations',
             ].map((item, i) => (
               <View key={i} style={styles.freeRow}>
                 <Check size={13} color={Colors.success} />
@@ -330,7 +346,12 @@ export default function UpgradeScreen() {
                 {anchor === 'unlimited_ai' && 'Continue with unlimited AI companion support'}
                 {anchor === 'relationship_analysis' && 'Unlock advanced relationship pattern analysis'}
                 {anchor === 'emotional_profile' && 'Discover deeper emotional pattern intelligence'}
-                {!['weekly_reflection', 'therapist_report', 'unlimited_ai', 'relationship_analysis', 'emotional_profile'].includes(anchor) && 'Unlock deeper support tools'}
+                {anchor === 'secure_rewrite' && 'Unlock calm, self-respecting secure rewrites'}
+                {anchor === 'message_simulation' && 'See likely outcomes before you send'}
+                {anchor === 'message_health_scoring' && 'Get detailed message health analysis'}
+                {anchor === 'communication_insights' && 'Discover your communication patterns'}
+                {anchor === 'unlimited_rewrites' && 'Continue with unlimited message rewrites'}
+                {!['weekly_reflection', 'therapist_report', 'unlimited_ai', 'relationship_analysis', 'emotional_profile', 'secure_rewrite', 'message_simulation', 'message_health_scoring', 'communication_insights', 'unlimited_rewrites'].includes(anchor) && 'Unlock deeper support tools'}
               </Text>
             </View>
           )}

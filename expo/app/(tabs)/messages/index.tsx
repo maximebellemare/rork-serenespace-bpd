@@ -62,6 +62,8 @@ import { generateWhatHelpedReminder } from '@/services/messages/communicationPro
 import { getTopInsightsForHome } from '@/services/messages/enhancedLearningService';
 import OutcomeCaptureSheet from '@/components/OutcomeCaptureSheet';
 import { EnhancedMessageOutcome, WhatHelpedReminder, CommunicationInsight } from '@/types/messageOutcome';
+import { useEntitlements } from '@/hooks/useEntitlements';
+import { PremiumBadge } from '@/components/PremiumGate';
 
 type ContextKey = keyof MessageContext;
 
@@ -164,6 +166,13 @@ export default function MessagesScreen() {
   const messageCoachingNudge = useMessageCoaching();
   const relationshipSpiral = useRelationshipSpiral();
   const activeLoops = useActiveLoops();
+  const {
+    isPremium,
+    canAccess,
+    rewriteLimitReached,
+    remainingRewrites,
+    trackRewriteUsage,
+  } = useEntitlements();
 
   const [mainView, setMainView] = useState<MainView>('home');
   const [flowStep, setFlowStep] = useState<FlowStep>('situation');
@@ -463,26 +472,44 @@ export default function MessagesScreen() {
 
         <TouchableOpacity
           style={styles.toolStripCard}
-          onPress={() => router.push('/communication-patterns' as never)}
+          onPress={() => {
+            if (!isPremium) {
+              router.push('/upgrade' as never);
+            } else {
+              router.push('/communication-patterns' as never);
+            }
+          }}
           activeOpacity={0.7}
           testID="patterns-btn"
         >
           <View style={[styles.toolStripIcon, { backgroundColor: Colors.primary + '18' }]}>
             <BarChart3 size={16} color={Colors.primary} />
           </View>
-          <Text style={styles.toolStripLabel}>My Patterns</Text>
+          <View style={styles.toolStripLabelRow}>
+            <Text style={styles.toolStripLabel}>My Patterns</Text>
+            {!isPremium && <PremiumBadge />}
+          </View>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.toolStripCard}
-          onPress={() => router.push('/communication-playbook' as never)}
+          onPress={() => {
+            if (!isPremium) {
+              router.push('/upgrade' as never);
+            } else {
+              router.push('/communication-playbook' as never);
+            }
+          }}
           activeOpacity={0.7}
           testID="playbook-btn"
         >
           <View style={[styles.toolStripIcon, { backgroundColor: Colors.brandSage + '18' }]}>
             <BookOpen size={16} color={Colors.brandSage} />
           </View>
-          <Text style={styles.toolStripLabel}>Playbook</Text>
+          <View style={styles.toolStripLabelRow}>
+            <Text style={styles.toolStripLabel}>Playbook</Text>
+            {!isPremium && <PremiumBadge />}
+          </View>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -952,15 +979,41 @@ export default function MessagesScreen() {
             </View>
 
             <View style={styles.analysisActions}>
-              <TouchableOpacity
-                style={[styles.analysisPrimaryBtn, { backgroundColor: Colors.brandSage }]}
-                onPress={navigateToSecureRewrite}
-                activeOpacity={0.8}
-                testID="secure-rewrite-btn"
-              >
-                <Leaf size={16} color={Colors.white} />
-                <Text style={styles.analysisPrimaryBtnText}>Secure Rewrite</Text>
-              </TouchableOpacity>
+              {!rewriteLimitReached && (
+                <TouchableOpacity
+                  style={[styles.analysisPrimaryBtn, { backgroundColor: Colors.brandSage }]}
+                  onPress={() => {
+                    if (canAccess('secure_rewrite')) {
+                      void trackRewriteUsage();
+                      navigateToSecureRewrite();
+                    } else {
+                      router.push('/upgrade' as never);
+                    }
+                  }}
+                  activeOpacity={0.8}
+                  testID="secure-rewrite-btn"
+                >
+                  <Leaf size={16} color={Colors.white} />
+                  <Text style={styles.analysisPrimaryBtnText}>Secure Rewrite</Text>
+                  {!canAccess('secure_rewrite') && <PremiumBadge />}
+                </TouchableOpacity>
+              )}
+              {rewriteLimitReached && (
+                <TouchableOpacity
+                  style={[styles.analysisPrimaryBtn, { backgroundColor: Colors.brandNavy }]}
+                  onPress={() => router.push('/upgrade' as never)}
+                  activeOpacity={0.8}
+                  testID="rewrite-limit-btn"
+                >
+                  <Sparkles size={16} color={Colors.white} />
+                  <Text style={styles.analysisPrimaryBtnText}>Unlock Unlimited Rewrites</Text>
+                </TouchableOpacity>
+              )}
+              {!isPremium && remainingRewrites !== null && remainingRewrites > 0 && (
+                <Text style={styles.rewriteLimitText}>
+                  {remainingRewrites} free rewrite{remainingRewrites !== 1 ? 's' : ''} remaining today
+                </Text>
+              )}
 
               {isHighRisk ? (
                 <>
@@ -981,12 +1034,20 @@ export default function MessagesScreen() {
 
                   <TouchableOpacity
                     style={styles.analysisSecondaryBtn}
-                    onPress={navigateToSimulation}
+                    onPress={() => {
+                      if (canAccess('message_simulation')) {
+                        navigateToSimulation();
+                      } else {
+                        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push('/upgrade' as never);
+                      }
+                    }}
                     activeOpacity={0.7}
                     testID="see-paths-btn"
                   >
                     <Compass size={14} color={Colors.primary} />
                     <Text style={styles.analysisSecondaryBtnText}>See response paths</Text>
+                    {!canAccess('message_simulation') && <PremiumBadge />}
                   </TouchableOpacity>
 
                   <View style={styles.analysisBottomRow}>
@@ -1042,22 +1103,38 @@ export default function MessagesScreen() {
                 <>
                   <TouchableOpacity
                     style={styles.analysisSecondaryBtn}
-                    onPress={navigateToSimulation}
+                    onPress={() => {
+                      if (canAccess('message_simulation')) {
+                        navigateToSimulation();
+                      } else {
+                        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push('/upgrade' as never);
+                      }
+                    }}
                     activeOpacity={0.7}
                     testID="see-paths-btn"
                   >
                     <Compass size={14} color={Colors.primary} />
                     <Text style={styles.analysisSecondaryBtnText}>See response paths</Text>
+                    {!canAccess('message_simulation') && <PremiumBadge />}
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={styles.analysisSecondaryBtn}
-                    onPress={navigateToAnalysis}
+                    onPress={() => {
+                      if (canAccess('message_health_scoring')) {
+                        navigateToAnalysis();
+                      } else {
+                        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push('/upgrade' as never);
+                      }
+                    }}
                     activeOpacity={0.7}
                     testID="full-analysis-btn"
                   >
                     <BarChart3 size={14} color={Colors.primary} />
                     <Text style={styles.analysisSecondaryBtnText}>Full health score</Text>
+                    {!canAccess('message_health_scoring') && <PremiumBadge />}
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -1388,6 +1465,16 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: Colors.textSecondary,
     textAlign: 'center',
+  },
+  toolStripLabelRow: {
+    alignItems: 'center' as const,
+    gap: 4,
+  },
+  rewriteLimitText: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    textAlign: 'center' as const,
+    marginTop: 6,
   },
   historySection: {
     marginTop: 4,

@@ -1,4 +1,4 @@
-import { SubscriptionTier, PremiumFeature, FREE_DAILY_AI_LIMIT } from '@/types/subscription';
+import { SubscriptionTier, PremiumFeature, FREE_DAILY_AI_LIMIT, FREE_DAILY_REWRITE_LIMIT } from '@/types/subscription';
 
 export type EntitlementCategory = 'free' | 'premium';
 
@@ -21,6 +21,50 @@ export const FEATURE_ENTITLEMENTS: FeatureEntitlement[] = [
     premiumLimit: null,
   },
   {
+    feature: 'unlimited_rewrites',
+    category: 'premium',
+    label: 'Unlimited Message Rewrites',
+    description: 'Unlimited message rewrites per day',
+    freeLimit: FREE_DAILY_REWRITE_LIMIT,
+    premiumLimit: null,
+  },
+  {
+    feature: 'message_health_scoring',
+    category: 'premium',
+    label: 'Message Health Scoring',
+    description: 'Detailed analysis of urgency, clarity, and escalation risk',
+  },
+  {
+    feature: 'message_simulation',
+    category: 'premium',
+    label: 'Response Path Simulation',
+    description: 'See likely outcomes of different communication choices',
+  },
+  {
+    feature: 'secure_rewrite',
+    category: 'premium',
+    label: 'Secure Rewrite Engine',
+    description: 'Calm, self-respecting rewrites that protect your dignity',
+  },
+  {
+    feature: 'communication_insights',
+    category: 'premium',
+    label: 'Communication Insights',
+    description: 'Learn what message styles work best for you over time',
+  },
+  {
+    feature: 'communication_playbook',
+    category: 'premium',
+    label: 'Communication Playbook',
+    description: 'Personalized strategies for common communication situations',
+  },
+  {
+    feature: 'message_outcome_learning',
+    category: 'premium',
+    label: 'Outcome Learning',
+    description: 'The app learns from your communication outcomes over time',
+  },
+  {
     feature: 'relationship_analysis',
     category: 'premium',
     label: 'Advanced Relationship Intelligence',
@@ -37,6 +81,12 @@ export const FEATURE_ENTITLEMENTS: FeatureEntitlement[] = [
     category: 'premium',
     label: 'Weekly Reflection History',
     description: 'Access past weekly reflections and long-term trends',
+  },
+  {
+    feature: 'weekly_emotional_report',
+    category: 'premium',
+    label: 'Weekly Emotional Reports',
+    description: 'Comprehensive weekly emotional pattern analysis',
   },
   {
     feature: 'therapist_report',
@@ -98,6 +148,18 @@ export const FEATURE_ENTITLEMENTS: FeatureEntitlement[] = [
     label: 'Reflection Mirror',
     description: 'Deep self-reflection with AI guidance',
   },
+  {
+    feature: 'advanced_journal',
+    category: 'premium',
+    label: 'Advanced Journaling',
+    description: 'AI-powered journal insights and guided reflection flows',
+  },
+  {
+    feature: 'advanced_tools',
+    category: 'premium',
+    label: 'Advanced Tools',
+    description: 'Full access to all therapeutic and regulation tools',
+  },
 ];
 
 const FREE_FEATURES: Set<string> = new Set([
@@ -118,6 +180,11 @@ const FREE_FEATURES: Set<string> = new Set([
   'basic_therapy_report',
   'message_guard_basic',
   'basic_relationship_copilot',
+  'basic_journal',
+  'basic_message_flow',
+  'pause_timer',
+  'draft_vault',
+  'do_not_send',
 ]);
 
 export function canAccess(feature: PremiumFeature, tier: SubscriptionTier): boolean {
@@ -164,9 +231,34 @@ export function getUpgradeReason(feature: PremiumFeature): string {
     therapy_plan: 'Get personalized weekly plans that adapt to you.',
     ai_summaries: 'Read AI-generated summaries of your patterns.',
     reflection_mirror: 'Access deeper self-reflection with AI guidance.',
+    message_health_scoring: 'See detailed analysis of your message\'s emotional impact.',
+    message_simulation: 'Preview likely outcomes of different communication paths.',
+    secure_rewrite: 'Get calm, self-respecting rewrites that protect your dignity.',
+    communication_insights: 'Discover what communication styles work best for you.',
+    communication_playbook: 'Access personalized strategies for difficult conversations.',
+    message_outcome_learning: 'Let the app learn from your outcomes to give better advice.',
+    unlimited_rewrites: 'Continue with unlimited message rewrites.',
+    advanced_journal: 'Unlock AI-powered journal insights and guided reflection.',
+    weekly_emotional_report: 'Get comprehensive weekly emotional pattern reports.',
+    advanced_tools: 'Access the full suite of therapeutic tools.',
   };
 
   return reasons[feature] ?? entitlement.description;
+}
+
+export function canAccessRewrite(dailyUsage: number, tier: SubscriptionTier): boolean {
+  if (tier === 'premium') return true;
+  return dailyUsage < FREE_DAILY_REWRITE_LIMIT;
+}
+
+export function hasReachedRewriteLimit(usage: number, tier: SubscriptionTier): boolean {
+  if (tier === 'premium') return false;
+  return usage >= FREE_DAILY_REWRITE_LIMIT;
+}
+
+export function getRemainingRewrites(usage: number, tier: SubscriptionTier): number | null {
+  if (tier === 'premium') return null;
+  return Math.max(0, FREE_DAILY_REWRITE_LIMIT - usage);
 }
 
 export function shouldShowUpgradePrompt(

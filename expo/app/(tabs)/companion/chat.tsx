@@ -31,6 +31,8 @@ import {
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useAICompanion } from '@/providers/AICompanionProvider';
+import { useEntitlements } from '@/hooks/useEntitlements';
+import { Crown } from 'lucide-react-native';
 import { AIMessage } from '@/types/ai';
 import { AIMode } from '@/types/aiModes';
 import { getManualModeOptions, getModeConfig } from '@/services/ai/aiModeService';
@@ -427,6 +429,7 @@ export default function ChatScreen() {
     setMode,
   } = useAICompanion();
 
+  const { aiLimitReached, remainingAIMessages, trackAIUsage, isPremium } = useEntitlements();
   const [inputText, setInputText] = useState<string>('');
   const [menuVisible, setMenuVisible] = useState<boolean>(false);
   const [prefillHandled, setPrefillHandled] = useState<boolean>(false);
@@ -448,13 +451,22 @@ export default function ChatScreen() {
     const text = inputText.trim();
     if (!text || isGenerating) return;
 
+    if (aiLimitReached) {
+      if (Platform.OS !== 'web') {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      }
+      router.push('/upgrade' as never);
+      return;
+    }
+
     if (Platform.OS !== 'web') {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
 
     setInputText('');
+    await trackAIUsage();
     await sendMessage(text);
-  }, [inputText, isGenerating, sendMessage]);
+  }, [inputText, isGenerating, sendMessage, aiLimitReached, trackAIUsage, router]);
 
   const handleNewChat = useCallback(() => {
     if (Platform.OS !== 'web') {
@@ -675,6 +687,24 @@ export default function ChatScreen() {
         />
 
         <View style={styles.inputBar}>
+          {aiLimitReached && (
+            <TouchableOpacity
+              style={styles.aiLimitBanner}
+              onPress={() => router.push('/upgrade' as never)}
+              activeOpacity={0.8}
+              testID="ai-limit-banner"
+            >
+              <Crown size={14} color="#D4956A" />
+              <Text style={styles.aiLimitText}>Daily AI limit reached. Upgrade for unlimited conversations.</Text>
+            </TouchableOpacity>
+          )}
+          {!isPremium && !aiLimitReached && remainingAIMessages !== null && remainingAIMessages <= 2 && (
+            <View style={styles.aiRemainingBanner}>
+              <Text style={styles.aiRemainingText}>
+                {remainingAIMessages} message{remainingAIMessages !== 1 ? 's' : ''} remaining today
+              </Text>
+            </View>
+          )}
           <View style={styles.inputRow}>
             <TextInput
               ref={inputRef}
@@ -1150,5 +1180,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500' as const,
     color: Colors.primary,
+  },
+  aiLimitBanner: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    backgroundColor: '#FFF8F2',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginHorizontal: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#F5E0CC',
+  },
+  aiLimitText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '500' as const,
+    color: '#A0785A',
+    lineHeight: 17,
+  },
+  aiRemainingBanner: {
+    alignItems: 'center' as const,
+    paddingVertical: 6,
+    marginBottom: 4,
+  },
+  aiRemainingText: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    fontWeight: '500' as const,
   },
 });

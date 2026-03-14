@@ -35,7 +35,17 @@ export type PremiumFeature =
   | 'emotional_profile'
   | 'emotional_timeline'
   | 'reflection_mirror'
-  | 'long_term_memory';
+  | 'long_term_memory'
+  | 'message_health_scoring'
+  | 'message_simulation'
+  | 'secure_rewrite'
+  | 'communication_insights'
+  | 'communication_playbook'
+  | 'message_outcome_learning'
+  | 'unlimited_rewrites'
+  | 'advanced_journal'
+  | 'weekly_emotional_report'
+  | 'advanced_tools';
 
 export interface PremiumFeatureInfo {
   id: PremiumFeature;
@@ -52,10 +62,40 @@ export const PREMIUM_FEATURES: PremiumFeatureInfo[] = [
     icon: 'sparkles',
   },
   {
+    id: 'secure_rewrite',
+    title: 'Secure Rewrite Engine',
+    description: 'Calm, self-respecting rewrites that protect your dignity',
+    icon: 'shield',
+  },
+  {
+    id: 'message_simulation',
+    title: 'Response Path Simulation',
+    description: 'See likely outcomes of different communication choices',
+    icon: 'compass',
+  },
+  {
+    id: 'message_health_scoring',
+    title: 'Message Health Scoring',
+    description: 'Detailed analysis of urgency, clarity, and escalation risk',
+    icon: 'bar-chart-3',
+  },
+  {
+    id: 'communication_insights',
+    title: 'Communication Insights',
+    description: 'Learn what message styles work best for you over time',
+    icon: 'lightbulb',
+  },
+  {
     id: 'weekly_reflection',
     title: 'Weekly Reflections',
     description: 'Thoughtful summaries of your emotional week',
     icon: 'file-text',
+  },
+  {
+    id: 'weekly_emotional_report',
+    title: 'Weekly Emotional Reports',
+    description: 'Comprehensive weekly emotional pattern analysis',
+    icon: 'activity',
   },
   {
     id: 'relationship_copilot',
@@ -99,6 +139,12 @@ export const PREMIUM_FEATURES: PremiumFeatureInfo[] = [
     description: 'Explore different ways to respond before acting',
     icon: 'git-branch',
   },
+  {
+    id: 'advanced_tools',
+    title: 'Advanced Tools',
+    description: 'Full access to all therapeutic and regulation tools',
+    icon: 'zap',
+  },
 ];
 
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
@@ -121,3 +167,4 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
 ];
 
 export const FREE_DAILY_AI_LIMIT = 5;
+export const FREE_DAILY_REWRITE_LIMIT = 3;

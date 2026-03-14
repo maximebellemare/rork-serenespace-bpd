@@ -19,6 +19,10 @@ import {
   getRemainingAIMessages,
   getDaysRemaining,
   formatExpirationDate,
+  getDailyRewriteUsage,
+  incrementDailyRewriteUsage,
+  hasReachedRewriteLimit as hasReachedRewriteLimitFn,
+  getRemainingRewrites as getRemainingRewritesFn,
 } from '@/services/subscription/subscriptionService';
 import {
   canAccess,
@@ -30,6 +34,7 @@ import {
 export const [SubscriptionProvider, useSubscription] = createContextHook(() => {
   const queryClient = useQueryClient();
   const [dailyAIUsage, setDailyAIUsage] = useState<number>(0);
+  const [dailyRewriteUsage, setDailyRewriteUsage] = useState<number>(0);
 
   const subscriptionQuery = useQuery({
     queryKey: ['subscription'],
@@ -41,11 +46,22 @@ export const [SubscriptionProvider, useSubscription] = createContextHook(() => {
     queryFn: getDailyAIUsage,
   });
 
+  const rewriteUsageQuery = useQuery({
+    queryKey: ['rewrite-daily-usage'],
+    queryFn: getDailyRewriteUsage,
+  });
+
   useEffect(() => {
     if (aiUsageQuery.data !== undefined) {
       setDailyAIUsage(aiUsageQuery.data);
     }
   }, [aiUsageQuery.data]);
+
+  useEffect(() => {
+    if (rewriteUsageQuery.data !== undefined) {
+      setDailyRewriteUsage(rewriteUsageQuery.data);
+    }
+  }, [rewriteUsageQuery.data]);
 
   const state: SubscriptionState = useMemo(() => subscriptionQuery.data ?? {
     tier: 'free',
@@ -94,6 +110,21 @@ export const [SubscriptionProvider, useSubscription] = createContextHook(() => {
     return newCount;
   }, [queryClient]);
 
+  const trackRewriteUsage = useCallback(async () => {
+    const newCount = await incrementDailyRewriteUsage();
+    setDailyRewriteUsage(newCount);
+    void queryClient.invalidateQueries({ queryKey: ['rewrite-daily-usage'] });
+    return newCount;
+  }, [queryClient]);
+
+  const rewriteLimitReached = useMemo(() => {
+    return hasReachedRewriteLimitFn(dailyRewriteUsage, tier);
+  }, [dailyRewriteUsage, tier]);
+
+  const remainingRewrites = useMemo(() => {
+    return getRemainingRewritesFn(dailyRewriteUsage, tier);
+  }, [dailyRewriteUsage, tier]);
+
   const canAccessFeature = useCallback((feature: PremiumFeature): boolean => {
     return canAccess(feature, tier);
   }, [tier]);
@@ -132,6 +163,9 @@ export const [SubscriptionProvider, useSubscription] = createContextHook(() => {
     dailyAIUsage,
     aiLimitReached,
     remainingAIMessages,
+    dailyRewriteUsage,
+    rewriteLimitReached,
+    remainingRewrites,
     daysRemaining,
     expirationLabel,
     isLoading: subscriptionQuery.isLoading,
@@ -144,6 +178,7 @@ export const [SubscriptionProvider, useSubscription] = createContextHook(() => {
     shouldPromptUpgrade,
     lockedFeatures,
     trackAIUsage,
+    trackRewriteUsage,
   }), [
     tier,
     isPremium,
@@ -151,6 +186,9 @@ export const [SubscriptionProvider, useSubscription] = createContextHook(() => {
     dailyAIUsage,
     aiLimitReached,
     remainingAIMessages,
+    dailyRewriteUsage,
+    rewriteLimitReached,
+    remainingRewrites,
     daysRemaining,
     expirationLabel,
     subscriptionQuery.isLoading,
@@ -163,5 +201,6 @@ export const [SubscriptionProvider, useSubscription] = createContextHook(() => {
     shouldPromptUpgrade,
     lockedFeatures,
     trackAIUsage,
+    trackRewriteUsage,
   ]);
 });
