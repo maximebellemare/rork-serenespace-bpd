@@ -500,6 +500,27 @@ function RootLayoutNav() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="learning-path"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="pattern-education"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="scenario-learning"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }
