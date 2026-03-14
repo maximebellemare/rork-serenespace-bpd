@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,568 +10,212 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Shield, Heart, Wind, Sparkles, BarChart3, ChevronRight, Zap } from 'lucide-react-native';
-import BrandHero from '@/components/branding/BrandHero';
-import EmotionalTrendsCard from '@/components/EmotionalTrendsCard';
-import EarlyWarningBanner from '@/components/EarlyWarningBanner';
-import DailyReflectionCard from '@/components/DailyReflectionCard';
-import SmartCopingCard from '@/components/SmartCopingCard';
-import EarlySupportCard from '@/components/EarlySupportCard';
-import AICompanionHomeCard from '@/components/AICompanionHomeCard';
-import HomeInsightsPreview from '@/components/HomeInsightsPreview';
-import EmotionalStormCard from '@/components/EmotionalStormCard';
-import { useEarlyWarning } from '@/hooks/useEarlyWarning';
-import { useRecommendations } from '@/hooks/useRecommendations';
-import { useCrisisPrediction } from '@/hooks/useCrisisPrediction';
-import { useEmotionalStorm } from '@/hooks/useEmotionalStorm';
-import { useQuery } from '@tanstack/react-query';
-import { ritualRepository } from '@/services/repositories';
-import { getTodayEntry, getWeeklyReflection } from '@/services/ritual/dailyCheckInService';
-import { computeRitualAnalytics } from '@/services/ritual/dailyRitualService';
-import WeeklyRitualSummary from '@/components/WeeklyRitualSummary';
+import {
+  ArrowRight,
+  Shield,
+  Heart,
+  Wind,
+  Sparkles,
+  BookOpen,
+  MessageSquare,
+  PenLine,
+  ChevronRight,
+  Flame,
+  TrendingDown,
+  TrendingUp,
+  Activity,
+  Sun,
+} from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
-import { VALIDATION_MESSAGES } from '@/constants/data';
 import { useApp } from '@/providers/AppProvider';
-import UpgradePromptCard from '@/components/UpgradePromptCard';
-import BehavioralCoachingCard from '@/components/BehavioralCoachingCard';
-import RelationshipSpiralCard from '@/components/RelationshipSpiralCard';
-import { useCoaching } from '@/hooks/useCoaching';
-import { useRelationshipSpiral } from '@/hooks/useRelationshipSpiral';
-import WeeklyReflectionCard from '@/components/WeeklyReflectionCard';
-import { generateWeeklyReflection } from '@/services/reflection/weeklyReflectionService';
-import EmotionalLoopsCard from '@/components/EmotionalLoopsCard';
-import { useEmotionalLoops } from '@/hooks/useEmotionalLoops';
-import CrisisModeCard from '@/components/CrisisModeCard';
-import { useCrisisDetection } from '@/hooks/useCrisisDetection';
-import RelationshipCopilotCard from '@/components/RelationshipCopilotCard';
-import { useRelationshipCopilot } from '@/hooks/useRelationshipCopilot';
-import TherapistReportCard from '@/components/TherapistReportCard';
-import { generateTherapyReport } from '@/services/therapy/therapyReportService';
-import IdentityBuilderCard from '@/components/IdentityBuilderCard';
-import ProgressDashboardCard from '@/components/ProgressDashboardCard';
-import MessageGuardCard from '@/components/MessageGuardCard';
-import StormEarlyWarningCard from '@/components/StormEarlyWarningCard';
-import { useStormEarlyWarning } from '@/hooks/useStormEarlyWarning';
-import ReflectionMirrorCard from '@/components/ReflectionMirrorCard';
-import { generateReflectionMirror } from '@/services/reflection/reflectionMirrorService';
-import EmotionalProfileCard from '@/components/EmotionalProfileCard';
-import EmotionalTimelineCard from '@/components/EmotionalTimelineCard';
-import { buildEpisodeReplayState } from '@/services/timeline/emotionalEpisodeService';
-import RelationshipGuardBanner from '@/components/RelationshipGuardBanner';
-import { useRelationshipGuard } from '@/hooks/useRelationshipGuard';
-import RelationshipHubCard from '@/components/RelationshipHubCard';
-import PersonalizedSuggestionsCard from '@/components/PersonalizedSuggestionsCard';
-import JourneyFlowBanner from '@/components/JourneyFlowBanner';
-import { useEmotionalContext } from '@/providers/EmotionalContextProvider';
+import { useEmotionalContext, Intervention } from '@/providers/EmotionalContextProvider';
 import { useAnalytics } from '@/providers/AnalyticsProvider';
-import ConflictReplayCard from '@/components/ConflictReplayCard';
-import { useConflictReplay } from '@/hooks/useConflictReplay';
-import EmotionalInsightsCard from '@/components/EmotionalInsightsCard';
-import SafetyPredictorCard from '@/components/SafetyPredictorCard';
-import { useEmotionalSafety } from '@/hooks/useEmotionalSafety';
-import BreakthroughCard from '@/components/BreakthroughCard';
-import { useBreakthroughs } from '@/hooks/useBreakthroughs';
-import DailyRitualsCard from '@/components/DailyRitualsCard';
-import { dailyRitualsRepository } from '@/services/repositories';
-import TrustedSupportCard from '@/components/TrustedSupportCard';
-import PlaybookCard from '@/components/PlaybookCard';
-import { usePlaybook } from '@/hooks/usePlaybook';
-import NextInterventionCard from '@/components/NextInterventionCard';
-import OutcomePromptBanner from '@/components/OutcomePromptBanner';
-import LearningRecommendationCard from '@/components/LearningRecommendationCard';
-import DailyInsightCard from '@/components/DailyInsightCard';
-import MedicationHomeCard from '@/components/MedicationHomeCard';
-import AppointmentHomeCard from '@/components/AppointmentHomeCard';
-import CorrelationInsightsCard from '@/components/CorrelationInsightsCard';
-import MilestoneHomeCard from '@/components/MilestoneHomeCard';
-import SmartRecommendationCard from '@/components/SmartRecommendationCard';
-import SpiralInterventionCard from '@/components/SpiralInterventionCard';
-import SpiralPausePrompt from '@/components/SpiralPausePrompt';
+import { useProgress } from '@/hooks/useProgress';
+import { useAICompanion } from '@/providers/AICompanionProvider';
 import { useSpiralPrevention } from '@/providers/SpiralPreventionProvider';
+import SpiralPausePrompt from '@/components/SpiralPausePrompt';
 
-interface CardSlot {
-  key: string;
-  priority: number;
-  render: () => React.ReactNode;
-}
-
-const MAX_CARDS_BY_ZONE: Record<string, number> = {
-  crisis: 3,
-  relationship_distress: 5,
-  activated: 5,
-  recovering: 6,
-  calm: 7,
+const CATEGORY_ICON: Record<Intervention['category'], typeof Heart> = {
+  crisis: Shield,
+  relationship: Heart,
+  regulation: Wind,
+  reflection: BookOpen,
+  growth: Sparkles,
 };
+
+const CATEGORY_COLORS: Record<Intervention['category'], { bg: string; accent: string }> = {
+  crisis: { bg: '#FFF0ED', accent: '#C94438' },
+  relationship: { bg: '#FFF5EE', accent: '#D4764E' },
+  regulation: { bg: '#F0F7F3', accent: '#6B9080' },
+  reflection: { bg: '#F5F0FF', accent: '#7C5CB8' },
+  growth: { bg: '#FFF9F0', accent: '#C8975A' },
+};
+
+const QUICK_ACTIONS = [
+  { key: 'message', label: 'Write a draft', icon: MessageSquare, route: '/(tabs)/messages', color: '#4A8B8D' },
+  { key: 'journal', label: 'Journal', icon: PenLine, route: '/(tabs)/journal', color: '#9B8EC4' },
+  { key: 'companion', label: 'Talk to AI', icon: Sparkles, route: '/(tabs)/companion', color: '#C4956A' },
+] as const;
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 6) return 'Still up?';
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  if (hour < 21) return 'Good evening';
+  return 'Winding down?';
+}
 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { journalEntries, messageDrafts } = useApp();
-  const { zone, getCardPriority, isCardVisible, journeyPhase } = useEmotionalContext();
-  const [showAllCards, setShowAllCards] = useState<boolean>(false);
-  const earlyWarning = useEarlyWarning();
-  const { recommendations, topRecommendation } = useRecommendations();
-  const crisisPrediction = useCrisisPrediction();
-  const emotionalStorm = useEmotionalStorm();
-  const { dailyCoaching } = useCoaching();
-  const relationshipSpiral = useRelationshipSpiral();
-  const emotionalLoops = useEmotionalLoops();
-  const crisisDetection = useCrisisDetection();
-  const { recentRelationshipDistress, lastSession } = useRelationshipCopilot();
-  const stormWarning = useStormEarlyWarning();
-  const relationshipGuard = useRelationshipGuard();
+  const { journalEntries } = useApp();
+  const { zone, bestNextIntervention, activeContext } = useEmotionalContext();
   const { trackEvent } = useAnalytics();
-  const conflictReplay = useConflictReplay();
-  const safetyPrediction = useEmotionalSafety();
-  const breakthroughs = useBreakthroughs();
-  const playbook = usePlaybook();
+  const progress = useProgress();
+  const { memoryProfile } = useAICompanion();
   const {
-    detection: spiralDetection,
     showPausePrompt: spiralPauseVisible,
     pausePromptConfig: spiralPauseConfig,
     dismissPausePrompt: dismissSpiralPause,
   } = useSpiralPrevention();
 
-  const dailyRitualsQuery = useQuery({
-    queryKey: ['daily_rituals'],
-    queryFn: () => dailyRitualsRepository.getState(),
-  });
-  const dailyRitualCompletions = useMemo(() => dailyRitualsQuery.data?.completions ?? [], [dailyRitualsQuery.data]);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
+  const pulseAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     trackEvent('screen_view', { screen: 'home' });
   }, [trackEvent]);
 
-  const weeklyReflection = useMemo(
-    () => generateWeeklyReflection(journalEntries, messageDrafts),
-    [journalEntries, messageDrafts],
-  );
-
-  const episodeReplayState = useMemo(
-    () => buildEpisodeReplayState(journalEntries, messageDrafts),
-    [journalEntries, messageDrafts],
-  );
-
-  const reflectionMirror = useMemo(
-    () => generateReflectionMirror(journalEntries, messageDrafts),
-    [journalEntries, messageDrafts],
-  );
-
-  const therapyReport = useMemo(
-    () => generateTherapyReport(journalEntries, messageDrafts, 7),
-    [journalEntries, messageDrafts],
-  );
-
-  const ritualQuery = useQuery({
-    queryKey: ['ritual'],
-    queryFn: () => ritualRepository.getState(),
-  });
-
-  const ritualEntries = useMemo(() => ritualQuery.data?.entries ?? [], [ritualQuery.data?.entries]);
-  const ritualStreak = ritualQuery.data?.streak ?? { currentStreak: 0, longestStreak: 0, lastCheckInDate: '', totalCheckIns: 0 };
-  const todayRitualEntry = getTodayEntry(ritualEntries);
-  const weeklySummary = getWeeklyReflection(ritualEntries);
-  const ritualAnalytics = useMemo(() => computeRitualAnalytics(ritualEntries), [ritualEntries]);
-  const [validationIndex, setValidationIndex] = useState<number>(0);
-
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const breatheAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const validationFade = useRef(new Animated.Value(1)).current;
-  const buttonGlow = useRef(new Animated.Value(0)).current;
-
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 800,
-      useNativeDriver: true,
-    }).start();
-
-    const breatheLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(breatheAnim, {
-          toValue: 1,
-          duration: 4000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(breatheAnim, {
-          toValue: 0,
-          duration: 5000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    breatheLoop.start();
-
-    const glowLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(buttonGlow, {
-          toValue: 1,
-          duration: 2500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(buttonGlow, {
-          toValue: 0,
-          duration: 2500,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    glowLoop.start();
-
-    return () => {
-      breatheLoop.stop();
-      glowLoop.stop();
-    };
-  }, [breatheAnim, fadeAnim, buttonGlow]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      Animated.timing(validationFade, {
-        toValue: 0,
-        duration: 400,
-        useNativeDriver: true,
-      }).start(() => {
-        setValidationIndex(prev => (prev + 1) % VALIDATION_MESSAGES.length);
-        Animated.timing(validationFade, {
-          toValue: 1,
-          duration: 400,
-          useNativeDriver: true,
-        }).start();
-      });
-    }, 6000);
-    return () => clearInterval(interval);
-  }, [validationFade]);
-
-  const handleTriggered = useCallback(() => {
-    if (Platform.OS !== 'web') {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-    Animated.sequence([
-      Animated.timing(pulseAnim, {
-        toValue: 0.95,
-        duration: 100,
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
         useNativeDriver: true,
       }),
-      Animated.timing(pulseAnim, {
-        toValue: 1,
-        duration: 100,
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
         useNativeDriver: true,
       }),
     ]).start();
+
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 2500, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0, duration: 2500, useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [fadeAnim, slideAnim, pulseAnim]);
+
+  const greeting = useMemo(() => getGreeting(), []);
+
+  const zoneMessage = useMemo(() => {
+    switch (zone) {
+      case 'crisis': return "It's okay to need support right now.";
+      case 'relationship_distress': return 'Relationship stress can be heavy. Support is here.';
+      case 'activated': return 'Take a breath. You have tools here.';
+      case 'recovering': return "You're doing the work. That matters.";
+      default: return "You're here. That's a good thing.";
+    }
+  }, [zone]);
+
+  const isCrisis = zone === 'crisis' || zone === 'activated';
+
+  const handlePrimaryAction = useCallback(() => {
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    trackEvent('home_primary_action_tapped', {
+      label: bestNextIntervention.label,
+      category: bestNextIntervention.category,
+      zone,
+    });
+    router.push(bestNextIntervention.route as never);
+  }, [router, bestNextIntervention, zone, trackEvent]);
+
+  const handleQuickAction = useCallback((route: string, key: string) => {
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    trackEvent('home_quick_action_tapped', { action: key, zone });
+    router.push(route as never);
+  }, [router, zone, trackEvent]);
+
+  const handleCheckIn = useCallback(() => {
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    trackEvent('home_checkin_tapped', { zone });
     router.push('/check-in');
-  }, [pulseAnim, router]);
+  }, [router, zone, trackEvent]);
 
   const handleSafetyMode = useCallback(() => {
     if (Platform.OS !== 'web') {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     }
+    trackEvent('home_safety_mode_tapped', {});
     router.push('/safety-mode');
-  }, [router]);
+  }, [router, trackEvent]);
 
-  const breatheScale = breatheAnim.interpolate({
+  const catStyle = CATEGORY_COLORS[bestNextIntervention.category];
+  const CatIcon = CATEGORY_ICON[bestNextIntervention.category];
+
+  const glowOpacity = pulseAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.08],
+    outputRange: [0.5, 1],
   });
 
-  const breatheOpacity = breatheAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0.3, 0.6, 0.3],
-  });
+  const hasInsightData = memoryProfile.recentCheckInCount > 0;
+  const topTrigger = memoryProfile.topTriggers?.[0]?.label ?? null;
+  const topEmotion = memoryProfile.topEmotions?.[0]?.label ?? null;
+  const topCoping = memoryProfile.mostEffectiveCoping?.label ?? null;
 
-  const glowOpacity = buttonGlow.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.15, 0.35],
-  });
+  const trendDirection = memoryProfile.intensityTrend;
+  const trendColor = trendDirection === 'falling'
+    ? Colors.success
+    : trendDirection === 'rising'
+      ? Colors.danger
+      : Colors.textMuted;
+  const trendLabel = trendDirection === 'falling'
+    ? 'Improving'
+    : trendDirection === 'rising'
+      ? 'Elevated'
+      : trendDirection === 'stable'
+        ? 'Stable'
+        : '—';
 
-  const recentCount = journalEntries.filter(
-    e => Date.now() - e.timestamp < 7 * 24 * 60 * 60 * 1000
-  ).length;
+  const { metrics, weekComparison, encouragingMessage, hasEnoughData, milestones } = progress;
+  const achievedMilestones = useMemo(() => milestones.filter(m => m.achieved), [milestones]);
+  const latestMilestone = achievedMilestones[achievedMilestones.length - 1] ?? null;
 
-  const zoneSubtitle = useMemo(() => {
-    switch (zone) {
-      case 'crisis': return "Let's get through this together.";
-      case 'relationship_distress': return "Relationship stress detected. Support is here.";
-      case 'activated': return "You seem activated. Take a breath.";
-      case 'recovering': return "You're doing the work. That matters.";
-      default: return "You're here. That matters.";
-    }
-  }, [zone]);
+  const distressDirection = weekComparison.direction;
+  const distressColor = distressDirection === 'improved'
+    ? Colors.success
+    : distressDirection === 'worsened'
+      ? '#E17055'
+      : Colors.textMuted;
 
-  const cardSlots = useMemo<CardSlot[]>(() => {
-    const slots: CardSlot[] = [];
+  const recentCheckInCount = useMemo(() => {
+    const weekMs = 7 * 24 * 60 * 60 * 1000;
+    return journalEntries.filter(e => Date.now() - e.timestamp < weekMs).length;
+  }, [journalEntries]);
 
-    const addSlot = (key: string, render: () => React.ReactNode) => {
-      if (isCardVisible(key)) {
-        slots.push({ key, priority: getCardPriority(key), render });
-      }
-    };
+  const emotionalStateLabel = useMemo(() => {
+    if (activeContext.latestEmotion) return activeContext.latestEmotion;
+    if (zone === 'crisis') return 'High distress';
+    if (zone === 'activated') return 'Activated';
+    if (zone === 'recovering') return 'Recovering';
+    return 'No recent check-in';
+  }, [activeContext.latestEmotion, zone]);
 
-    addSlot('journey_flow', () => (
-      <JourneyFlowBanner key="journey_flow" />
-    ));
-
-    addSlot('crisis_mode', () => (
-      <CrisisModeCard key="crisis_mode" detection={crisisDetection} />
-    ));
-
-    addSlot('relationship_guard', () => (
-      <RelationshipGuardBanner
-        key="relationship_guard"
-        alertLevel={relationshipGuard.alertLevel}
-        primaryMessage={relationshipGuard.primaryMessage}
-        supportNarrative={relationshipGuard.supportNarrative}
-        signals={relationshipGuard.signals}
-        interventions={relationshipGuard.interventions}
-        shouldShowGuard={relationshipGuard.shouldShowGuard}
-      />
-    ));
-
-    addSlot('relationship_copilot', () => (
-      <RelationshipCopilotCard
-        key="relationship_copilot"
-        shouldShow={recentRelationshipDistress.shouldShowCopilot}
-        relationshipTriggerCount={recentRelationshipDistress.relationshipTriggerCount}
-        recentDraftCount={recentRelationshipDistress.recentDraftCount}
-        lastSessionLabel={lastSession ? 'recent' : null}
-      />
-    ));
-
-    addSlot('relationship_spiral', () => (
-      <RelationshipSpiralCard
-        key="relationship_spiral"
-        riskLevel={relationshipSpiral.riskLevel}
-        message={relationshipSpiral.message}
-        supportMessage={relationshipSpiral.supportMessage}
-        signals={relationshipSpiral.signals}
-        interventions={relationshipSpiral.interventions}
-        score={relationshipSpiral.score}
-      />
-    ));
-
-    addSlot('message_guard', () => (
-      <MessageGuardCard key="message_guard" recentDraftCount={messageDrafts.length} />
-    ));
-
-    addSlot('personalized_suggestions', () => (
-      <PersonalizedSuggestionsCard key="personalized_suggestions" />
-    ));
-
-    addSlot('ai_companion', () => (
-      <AICompanionHomeCard key="ai_companion" />
-    ));
-
-    if (dailyCoaching) {
-      addSlot('coaching', () => (
-        <BehavioralCoachingCard key="coaching" coaching={dailyCoaching} />
-      ));
-    }
-
-    addSlot('home_insights', () => (
-      <HomeInsightsPreview key="home_insights" />
-    ));
-
-    addSlot('progress_dashboard', () => (
-      <ProgressDashboardCard key="progress_dashboard" />
-    ));
-
-    addSlot('weekly_reflection', () => (
-      <WeeklyReflectionCard
-        key="weekly_reflection"
-        weekLabel={weeklyReflection.weekLabel}
-        hasEnoughData={weeklyReflection.hasEnoughData}
-        openingNarrative={weeklyReflection.openingNarrative}
-        improvementCount={weeklyReflection.growthSignals.improvements.length}
-      />
-    ));
-
-    addSlot('therapy_report', () => (
-      <TherapistReportCard
-        key="therapy_report"
-        checkInCount={therapyReport.checkInCount}
-        hasEnoughData={therapyReport.hasEnoughData}
-        overviewNarrative={therapyReport.overviewNarrative}
-        discussionPromptCount={therapyReport.discussionPrompts.length}
-      />
-    ));
-
-    addSlot('emotional_loops', () => (
-      <EmotionalLoopsCard key="emotional_loops" report={emotionalLoops} />
-    ));
-
-    addSlot('relationship_hub', () => (
-      <RelationshipHubCard key="relationship_hub" />
-    ));
-
-    addSlot('conflict_replay', () => (
-      <ConflictReplayCard
-        key="conflict_replay"
-        eventCount={conflictReplay.events.length}
-        latestTrigger={conflictReplay.events[0]?.triggerDetail}
-        latestOutcome={conflictReplay.events[0]?.outcome}
-      />
-    ));
-
-    addSlot('safety_predictor', () => (
-      <SafetyPredictorCard key="safety_predictor" prediction={safetyPrediction} />
-    ));
-
-    addSlot('breakthrough_moments', () => (
-      <BreakthroughCard key="breakthrough_moments" summary={breakthroughs.summary} />
-    ));
-
-    addSlot('emotional_insights', () => (
-      <EmotionalInsightsCard key="emotional_insights" />
-    ));
-
-    addSlot('emotional_profile', () => (
-      <EmotionalProfileCard key="emotional_profile" />
-    ));
-
-    addSlot('reflection_mirror', () => (
-      <ReflectionMirrorCard
-        key="reflection_mirror"
-        hasEnoughData={reflectionMirror.hasEnoughData}
-        topTheme={reflectionMirror.emotionalThemes[0]?.label ?? null}
-        growthCount={reflectionMirror.growthSignals.length}
-      />
-    ));
-
-    addSlot('emotional_timeline', () => (
-      <EmotionalTimelineCard key="emotional_timeline" replayState={episodeReplayState} />
-    ));
-
-    addSlot('identity_builder', () => (
-      <IdentityBuilderCard key="identity_builder" />
-    ));
-
-    if (stormWarning.shouldShow) {
-      addSlot('storm_warning', () => (
-        <StormEarlyWarningCard key="storm_warning" warning={stormWarning} />
-      ));
-    }
-
-    if (emotionalStorm.intensity !== 'calm') {
-      addSlot('emotional_storm', () => (
-        <EmotionalStormCard key="emotional_storm" storm={emotionalStorm} />
-      ));
-    }
-
-    if (crisisPrediction.riskLevel !== 'low') {
-      addSlot('early_support', () => (
-        <EarlySupportCard key="early_support" prediction={crisisPrediction} />
-      ));
-    }
-
-    if (earlyWarning.warningLevel !== 'none') {
-      addSlot('early_warning', () => (
-        <EarlyWarningBanner
-          key="early_warning"
-          warningLevel={earlyWarning.warningLevel}
-          message={earlyWarning.message}
-          patterns={earlyWarning.patterns}
-          suggestions={earlyWarning.suggestions}
-        />
-      ));
-    }
-
-    addSlot('emotional_trends', () => (
-      <EmotionalTrendsCard
-        key="emotional_trends"
-        trend={earlyWarning.emotionalTrend}
-        warningLevel={earlyWarning.warningLevel}
-        onPress={() => router.push('/insights')}
-      />
-    ));
-
-    addSlot('smart_coping', () => (
-      <SmartCopingCard
-        key="smart_coping"
-        recommendations={recommendations}
-        topRecommendation={topRecommendation}
-      />
-    ));
-
-    addSlot('smart_recommendations', () => (
-      <SmartRecommendationCard key="smart_recommendations" />
-    ));
-
-    addSlot('daily_rituals', () => (
-      <DailyRitualsCard
-        key="daily_rituals"
-        completions={dailyRitualCompletions}
-        onPress={() => router.push('/daily-rituals')}
-      />
-    ));
-
-    addSlot('emotional_playbook', () => (
-      <PlaybookCard key="emotional_playbook" playbook={playbook} />
-    ));
-
-    if (spiralDetection.shouldIntervene) {
-      addSlot('spiral_prevention', () => (
-        <SpiralInterventionCard key="spiral_prevention" result={spiralDetection} />
-      ));
-    }
-
-    addSlot('trusted_support', () => (
-      <TrustedSupportCard key="trusted_support" variant="home" />
-    ));
-
-    addSlot('medications', () => (
-      <MedicationHomeCard key="medications" />
-    ));
-
-    addSlot('appointments', () => (
-      <AppointmentHomeCard key="appointments" />
-    ));
-
-    addSlot('correlation_insights', () => (
-      <CorrelationInsightsCard key="correlation_insights" />
-    ));
-
-    addSlot('milestones', () => (
-      <MilestoneHomeCard key="milestones" />
-    ));
-
-    addSlot('learning_recommendations', () => (
-      <LearningRecommendationCard key="learning_recommendations" />
-    ));
-
-    addSlot('daily_insight', () => (
-      <DailyInsightCard key="daily_insight" variant="home" />
-    ));
-
-    addSlot('upgrade_prompt', () => (
-      <UpgradePromptCard key="upgrade_prompt" />
-    ));
-
-    return slots.sort((a, b) => a.priority - b.priority);
-  }, [
-    isCardVisible, getCardPriority, crisisDetection, relationshipGuard,
-    recentRelationshipDistress, lastSession, relationshipSpiral, messageDrafts,
-    dailyCoaching, weeklyReflection, therapyReport, emotionalLoops,
-    reflectionMirror, episodeReplayState, stormWarning, emotionalStorm,
-    crisisPrediction, earlyWarning, recommendations, topRecommendation, router,
-    conflictReplay, safetyPrediction, breakthroughs.summary, dailyRitualCompletions, playbook, spiralDetection,
-  ]);
-
-  const maxCards = MAX_CARDS_BY_ZONE[zone] ?? 10;
-  const visibleCardSlots = useMemo(() => {
-    if (showAllCards) return cardSlots;
-    return cardSlots.slice(0, maxCards);
-  }, [cardSlots, showAllCards, maxCards]);
-
-  const hasHiddenCards = cardSlots.length > maxCards && !showAllCards;
-
-  const handleShowMore = useCallback(() => {
-    if (Platform.OS !== 'web') {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    setShowAllCards(true);
-    trackEvent('home_show_more_tapped', { zone, hidden_count: cardSlots.length - maxCards });
-  }, [zone, cardSlots.length, maxCards, trackEvent]);
+  const emotionalIntensity = activeContext.latestIntensity;
+  const hasRecentCheckIn = activeContext.recentCheckInCount > 0;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -579,188 +223,263 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <BrandHero contextMessage={zoneSubtitle} />
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.greeting}>{greeting}</Text>
+              <Text style={styles.subtitle}>{zoneMessage}</Text>
+            </View>
+            {isCrisis && (
+              <TouchableOpacity
+                style={styles.safetyButton}
+                onPress={handleSafetyMode}
+                activeOpacity={0.7}
+                testID="safety-mode-button"
+              >
+                <Shield size={18} color={Colors.danger} />
+              </TouchableOpacity>
+            )}
+          </View>
         </Animated.View>
 
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <NextInterventionCard />
-        </Animated.View>
-
-        {journeyPhase === 'awaiting_outcome' && (
-          <Animated.View style={{ opacity: fadeAnim }}>
-            <OutcomePromptBanner />
-          </Animated.View>
-        )}
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <DailyReflectionCard
-            todayEntry={todayRitualEntry}
-            streak={ritualStreak}
-            weeklySummary={weeklySummary}
-            onPress={() => router.push('/daily-ritual')}
-          />
-        </Animated.View>
-
-        <Animated.View style={[styles.validationCard, { opacity: fadeAnim }]}>
-          <Animated.Text style={[styles.validationText, { opacity: validationFade }]}>
-            {VALIDATION_MESSAGES[validationIndex]}
-          </Animated.Text>
-        </Animated.View>
-
-        <View style={styles.mainButtonContainer}>
-          <Animated.View
-            style={[
-              styles.breatheRing,
-              {
-                transform: [{ scale: breatheScale }],
-                opacity: breatheOpacity,
-              },
-            ]}
-          />
-          <Animated.View
-            style={[
-              styles.glowRing,
-              { opacity: glowOpacity },
-            ]}
-          />
-          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <TouchableOpacity
-              style={styles.triggeredButton}
-              onPress={handleTriggered}
-              activeOpacity={0.85}
-              testID="triggered-button"
-            >
-              <Heart size={28} color={Colors.white} fill={Colors.white} />
-              <Text style={styles.triggeredText}>I'm triggered{'\n'}right now</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-
-        <Text style={styles.mainButtonHint}>
-          Tap to start a guided check-in
-        </Text>
-
-        <Animated.View style={[styles.regulationBanner, { opacity: fadeAnim }]}>
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
           <TouchableOpacity
-            style={styles.regulationButton}
+            style={[styles.primaryCard, { backgroundColor: catStyle.bg }]}
+            onPress={handlePrimaryAction}
+            activeOpacity={0.8}
+            testID="primary-action-card"
+          >
+            <Animated.View style={[styles.primaryGlow, { backgroundColor: catStyle.accent, opacity: glowOpacity }]} />
+            <View style={[styles.primaryIcon, { backgroundColor: catStyle.accent + '18' }]}>
+              <CatIcon size={24} color={catStyle.accent} />
+            </View>
+            <View style={styles.primaryContent}>
+              <Text style={styles.primaryLabel}>Suggested for you</Text>
+              <Text style={styles.primaryTitle}>{bestNextIntervention.label}</Text>
+              <Text style={styles.primaryReason} numberOfLines={2}>{bestNextIntervention.reason}</Text>
+            </View>
+            <View style={[styles.primaryArrow, { backgroundColor: catStyle.accent }]}>
+              <ArrowRight size={16} color={Colors.white} />
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
+
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+          <View style={styles.quickRow}>
+            {QUICK_ACTIONS.map((action) => {
+              const Icon = action.icon;
+              return (
+                <TouchableOpacity
+                  key={action.key}
+                  style={styles.quickCard}
+                  onPress={() => handleQuickAction(action.route, action.key)}
+                  activeOpacity={0.7}
+                  testID={`quick-action-${action.key}`}
+                >
+                  <View style={[styles.quickIcon, { backgroundColor: action.color + '14' }]}>
+                    <Icon size={18} color={action.color} />
+                  </View>
+                  <Text style={styles.quickLabel}>{action.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Animated.View>
+
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+          <TouchableOpacity
+            style={styles.emotionalCard}
+            onPress={handleCheckIn}
+            activeOpacity={0.8}
+            testID="emotional-state-card"
+          >
+            <View style={styles.emotionalHeader}>
+              <View style={styles.emotionalIconWrap}>
+                <Activity size={18} color={Colors.brandTeal} />
+              </View>
+              <Text style={styles.emotionalTitle}>How you're feeling</Text>
+              <ChevronRight size={14} color={Colors.textMuted} />
+            </View>
+
+            {hasRecentCheckIn ? (
+              <View style={styles.emotionalBody}>
+                <View style={styles.emotionalMain}>
+                  <Text style={styles.emotionalState}>{emotionalStateLabel}</Text>
+                  {emotionalIntensity > 0 && (
+                    <View style={styles.intensityRow}>
+                      <View style={styles.intensityTrack}>
+                        <View
+                          style={[
+                            styles.intensityFill,
+                            {
+                              width: `${(emotionalIntensity / 10) * 100}%`,
+                              backgroundColor: emotionalIntensity >= 7
+                                ? Colors.danger
+                                : emotionalIntensity >= 4
+                                  ? Colors.accent
+                                  : Colors.success,
+                            },
+                          ]}
+                        />
+                      </View>
+                      <Text style={styles.intensityLabel}>{emotionalIntensity}/10</Text>
+                    </View>
+                  )}
+                </View>
+                {activeContext.latestTrigger && (
+                  <Text style={styles.emotionalTrigger} numberOfLines={1}>
+                    Trigger: {activeContext.latestTrigger}
+                  </Text>
+                )}
+              </View>
+            ) : (
+              <View style={styles.emotionalEmpty}>
+                <Text style={styles.emotionalEmptyText}>Tap to do a quick emotional check-in</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </Animated.View>
+
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+          <TouchableOpacity
+            style={styles.insightCard}
             onPress={() => {
               if (Platform.OS !== 'web') {
-                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               }
-              router.push('/guided-regulation');
+              router.push('/insights');
             }}
-            activeOpacity={0.7}
-            testID="guided-regulation-button"
+            activeOpacity={0.8}
+            testID="insight-card"
           >
-            <View style={styles.regulationIconWrap}>
-              <Zap size={20} color="#D4956A" />
+            <View style={styles.insightHeader}>
+              <View style={styles.insightIconWrap}>
+                <Sun size={18} color="#9B8EC4" />
+              </View>
+              <Text style={styles.insightTitle}>Your patterns</Text>
+              <ChevronRight size={14} color={Colors.textMuted} />
             </View>
-            <View style={styles.regulationTextWrap}>
-              <Text style={styles.regulationTitle}>Guided Regulation</Text>
-              <Text style={styles.regulationDesc}>Step-by-step calming when distress is high</Text>
-            </View>
-            <ChevronRight size={16} color={Colors.textMuted} />
+
+            {hasInsightData ? (
+              <View style={styles.insightGrid}>
+                {topEmotion && (
+                  <View style={styles.insightItem}>
+                    <Text style={styles.insightItemLabel}>Top emotion</Text>
+                    <Text style={styles.insightItemValue} numberOfLines={1}>{topEmotion}</Text>
+                  </View>
+                )}
+                {topTrigger && (
+                  <View style={styles.insightItem}>
+                    <Text style={styles.insightItemLabel}>Top trigger</Text>
+                    <Text style={styles.insightItemValue} numberOfLines={1}>{topTrigger}</Text>
+                  </View>
+                )}
+                {topCoping && (
+                  <View style={styles.insightItem}>
+                    <Text style={styles.insightItemLabel}>Best tool</Text>
+                    <Text style={styles.insightItemValue} numberOfLines={1}>{topCoping}</Text>
+                  </View>
+                )}
+                <View style={styles.insightItem}>
+                  <Text style={styles.insightItemLabel}>Distress</Text>
+                  <Text style={[styles.insightItemValue, { color: trendColor }]}>{trendLabel}</Text>
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.insightEmpty}>
+                Complete a few check-ins to reveal your emotional patterns.
+              </Text>
+            )}
           </TouchableOpacity>
         </Animated.View>
 
-        <Animated.View style={[styles.quickActions, { opacity: fadeAnim }]}>
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
           <TouchableOpacity
-            style={styles.quickAction}
-            onPress={handleSafetyMode}
-            activeOpacity={0.7}
-            testID="safety-mode-button"
+            style={styles.progressCard}
+            onPress={() => {
+              if (Platform.OS !== 'web') {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+              router.push('/profile/progress' as never);
+            }}
+            activeOpacity={0.8}
+            testID="progress-card"
           >
-            <View style={[styles.quickIconWrap, { backgroundColor: Colors.dangerLight }]}>
-              <Shield size={20} color={Colors.danger} />
+            <View style={styles.progressHeader}>
+              <View style={styles.progressIconWrap}>
+                <Flame size={18} color="#C4956A" />
+              </View>
+              <Text style={styles.progressTitle}>Your progress</Text>
+              <ChevronRight size={14} color={Colors.textMuted} />
             </View>
-            <Text style={styles.quickActionLabel}>Safety Mode</Text>
-            <Text style={styles.quickActionDesc}>High distress</Text>
-          </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.quickAction}
-            onPress={() => router.push('/exercise?id=c1')}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.quickIconWrap, { backgroundColor: Colors.primaryLight }]}>
-              <Wind size={20} color={Colors.primary} />
-            </View>
-            <Text style={styles.quickActionLabel}>Breathe</Text>
-            <Text style={styles.quickActionDesc}>Quick calm</Text>
-          </TouchableOpacity>
+            {hasEnoughData ? (
+              <>
+                <View style={styles.progressStats}>
+                  <View style={styles.progressStat}>
+                    <Text style={styles.progressStatValue}>{metrics.journalStreak}</Text>
+                    <Text style={styles.progressStatLabel}>Day streak</Text>
+                  </View>
+                  <View style={styles.progressDivider} />
+                  <View style={styles.progressStat}>
+                    <Text style={styles.progressStatValue}>{recentCheckInCount}</Text>
+                    <Text style={styles.progressStatLabel}>This week</Text>
+                  </View>
+                  <View style={styles.progressDivider} />
+                  <View style={styles.progressStat}>
+                    <Text style={styles.progressStatValue}>{metrics.copingExercisesUsed}</Text>
+                    <Text style={styles.progressStatLabel}>Tools used</Text>
+                  </View>
+                </View>
 
-          <TouchableOpacity
-            style={styles.quickAction}
-            onPress={() => router.push('/exercise?id=c5')}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.quickIconWrap, { backgroundColor: Colors.accentLight }]}>
-              <Sparkles size={20} color={Colors.accent} />
-            </View>
-            <Text style={styles.quickActionLabel}>Reality Check</Text>
-            <Text style={styles.quickActionDesc}>Check facts</Text>
+                {distressDirection !== 'stable' && (
+                  <View style={[styles.trendPill, { backgroundColor: distressColor + '12' }]}>
+                    {distressDirection === 'improved'
+                      ? <TrendingDown size={12} color={distressColor} />
+                      : <TrendingUp size={12} color={distressColor} />
+                    }
+                    <Text style={[styles.trendPillText, { color: distressColor }]}>
+                      Distress {distressDirection === 'improved' ? `${weekComparison.changePercent}% lower` : `${weekComparison.changePercent}% higher`} this week
+                    </Text>
+                  </View>
+                )}
+
+                {latestMilestone && (
+                  <View style={styles.milestoneRow}>
+                    <Text style={styles.milestoneEmoji}>{latestMilestone.icon}</Text>
+                    <Text style={styles.milestoneText} numberOfLines={1}>{latestMilestone.label}</Text>
+                  </View>
+                )}
+
+                <Text style={styles.encourageText}>{encouragingMessage}</Text>
+              </>
+            ) : (
+              <Text style={styles.progressEmpty}>
+                A few more check-ins and your progress story starts here.
+              </Text>
+            )}
           </TouchableOpacity>
         </Animated.View>
 
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <WeeklyRitualSummary
-            analytics={ritualAnalytics}
-            onPress={() => router.push('/daily-ritual')}
-          />
-        </Animated.View>
-
-        {visibleCardSlots.map(slot => (
-          <Animated.View key={slot.key} style={{ opacity: fadeAnim }}>
-            {slot.render()}
-          </Animated.View>
-        ))}
-
-        {hasHiddenCards && (
+        {isCrisis && (
           <Animated.View style={{ opacity: fadeAnim }}>
             <TouchableOpacity
-              style={styles.showMoreButton}
-              onPress={handleShowMore}
+              style={styles.safetyBanner}
+              onPress={handleSafetyMode}
               activeOpacity={0.7}
-              testID="show-more-cards"
+              testID="safety-banner"
             >
-              <Text style={styles.showMoreText}>
-                Show {cardSlots.length - maxCards} more tool{cardSlots.length - maxCards !== 1 ? 's' : ''}
-              </Text>
-              <ChevronRight size={14} color={Colors.primary} />
+              <Shield size={20} color={Colors.danger} />
+              <View style={styles.safetyBannerText}>
+                <Text style={styles.safetyBannerTitle}>Safety Mode</Text>
+                <Text style={styles.safetyBannerDesc}>Immediate grounding and crisis support</Text>
+              </View>
+              <ArrowRight size={16} color={Colors.danger} />
             </TouchableOpacity>
           </Animated.View>
         )}
 
-        {recentCount > 0 && (
-          <Animated.View style={[styles.insightCard, { opacity: fadeAnim }]}>
-            <Text style={styles.insightTitle}>This week</Text>
-            <Text style={styles.insightValue}>{recentCount} check-in{recentCount !== 1 ? 's' : ''}</Text>
-            <Text style={styles.insightDesc}>
-              Every check-in is an act of self-awareness.
-            </Text>
-          </Animated.View>
-        )}
-
-        <Animated.View style={[{ opacity: fadeAnim }]}>
-          <TouchableOpacity
-            style={styles.insightsBanner}
-            onPress={() => router.push('/insights')}
-            activeOpacity={0.7}
-            testID="insights-button"
-          >
-            <View style={styles.insightsBannerLeft}>
-              <View style={styles.insightsBannerIcon}>
-                <BarChart3 size={20} color={Colors.white} />
-              </View>
-              <View style={styles.insightsBannerText}>
-                <Text style={styles.insightsBannerTitle}>Your Insights</Text>
-                <Text style={styles.insightsBannerDesc}>See your emotional patterns</Text>
-              </View>
-            </View>
-            <ChevronRight size={18} color={Colors.white} style={{ opacity: 0.7 }} />
-          </TouchableOpacity>
-        </Animated.View>
+        <View style={styles.bottomSpacer} />
       </ScrollView>
 
       <SpiralPausePrompt
@@ -780,225 +499,381 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 22,
     paddingBottom: 32,
-    paddingTop: 8,
+    paddingTop: 12,
   },
 
-  validationCard: {
-    backgroundColor: Colors.brandTealSoft,
-    borderRadius: 18,
-    padding: 20,
-    marginTop: 20,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(74, 139, 141, 0.15)',
-  },
-  validationText: {
-    fontSize: 15,
-    color: Colors.brandTeal,
-    fontWeight: '500' as const,
-    lineHeight: 23,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  mainButtonContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 32,
-    height: 200,
-  },
-  breatheRing: {
-    position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: Colors.brandTeal,
-  },
-  glowRing: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: Colors.brandTeal,
-  },
-  triggeredButton: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: Colors.brandTeal,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.brandNavy,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 12,
-  },
-  triggeredText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: '600' as const,
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 22,
-  },
-  mainButtonHint: {
-    textAlign: 'center',
-    fontSize: 13,
-    color: Colors.textMuted,
-    marginTop: -16,
-    marginBottom: 24,
-  },
-  quickActions: {
+  header: {
     flexDirection: 'row',
-    gap: 12,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 24,
+    paddingTop: 8,
   },
-  quickAction: {
-    flex: 1,
-    backgroundColor: Colors.white,
-    borderRadius: 18,
-    padding: 16,
-    alignItems: 'center',
-    shadowColor: 'rgba(27,40,56,0.08)',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 3,
+  greeting: {
+    fontSize: 28,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    letterSpacing: -0.5,
   },
-  quickIconWrap: {
+  subtitle: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    marginTop: 4,
+    lineHeight: 21,
+  },
+  safetyButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
+    backgroundColor: Colors.dangerLight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginTop: 2,
   },
-  quickActionLabel: {
+
+  primaryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 16,
+    gap: 14,
+    overflow: 'hidden',
+  },
+  primaryGlow: {
+    position: 'absolute',
+    top: -20,
+    right: -20,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
+  primaryIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryContent: {
+    flex: 1,
+  },
+  primaryLabel: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: Colors.textMuted,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  primaryTitle: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    marginBottom: 3,
+  },
+  primaryReason: {
     fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+  },
+  primaryArrow: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  quickRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  quickCard: {
+    flex: 1,
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  quickIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  quickLabel: {
+    fontSize: 12,
     fontWeight: '600' as const,
     color: Colors.text,
     textAlign: 'center',
   },
-  quickActionDesc: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginTop: 2,
-    textAlign: 'center',
-  },
-  insightCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 20,
-    marginTop: 20,
-    alignItems: 'center',
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  insightTitle: {
-    fontSize: 13,
-    color: Colors.textMuted,
-    fontWeight: '500' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 1,
-  },
-  insightValue: {
-    fontSize: 28,
-    fontWeight: '700' as const,
-    color: Colors.primary,
-    marginTop: 4,
-  },
-  insightDesc: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  insightsBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.brandNavy,
-    borderRadius: 20,
+
+  emotionalCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 18,
     padding: 18,
-    marginTop: 16,
-  },
-  insightsBannerLeft: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  insightsBannerIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  insightsBannerText: {
-    flex: 1,
-  },
-  insightsBannerTitle: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    color: Colors.white,
-    marginBottom: 2,
-  },
-  insightsBannerDesc: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.8)',
-  },
-  regulationBanner: {
-    marginBottom: 4,
-  },
-  regulationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.warmGlow,
-    borderRadius: 16,
-    padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: Colors.accentLight,
+    borderColor: Colors.borderLight,
   },
-  regulationIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: '#F5E8DA',
+  emotionalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  emotionalIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: Colors.brandTealSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
-  regulationTextWrap: {
+  emotionalTitle: {
     flex: 1,
-  },
-  regulationTitle: {
     fontSize: 15,
     fontWeight: '600' as const,
     color: Colors.text,
   },
-  regulationDesc: {
+  emotionalBody: {
+    gap: 10,
+  },
+  emotionalMain: {
+    gap: 8,
+  },
+  emotionalState: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: Colors.text,
+  },
+  intensityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  intensityTrack: {
+    flex: 1,
+    height: 6,
+    backgroundColor: Colors.surface,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  intensityFill: {
+    height: 6,
+    borderRadius: 3,
+  },
+  intensityLabel: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.textMuted,
+    width: 32,
+    textAlign: 'right' as const,
+  },
+  emotionalTrigger: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+  },
+  emotionalEmpty: {
+    paddingVertical: 4,
+  },
+  emotionalEmptyText: {
+    fontSize: 14,
+    color: Colors.textMuted,
+    lineHeight: 20,
+  },
+
+  insightCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  insightHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  insightIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: Colors.brandLilacSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  insightTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.text,
+  },
+  insightGrid: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  insightItem: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    padding: 10,
+    alignItems: 'center',
+  },
+  insightItemLabel: {
+    fontSize: 10,
+    fontWeight: '600' as const,
+    color: Colors.textMuted,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.3,
+    marginBottom: 4,
+  },
+  insightItemValue: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    textAlign: 'center',
+  },
+  insightEmpty: {
+    fontSize: 14,
+    color: Colors.textMuted,
+    lineHeight: 20,
+  },
+
+  progressCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  progressIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: Colors.accentLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  progressTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.text,
+  },
+  progressStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    marginBottom: 12,
+  },
+  progressStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  progressStatValue: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: Colors.text,
+  },
+  progressStatLabel: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    fontWeight: '500' as const,
+    marginTop: 2,
+  },
+  progressDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: Colors.borderLight,
+  },
+  trendPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    gap: 5,
+    marginBottom: 10,
+  },
+  trendPillText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  milestoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  milestoneEmoji: {
+    fontSize: 16,
+  },
+  milestoneText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.text,
+    flex: 1,
+  },
+  encourageText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  progressEmpty: {
+    fontSize: 14,
+    color: Colors.textMuted,
+    lineHeight: 20,
+  },
+
+  safetyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.dangerLight,
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(196,120,120,0.2)',
+  },
+  safetyBannerText: {
+    flex: 1,
+  },
+  safetyBannerTitle: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.dangerDark,
+  },
+  safetyBannerDesc: {
     fontSize: 12,
     color: Colors.textSecondary,
     marginTop: 2,
   },
-  showMoreButton: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    gap: 6,
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    paddingVertical: 14,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  showMoreText: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: Colors.primary,
+
+  bottomSpacer: {
+    height: 8,
   },
 });
