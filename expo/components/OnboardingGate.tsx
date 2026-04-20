@@ -16,9 +16,14 @@ export default function OnboardingGate() {
     if (!hasCompletedOnboarding && !isOnboardingScreen) {
       hasRedirected.current = true;
       console.log('[OnboardingGate] Redirecting to onboarding');
-      setTimeout(() => {
-        router.replace('/onboarding');
-      }, 100);
+      const timer = setTimeout(() => {
+        try {
+          router.replace('/onboarding');
+        } catch (e) {
+          console.log('[OnboardingGate] replace error', e);
+        }
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [hasCompletedOnboarding, isLoading, segments, router]);
 

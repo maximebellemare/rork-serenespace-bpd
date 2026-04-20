@@ -617,7 +617,9 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   useEffect(() => {
-    void SplashScreen.hideAsync();
+    if (Platform.OS !== 'web') {
+      void SplashScreen.hideAsync();
+    }
   }, []);
 
   return (
