@@ -5,6 +5,8 @@ import React, { useEffect, lazy, Suspense } from "react";
 import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AppProvider } from "@/providers/AppProvider";
+import { AuthProvider } from "@/providers/AuthProvider";
+import AuthGate from "@/components/AuthGate";
 import { AICompanionProvider } from "@/providers/AICompanionProvider";
 import { ProfileProvider } from "@/providers/ProfileProvider";
 import { SubscriptionProvider } from "@/providers/SubscriptionProvider";
@@ -51,6 +53,7 @@ function RootLayoutNav() {
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="auth" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen
         name="onboarding"
         options={{
@@ -626,6 +629,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView>
         <ErrorBoundary>
+        <AuthProvider>
         <AppProvider>
           <AnalyticsProvider>
             <OnboardingProvider>
@@ -646,6 +650,7 @@ export default function RootLayout() {
                               <NotificationManagerLazy />
                             </Suspense>
                           )}
+                          <AuthGate />
                           <OnboardingGate />
                           <RootLayoutNav />
                         </NotificationEntryProvider>
@@ -663,6 +668,7 @@ export default function RootLayout() {
             </OnboardingProvider>
           </AnalyticsProvider>
         </AppProvider>
+        </AuthProvider>
         </ErrorBoundary>
       </GestureHandlerRootView>
     </QueryClientProvider>
