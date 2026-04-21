@@ -219,6 +219,23 @@ export default function UpgradeScreen() {
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId);
 
+  const anchorMessage = useMemo(() => {
+    const map: Record<string, string> = {
+      weekly_reflection: 'Unlock deeper weekly reflection insights',
+      therapist_report: 'Keep a complete history of your therapy reports',
+      unlimited_ai: 'Continue with unlimited AI companion support',
+      relationship_analysis: 'Unlock advanced relationship pattern analysis',
+      emotional_profile: 'Discover deeper emotional pattern intelligence',
+      secure_rewrite: 'Unlock calm, self-respecting secure rewrites',
+      message_simulation: 'See likely outcomes before you send',
+      message_health_scoring: 'Get detailed message health analysis',
+      communication_insights: 'Discover your communication patterns',
+      unlimited_rewrites: 'Continue with unlimited message rewrites',
+    };
+    if (!anchor) return '';
+    return map[anchor] ?? 'Unlock deeper support tools';
+  }, [anchor]);
+
   const shimmerOpacity = shimmerAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0.7, 1],
@@ -327,13 +344,9 @@ export default function UpgradeScreen() {
         )}
 
         <Animated.View style={[styles.testimonialCard, { opacity: fadeAnim }]}>
-          <Animated.View style={{ opacity: testimonialFade }}>
-            <Text style={styles.testimonialText}>
-              "{TESTIMONIALS[testimonialIndex].text}"
-            </Text>
-            <Text style={styles.testimonialLabel}>
-              {TESTIMONIALS[testimonialIndex].label}
-            </Text>
+          <Animated.View style={{ opacity: testimonialFade }} key={testimonialIndex}>
+            <Text style={styles.testimonialText}>{`"${TESTIMONIALS[testimonialIndex].text}"`}</Text>
+            <Text style={styles.testimonialLabel}>{TESTIMONIALS[testimonialIndex].label}</Text>
           </Animated.View>
         </Animated.View>
 
@@ -361,24 +374,12 @@ export default function UpgradeScreen() {
           style={[styles.featuresSection, { opacity: fadeAnim }]}
           onLayout={(e) => { featureSectionY.current = e.nativeEvent.layout.y; }}
         >
-          {anchor && (
+          {anchor ? (
             <View style={styles.anchorHighlight}>
               <Sparkles size={14} color="#D4956A" />
-              <Text style={styles.anchorHighlightText}>
-                {anchor === 'weekly_reflection' && 'Unlock deeper weekly reflection insights'}
-                {anchor === 'therapist_report' && 'Keep a complete history of your therapy reports'}
-                {anchor === 'unlimited_ai' && 'Continue with unlimited AI companion support'}
-                {anchor === 'relationship_analysis' && 'Unlock advanced relationship pattern analysis'}
-                {anchor === 'emotional_profile' && 'Discover deeper emotional pattern intelligence'}
-                {anchor === 'secure_rewrite' && 'Unlock calm, self-respecting secure rewrites'}
-                {anchor === 'message_simulation' && 'See likely outcomes before you send'}
-                {anchor === 'message_health_scoring' && 'Get detailed message health analysis'}
-                {anchor === 'communication_insights' && 'Discover your communication patterns'}
-                {anchor === 'unlimited_rewrites' && 'Continue with unlimited message rewrites'}
-                {!['weekly_reflection', 'therapist_report', 'unlimited_ai', 'relationship_analysis', 'emotional_profile', 'secure_rewrite', 'message_simulation', 'message_health_scoring', 'communication_insights', 'unlimited_rewrites'].includes(anchor) && 'Unlock deeper support tools'}
-              </Text>
+              <Text style={styles.anchorHighlightText}>{anchorMessage}</Text>
             </View>
-          )}
+          ) : null}
           <Text style={styles.comparisonTitle}>What Premium unlocks</Text>
           {PREMIUM_FEATURES.map((feature, index) => {
             const IconComponent = ICON_MAP[feature.icon] ?? Sparkles;
